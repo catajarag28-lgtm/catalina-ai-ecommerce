@@ -1,0 +1,71 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - name: Build
+        run: npm run build
+        env:
+          # configure-pages da "/catalina-ai-ecommerce" en github.io y "" con dominio propio.
+          BASE_PATH: ${{ steps.pages.outputs.base_path && format('{0}/', steps.pages.outputs.base_path) || '/' }}
+      - name: Verify build output
+        run: |
+          test -f dist/index.html || { echo "::error::dist/index.html missing"; exit 1; }
+          ls dist/assets/*.js > /dev/null || { echo "::error::no JS bundle in dist/assets"; exit 1; }
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify production URL
+        env:
+          URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -sS -o /tmp/index.html -w '%{http_code}' "$URL" || true)
+            if [ "$code" = "200" ]; then
+              asset=$(grep -oE 'assets/index-[^"]+\.js' /tmp/index.html | head -1)
+              acode=$(curl -sS -o /dev/null -w '%{http_code}' "${URL}${asset}")
+              echo "index 200, $asset -> $acode"
+              [ "$acode" = "200" ] && exit 0
+            fi
+            echo "attempt $i: HTTP $code"; sleep 10
+          done
+          echo "::error::Production URL not serving the build"; exit 1
