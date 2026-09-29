@@ -5,6 +5,8 @@ import { Float, Line, OrbitControls, Stars } from '@react-three/drei'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bot, BriefcaseBusiness, CheckCircle2, ChevronRight, Gauge, MessageCircleMore, Network, ShieldCheck, Sparkles } from 'lucide-react'
 import './styles.css'
+import CarolinaExperience from './components/CarolinaExperience'
+import FutureTwin from './components/FutureTwin'
 
 const nodes=[
  ['Adquisición',[-2.8,1.1,0]],
@@ -56,10 +58,10 @@ function App(){
    <section id="diagnostico" className="section">
     <div className="sectionHead"><span>EMPEZAMOS POR TU OBJETIVO</span><h2>No empiezo preguntándote qué IA quieres.</h2><p>Empiezo entendiendo qué quieres conseguir y dónde tu negocio necesita más capacidad.</p></div>
     <div className="intentGrid">{intents.map((x,i)=>{const Icon=x.icon;return <button key={x.title} onClick={()=>setActive(i)} className={"intentCard "+(active===i?'active':'')}><Icon/><div><h3>{x.title}</h3><p>{x.desc}</p></div><ChevronRight/></button>})}</div>
-    {active!==null&&<motion.div className="advisor" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}}><div className="advisorBadge"><Sparkles size={15}/> Asesora digital de Catalina</div><p className="advisorText">{active===0?'¿Qué te gustaría conseguir en tu negocio en los próximos 90 días que hoy te está costando demasiado tiempo, dinero o capacidad?':'¿Qué proceso de tu negocio te gustaría que pudiera funcionar mejor incluso cuando tu equipo no está conectado?'}</p><div className="quickReplies"><button>Vender más</button><button>Responder más rápido</button><button>Reducir trabajo manual</button><button>Mejorar seguimiento</button></div><small>La experiencia completa se conecta a datos reales en la siguiente fase.</small></motion.div>}
+    {active!==null&&<CarolinaExperience/>}
    </section>
 
-   <section id="sistema" className="section systemSection">
+   <FutureTwin/>\n\n   <section id="sistema" className="section systemSection">
     <div className="sectionHead"><span>EL SISTEMA DE TU NEGOCIO</span><h2>No optimizo piezas aisladas. Diseño cómo trabajan juntas.</h2></div>
     <div className="sixGrid">{nodes.map(([n],i)=><div className="nodeCard" key={n}><span>0{i+1}</span><h3>{n}</h3><p>{['Cómo llegan oportunidades correctas.','Cómo una conversación se convierte en decisión.','Cómo fluye el trabajo después de vender.','Cómo se siente cada interacción.','Cómo vuelven, recompran o recomiendan.','Cómo sabes qué está funcionando y qué cambiar.'][i]}</p></div>)}</div>
    </section>
