@@ -61,7 +61,9 @@ function App(){
     {active!==null&&<CarolinaExperience/>}
    </section>
 
-   <FutureTwin/>\n\n   <section id="sistema" className="section systemSection">
+   <FutureTwin/>
+
+   <section id="sistema" className="section systemSection">
     <div className="sectionHead"><span>EL SISTEMA DE TU NEGOCIO</span><h2>No optimizo piezas aisladas. Diseño cómo trabajan juntas.</h2></div>
     <div className="sixGrid">{nodes.map(([n],i)=><div className="nodeCard" key={n}><span>0{i+1}</span><h3>{n}</h3><p>{['Cómo llegan oportunidades correctas.','Cómo una conversación se convierte en decisión.','Cómo fluye el trabajo después de vender.','Cómo se siente cada interacción.','Cómo vuelven, recompran o recomiendan.','Cómo sabes qué está funcionando y qué cambiar.'][i]}</p></div>)}</div>
    </section>
