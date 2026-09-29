@@ -1,98 +1,111 @@
-import React, { Suspense, useMemo, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Canvas } from '@react-three/fiber'
-import { Float, Line, OrbitControls, Stars } from '@react-three/drei'
-import { motion } from 'framer-motion'
-import { ArrowRight, Bot, BriefcaseBusiness, CheckCircle2, ChevronRight, Gauge, MessageCircleMore, Network, ShieldCheck, Sparkles } from 'lucide-react'
+import React,{Suspense,useMemo,useState} from 'react'
+import {createRoot} from 'react-dom/client'
+import {Canvas} from '@react-three/fiber'
+import {Float,Line,OrbitControls} from '@react-three/drei'
+import {motion} from 'framer-motion'
+import {ArrowRight,Workflow,Bot,BrainCircuit,Network,ShoppingBag,BarChart3,Users,Settings2,MessageCircleMore,CheckCircle2,BriefcaseBusiness,ShieldCheck,Sparkles} from 'lucide-react'
 import './styles.css'
 import CarolinaExperience from './components/CarolinaExperience'
 import FutureTwin from './components/FutureTwin'
 
-const nodes=[
- ['Adquisición',[-2.8,1.1,0]],
- ['Conversión',[-1.3,2.2,0.4]],
- ['Operación',[1.2,2.1,-0.2]],
- ['Experiencia',[2.7,0.7,0.3]],
- ['Retención',[1.5,-1.5,-0.1]],
- ['Inteligencia',[-1.6,-1.6,0.2]],
+const companyNodes=[
+ ['Growth',[-2.7,1.1,0]],['Ventas',[-1.2,2.15,.4]],['Clientes',[1.25,2.05,-.2]],
+ ['Operaciones',[2.7,.65,.3]],['Equipo',[1.5,-1.5,-.1]],['Dirección',[-1.55,-1.6,.2]]
 ]
-function NeuralSystem(){
- const points=useMemo(()=>[...nodes.map(n=>n[1]),nodes[0][1]],[])
+function Company3D(){
+ const pts=useMemo(()=>[...companyNodes.map(n=>n[1]),companyNodes[0][1]],[])
  return <Canvas camera={{position:[0,0,8],fov:48}} dpr={[1,1.5]}>
-  <ambientLight intensity={.35}/><pointLight position={[0,0,5]} intensity={25} distance={10}/>
-  <Stars radius={30} depth={20} count={300} factor={1.2} saturation={0} fade speed={.25}/>
-  <Line points={points} color="#c79a57" lineWidth={1.5} transparent opacity={.55}/>
-  {nodes.map(([label,pos],i)=><Float key={label} speed={1+i*.08} rotationIntensity={.14} floatIntensity={.28}>
-   <mesh position={pos}><sphereGeometry args={[.24,32,32]}/><meshStandardMaterial color="#e6c28a" emissive="#9b6a2e" emissiveIntensity={2.1} metalness={.6} roughness={.2}/></mesh>
-   <mesh position={pos} scale={1.75}><sphereGeometry args={[.24,20,20]}/><meshBasicMaterial color="#b98743" transparent opacity={.08}/></mesh>
-  </Float>)}
-  <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={.2} maxPolarAngle={Math.PI*.68} minPolarAngle={Math.PI*.32}/>
+  <ambientLight intensity={2.2}/><directionalLight position={[3,4,5]} intensity={3}/>
+  <Line points={pts} color="#b78a51" lineWidth={2} transparent opacity={.65}/>
+  {companyNodes.map(([label,pos],i)=><Float key={label} speed={1+i*.05} rotationIntensity={.08} floatIntensity={.22}><group position={pos}>
+   <mesh><sphereGeometry args={[.31,32,32]}/><meshStandardMaterial color="#f6ead8" emissive="#d6a96d" emissiveIntensity={.45} metalness={.25} roughness={.18}/></mesh>
+   <mesh scale={1.65}><sphereGeometry args={[.31,20,20]}/><meshBasicMaterial color="#d8b37f" transparent opacity={.12}/></mesh>
+  </group></Float>)}
+  <mesh><icosahedronGeometry args={[.62,2]}/><meshStandardMaterial color="#fffaf2" metalness={.35} roughness={.12}/></mesh>
+  <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={.32}/>
  </Canvas>
 }
-const intents=[
- {title:'Quiero crecer sin multiplicar el caos',desc:'Detectamos dónde crear capacidad, conversión o retención.',icon:Gauge},
- {title:'Quiero construir un empleado digital',desc:'Diseñamos un agente con la identidad, reglas y sistemas de tu empresa.',icon:Bot},
+const services=[
+ {icon:Workflow,title:'Automatizaciones & flujos',price:'Desde USD 500',text:'Conectamos tareas y herramientas para que procesos repetitivos ocurran sin depender de trabajo manual.',tags:'Workflows · APIs · CRM · reportes · alertas'},
+ {icon:Bot,title:'Agentes de IA',price:'Desde USD 1.000',text:'Ventas, recepción, atención, citas, seguimiento, operaciones o asistencia ejecutiva.',tags:'Contexto · herramientas · acciones · handoff'},
+ {icon:BrainCircuit,title:'IA personalizada',price:'Desde USD 1.500',text:'Un agente diseñado alrededor de tu empresa: personalidad, conocimiento, reglas, permisos y forma de trabajar.',tags:'Nada genérico · español/inglés · memoria autorizada'},
+ {icon:BarChart3,title:'Estrategia & Growth',price:'Desde diagnóstico / cotización',text:'Oferta, adquisición, Meta Ads, conversión, funnels, ecommerce, CRM, retención y crecimiento.',tags:'Estrategia · CRO · growth · customer journey'},
+ {icon:ShoppingBag,title:'Ecommerce & operaciones',price:'Desde USD 3.000',text:'Shopify, WhatsApp, pedidos, clientes, seguimiento, integraciones y operación conectada.',tags:'Commerce · CX · fulfillment · automatización'},
+ {icon:Network,title:'Sistemas multiagente / Business OS',price:'Desde USD 5.000',text:'Varios agentes, automatizaciones, datos, herramientas y personas coordinados alrededor de la empresa.',tags:'Ventas · CX · operaciones · growth · dirección'},
+ {icon:Users,title:'Equipo & conocimiento',price:'Según alcance',text:'SOP, onboarding, búsqueda interna, asistentes de conocimiento y menos dependencia de personas clave.',tags:'Knowledge · SOP · training · soporte interno'},
+ {icon:Settings2,title:'Producto & sistemas digitales',price:'Según alcance',text:'Estrategia de producto, journeys, experiencia, definición funcional y dirección de construcción con IA.',tags:'Product strategy · AI UX · sistemas'}
+]
+const pains=[
+ ['Todo termina dependiendo de mí.','Podemos revisar decisiones, conocimiento, aprobaciones y procesos que todavía dependen del dueño.'],
+ ['Mi equipo hace tareas repetitivas todos los días.','Primero buscamos qué puede simplificarse o automatizarse sin agregar IA innecesaria.'],
+ ['Tengo herramientas, pero no trabajan juntas.','Diseñamos flujos e integraciones para que la información se mueva sin copiar y pegar.'],
+ ['Mi equipo pregunta siempre lo mismo.','Podemos convertir conocimiento disperso en un sistema útil para las personas.'],
+ ['No sé realmente qué está pasando en mi empresa.','Consolidamos señales, reportes y alertas para mejorar visibilidad y decisiones.'],
+ ['Quiero crecer, pero no quiero duplicar el caos.','Modelamos qué proceso se saturaría primero y dónde crear capacidad.'],
+ ['Tengo oportunidades, pero algo se pierde en el camino.','Revisamos adquisición, respuesta, conversión, seguimiento, oferta y retención antes de culpar a un solo punto.'],
+ ['Quiero crear algo nuevo con IA.','Aterrizamos la idea en producto, experiencia, arquitectura funcional y una ruta de construcción.']
+]
+const levels=[
+ ['Chatbot','Responde y guía principalmente por reglas, menús o caminos definidos.'],
+ ['Flujo automatizado','Cuando ocurre A, ejecuta B, C y D. No necesita IA para ser valioso.'],
+ ['Automatización inteligente','Un flujo usa IA en puntos concretos para interpretar, clasificar o resumir.'],
+ ['Agente con IA','Comprende contexto y usa herramientas para actuar dentro de permisos definidos.'],
+ ['Agente personalizado','Tiene la identidad, conocimiento, procesos, límites y personalidad de tu empresa.'],
+ ['Sistema multiagente','Varios especialistas coordinados alrededor de diferentes funciones.'],
+ ['AI Business OS','Personas, agentes, automatizaciones, datos y herramientas operando como un sistema.']
+]
+const prices=[
+ ['Diagnóstico','USD 197–500','Encontrar la oportunidad antes de construir.'],
+ ['Automation Starter','USD 500–1.000','Un proceso o flujo concreto.'],
+ ['AI Starter','USD 1.000–1.500','Agente sencillo adaptado al negocio.'],
+ ['AI Employee','USD 1.500–3.000','Agente personalizado + conocimiento + acciones.'],
+ ['AI Growth System','USD 2.500–5.000','CRM, seguimiento, integraciones y automatización.'],
+ ['Commerce & Operations','USD 3.000–7.500+','Ecommerce, CX y operación conectada.'],
+ ['Multi-Agent System','USD 5.000–10.000+','Varios agentes y procesos coordinados.'],
+ ['AI Business OS','USD 7.500–20.000+','Arquitectura empresarial avanzada a medida.']
 ]
 function App(){
- const [active,setActive]=useState(null)
- const [agentStep,setAgentStep]=useState(0)
- const [role,setRole]=useState('Ventas')
- const [tone,setTone]=useState('Directa y cálida')
+ const [showCarolina,setShowCarolina]=useState(false)
+ const [role,setRole]=useState('Asesora comercial'),[tone,setTone]=useState('Cálida y ejecutiva')
  return <div className="app">
-  <header className="nav"><div className="brand">CATALINA JARAMILLO</div><nav><a href="#sistema">Sistema</a><a href="#agentes">AI Employees</a><a href="#casos">Casos</a><a className="navCta" href="#diagnostico">Descubrir oportunidades</a></nav></header>
+  <header className="nav"><a className="brand" href="#">CATALINA JARAMILLO</a><nav><a href="#servicios">Servicios</a><a href="#como-funciona">Qué construimos</a><a href="#precios">Precios</a><a href="#perfil">Perfil</a><a className="navCta" href="#carolina">Hablar con Carolina</a></nav></header>
   <main>
    <section className="hero">
-    <div className="heroGlow"/>
-    <motion.div className="heroCopy" initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} transition={{duration:.8}}>
-      <div className="eyebrow">AI COMMERCE · PRODUCT · GROWTH</div>
-      <h1>Tu empresa ya evolucionó.<br/><span>¿Tu forma de operar evolucionó con ella?</span></h1>
-      <p className="lead">Diseño sistemas que conectan estrategia, ventas, experiencia del cliente, operaciones e inteligencia artificial para convertir negocios complejos en operaciones más simples, medibles y rentables.</p>
-      <div className="actions"><a className="btn primary" href="#diagnostico">Descubrir oportunidades <ArrowRight size={18}/></a><a className="btn ghost" href="#agentes">Construir un empleado digital</a></div>
-      <div className="proof"><span>15+ años en ventas y negocios</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
+    <motion.div className="heroCopy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}}>
+     <div className="eyebrow">ESTRATEGIA · AUTOMATIZACIÓN · IA · GROWTH</div>
+     <h1>Haz que tu empresa <span>funcione mejor.</span></h1>
+     <p className="lead"><b>Diseño e implemento soluciones para empresas:</b> estrategia, automatizaciones, agentes de IA personalizados, ecommerce, growth, operaciones y sistemas inteligentes.</p>
+     <p className="heroPlain">Desde eliminar una tarea repetitiva hasta conectar varias áreas de tu empresa. <b>No tienes que saber qué tecnología necesitas.</b></p>
+     <div className="actions"><a className="btn primary" href="#servicios">Ver servicios y precios <ArrowRight size={18}/></a><a className="btn ghost" href="#carolina">Cuéntale a Carolina qué necesitas</a></div>
+     <div className="priceStrip"><span>Automatizaciones <b>desde USD 500</b></span><span>Agentes IA <b>desde USD 1.000</b></span><span>Sistemas <b>desde USD 5.000</b></span></div>
+     <div className="proof"><span>15+ años en ventas y negocios</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
     </motion.div>
-    <div className="heroVisual"><NeuralSystem/><div className="visualLabel">BUSINESS NEURAL SYSTEM<div>6 sistemas · 1 operación conectada</div></div></div>
+    <div className="heroVisual"><Company3D/><div className="visualLabel"><b>TU EMPRESA</b><div>Growth · Ventas · Clientes · Operaciones · Equipo · Dirección</div></div></div>
    </section>
 
-   <section className="transition"><p>Crecer no debería significar multiplicar la complejidad.</p></section>
+   <section className="painSection"><div className="sectionHead"><span>ANTES DE HABLAR DE TECNOLOGÍA</span><h2>¿Algo de esto está frenando a tu empresa?</h2><p>No todos los problemas son de ventas. No todos necesitan IA. Empezamos por entender qué está ocurriendo de verdad.</p></div><div className="painGrid">{pains.map(([t,d])=><article key={t}><h3>“{t}”</h3><p>{d}</p></article>)}</div><div className="scaleQuestion"><span>UNA PREGUNTA IMPORTANTE</span><h3>Si mañana tu volumen creciera 2×, ¿qué parte de tu empresa se saturaría primero?</h3><a href="#carolina">Descubrirlo con Carolina <ArrowRight size={17}/></a></div></section>
 
-   <section id="diagnostico" className="section">
-    <div className="sectionHead"><span>EMPEZAMOS POR TU OBJETIVO</span><h2>No empiezo preguntándote qué IA quieres.</h2><p>Empiezo entendiendo qué quieres conseguir y dónde tu negocio necesita más capacidad.</p></div>
-    <div className="intentGrid">{intents.map((x,i)=>{const Icon=x.icon;return <button key={x.title} onClick={()=>setActive(i)} className={"intentCard "+(active===i?'active':'')}><Icon/><div><h3>{x.title}</h3><p>{x.desc}</p></div><ChevronRight/></button>})}</div>
-    {active!==null&&<CarolinaExperience/>}
-   </section>
+   <section id="servicios" className="section"><div className="sectionHead"><span>SERVICIOS</span><h2>¿Qué podemos hacer por tu empresa?</h2><p>Puedes empezar resolviendo una necesidad puntual o construir un sistema más completo. Cada solución se adapta al negocio.</p></div><div className="serviceGrid">{services.map(({icon:Icon,title,price,text,tags})=><article className="serviceCard" key={title}><Icon/><div className="servicePrice">{price}</div><h3>{title}</h3><p>{text}</p><small>{tags}</small><a href="#carolina">¿Es para mi empresa? <ArrowRight size={14}/></a></article>)}</div></section>
+
+   <section id="como-funciona" className="section explainer"><div className="sectionHead"><span>QUE SEA CLARO</span><h2>Chatbot, flujo, agente… no son lo mismo.</h2><p>No te vendemos la palabra “IA”. Elegimos la arquitectura más sencilla que pueda resolver bien el problema.</p></div><div className="levelTrack">{levels.map(([t,d],i)=><div className="level" key={t}><b>{String(i+1).padStart(2,'0')}</b><h3>{t}</h3><p>{d}</p></div>)}</div><div className="oneLine"><b>Un chatbot responde.</b><b>Un flujo ejecuta.</b><b>Un agente entiende y actúa.</b><b>Un sistema los coordina.</b></div></section>
+
+   <section className="section customAgent"><div className="sectionHead"><span>TU IA · NO LA NUESTRA</span><h2>Podemos construir una IA con la identidad de tu empresa.</h2><p>No instalamos una personalidad genérica. Diseñamos cómo debe hablar, qué sabe, qué puede hacer, qué no puede hacer y cuándo debe pasar a una persona.</p></div><div className="builderGrid"><div className="builderPanel"><label>Rol</label><div className="chips">{['Asesora comercial','Recepción','Servicio al cliente','Operaciones','Asistente ejecutivo'].map(x=><button className={role===x?'selected':''} onClick={()=>setRole(x)} key={x}>{x}</button>)}</div><label>Personalidad</label><div className="chips">{['Cálida y ejecutiva','Cercana','Elegante','Técnica'].map(x=><button className={tone===x?'selected':''} onClick={()=>setTone(x)} key={x}>{x}</button>)}</div><ul className="capabilities"><li><CheckCircle2/>Conoce tus productos, procesos y políticas</li><li><CheckCircle2/>Usa herramientas y acciones autorizadas</li><li><CheckCircle2/>Mantiene contexto dentro de tus reglas</li><li><CheckCircle2/>Escala excepciones a personas</li></ul></div><div className="conversation"><div className="conversationTop"><div className="avatar">AI</div><div><strong>{role}</strong><span>{tone} · personalizada para TU empresa</span></div></div><div className="bubble user">Necesito ayuda, pero no sé exactamente qué opción me conviene.</div><div className="bubble ai">Claro. Antes de recomendarte algo quiero entender qué quieres conseguir y qué está pasando hoy. Así no te ofrezco una solución que no necesitas.</div><div className="liveTag">IDENTIDAD · CONOCIMIENTO · MEMORIA · PERMISOS · ACCIONES · HANDOFF HUMANO</div></div></div></section>
+
+   <section className="section osSection"><div className="osVisual"><Company3D/></div><div className="osCopy"><span>DE UNA TAREA A UN SISTEMA</span><h2>Puedes automatizar una tarea. O podemos conectar una empresa entera.</h2><p>Cuando un solo agente no basta, diseñamos sistemas donde ventas, clientes, operaciones, growth, conocimiento y dirección pueden trabajar con agentes especializados, automatizaciones y personas.</p><div className="controlTower"><b>CONTROL TOWER</b><span>Personas · permisos · métricas · alertas · excepciones · límites</span></div><a className="textLink" href="#carolina">Explorar una arquitectura para mi empresa <ArrowRight size={16}/></a></div></section>
+
+   <section id="carolina" className="section carolinaSection"><div className="sectionHead"><span>CAROLINA · ASESORA DIGITAL DE CATALINA</span><h2>No tienes que llegar sabiendo qué comprar.</h2><p>Cuéntale qué quieres conseguir o qué está siendo difícil. Carolina te ayuda a ordenar el problema antes de hablar de una solución.</p></div>{!showCarolina?<button className="carolinaLaunch" onClick={()=>setShowCarolina(true)}><MessageCircleMore/><div><b>Hablar con Carolina</b><span>Empieza por tu negocio, no por la tecnología.</span></div><ArrowRight/></button>:<CarolinaExperience/>}</section>
 
    <FutureTwin/>
 
-   <section id="sistema" className="section systemSection">
-    <div className="sectionHead"><span>EL SISTEMA DE TU NEGOCIO</span><h2>No optimizo piezas aisladas. Diseño cómo trabajan juntas.</h2></div>
-    <div className="sixGrid">{nodes.map(([n],i)=><div className="nodeCard" key={n}><span>0{i+1}</span><h3>{n}</h3><p>{['Cómo llegan oportunidades correctas.','Cómo una conversación se convierte en decisión.','Cómo fluye el trabajo después de vender.','Cómo se siente cada interacción.','Cómo vuelven, recompran o recomiendan.','Cómo sabes qué está funcionando y qué cambiar.'][i]}</p></div>)}</div>
-   </section>
+   <section id="precios" className="section pricing"><div className="sectionHead"><span>INVERSIÓN ORIENTATIVA</span><h2>Empieza pequeño. Escala cuando tenga sentido.</h2><p>Estos rangos sirven para orientarte y autocalificar el proyecto. El precio final depende del alcance, integraciones y complejidad. Plataformas y consumos externos se cotizan aparte.</p></div><div className="priceGrid">{prices.map(([n,p,d])=><article key={n}><span>{n}</span><h3>{p}</h3><p>{d}</p></article>)}</div></section>
 
-   <section id="agentes" className="section agentBuilder">
-    <div className="sectionHead"><span>AI EMPLOYEES</span><h2>Tu agente, con la identidad de TU empresa.</h2><p>No instalamos una personalidad genérica encima de tu negocio. Diseñamos cómo debe pensar, hablar, actuar y escalar dentro de tus reglas.</p></div>
-    <div className="builderGrid"><div className="builderPanel">
-      <label>Rol</label><div className="chips">{['Ventas','Recepción','Customer Experience','Operaciones'].map(x=><button className={role===x?'selected':''} onClick={()=>setRole(x)} key={x}>{x}</button>)}</div>
-      <label>Personalidad</label><div className="chips">{['Directa y cálida','Elegante','Técnica','Cercana'].map(x=><button className={tone===x?'selected':''} onClick={()=>setTone(x)} key={x}>{x}</button>)}</div>
-      <label>Qué puede hacer</label><ul className="capabilities"><li><CheckCircle2/>Consultar contexto autorizado</li><li><CheckCircle2/>Responder y calificar</li><li><CheckCircle2/>Ejecutar acciones permitidas</li><li><CheckCircle2/>Escalar a una persona</li></ul>
-    </div><div className="conversation">
-      <div className="conversationTop"><div className="avatar">AI</div><div><strong>Agente de {role}</strong><span>{tone}</span></div></div>
-      <div className="bubble user">Hola, estoy comparando opciones pero todavía no sé cuál me conviene.</div>
-      <div className="bubble ai">{role==='Ventas'?'Antes de recomendarte algo, quiero entender una cosa: ¿qué resultado te importa más ahora mismo, crecer más rápido o reducir la carga de tu equipo?':'Claro. Primero voy a ubicar qué necesitas y qué puedo resolver directamente. Si hace falta criterio humano, te conecto con la persona correcta.'}</div>
-      <div className="liveTag">PERSONALIDAD · CONTEXTO · REGLAS · HANDOFF HUMANO</div>
-    </div></div>
-   </section>
+   <section id="perfil" className="section profile"><div className="profilePhoto"><img src="https://raw.githubusercontent.com/catajarag28-lgtm/catalina-ai-ecommerce/main/public/catalina.jpg" alt="Catalina Jaramillo" onError={e=>{e.currentTarget.style.display='none'}}/><div className="photoFallback">CATALINA<br/>JARAMILLO</div></div><div className="profileCopy"><span>LA PERSONA DETRÁS DE LOS SISTEMAS</span><h2>No llegué a la IA desde la tecnología. Llegué desde el negocio.</h2><p>Mi experiencia conecta estrategia comercial, ventas, customer experience, ecommerce, growth, equipos, operaciones y diseño funcional de sistemas con IA.</p><p>Eso cambia la pregunta: no es “¿dónde ponemos IA?”, sino “¿qué necesita funcionar mejor y cuál es la forma más inteligente de resolverlo?”.</p><div className="profileFacts"><b>15+ años</b><span>ventas, marketing, consultoría y operación</span><b>Founder-operator</b><span>experiencia real construyendo y operando negocios</span><b>Product Owner</b><span>sistemas y productos digitales dirigidos con IA</span></div></div></section>
 
-   <section className="section lifecycle"><div className="sectionHead"><span>CÓMO TRABAJAMOS</span><h2>DIAGNOSE → DESIGN → DEPLOY → PROVE → EVOLVE</h2></div><div className="lifeGrid">{[['01','Diagnose','Entendemos objetivo, proceso, fricción y baseline.'],['02','Design','Diseñamos sistema, agente o automatización correcta.'],['03','Deploy','Implementamos con límites, contexto y handoff.'],['04','Prove','Medimos capacidad, errores, velocidad y resultados.'],['05','Evolve','Mejoramos con evidencia, no con suposiciones.']].map(([n,t,d])=><div className="lifeCard"><b>{n}</b><h3>{t}</h3><p>{d}</p></div>)}</div></section>
+   <section className="section cases"><div className="sectionHead"><span>CASOS QUE MUESTRAN CAPACIDAD</span><h2>Negocio, sistemas y producto.</h2></div><div className="caseGrid"><article><BriefcaseBusiness/><h3>Professional Glam</h3><p>Como fundadora-operadora, dirigí un ecosistema DTC que registra más de COP 1.000 millones en ventas Shopify y 9.296 órdenes digitales.</p><small>ECOMMERCE · GROWTH · VENTAS · CX · OPERACIÓN</small></article><article><Network/><h3>LAURA</h3><p>Sistema modular diseñado para conectar conversación, ventas, pedidos, postventa, operaciones, growth e inteligencia alrededor de una operación real.</p><small>AI SYSTEMS · AGENTS · OPERATIONS</small></article><article><ShieldCheck/><h3>Sin Autosabotaje</h3><p>Producto digital longitudinal basado en evidencia, diseñado alrededor de diagnóstico, memoria, intervención, acción y medición.</p><small>PRODUCT STRATEGY · AI UX · SYSTEM DESIGN</small></article></div></section>
 
-   <section id="casos" className="section cases"><div className="sectionHead"><span>CASOS REALES DE CONSTRUCCIÓN</span><h2>Experiencia operando, no solo recomendando.</h2></div><div className="caseGrid">
-    <article><div className="caseIcon"><BriefcaseBusiness/></div><h3>Professional Glam</h3><p>Como fundadora-operadora, dirigí un ecosistema DTC que registra más de COP 1.000 millones en ventas Shopify y 9.296 órdenes digitales.</p><div className="caseTags"><span>Ecommerce</span><span>Ventas</span><span>CX</span><span>Operación</span></div></article>
-    <article><div className="caseIcon"><Network/></div><h3>LAURA</h3><p>Sistema modular de comercio con IA diseñado para conectar ventas, WhatsApp, pedidos, postventa, operación, inteligencia y seguimiento.</p><div className="caseTags"><span>AI Commerce</span><span>Agents</span><span>Operations</span></div></article>
-    <article><div className="caseIcon"><ShieldCheck/></div><h3>Sin Autosabotaje</h3><p>Producto digital longitudinal basado en evidencia, diseñado alrededor de diagnóstico, memoria, intervención, acción y medición de cambio.</p><div className="caseTags"><span>Product</span><span>AI UX</span><span>Systems</span></div></article>
-   </div></section>
-
-   <section className="finalCta"><span>NO NECESITAS “PONER IA”.</span><h2>Necesitas saber dónde realmente puede darte más capacidad.</h2><p>Primero entendemos qué quieres conseguir. Después decidimos si necesitas un agente, una automatización, un rediseño o nada de eso.</p><a className="btn primary" href="#diagnostico">Descubrirlo <ArrowRight size={18}/></a></section>
+   <section className="trust"><Sparkles/><span>QUIZÁS NO NECESITAS IA.</span><h2>Quizás necesitas organizar un proceso, mejorar una oferta, conectar herramientas o simplemente ver mejor lo que está pasando.</h2><p>Primero entendemos. Después recomendamos.</p><a className="btn primary" href="#carolina">Cuéntale a Carolina <ArrowRight size={18}/></a></section>
   </main>
-  <footer><div>CATALINA JARAMILLO</div><div>AI Commerce · Product · Growth Strategist</div><div>© 2026</div></footer>
+  <footer><b>CATALINA JARAMILLO</b><span>Strategy · Growth · Automation · AI Systems</span><span>© 2026</span></footer>
  </div>
 }
 createRoot(document.getElementById('root')).render(<Suspense fallback={null}><App/></Suspense>)
