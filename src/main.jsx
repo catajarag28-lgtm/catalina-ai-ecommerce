@@ -62,6 +62,34 @@ const prices=[
  ['AI Commerce Operations System','USD 7.500+ + mantenimiento','Ventas, clientes, ecommerce y operación coordinados en una arquitectura a medida.'],
  ['Diagnóstico estratégico','Por cotización','Diagnóstico pagado; su valor puede descontarse del proyecto si avanzamos a implementación.']
 ]
+function InteractiveSystemDemo({onConsult}){
+ const modes={
+  'FLUJO':{title:'Un flujo ejecuta.',sub:'Una señal activa una secuencia predefinida.',nodes:['SOLICITUD','VALIDAR','CRM','CONFIRMAR','EQUIPO']},
+  'CHATBOT':{title:'Un chatbot responde y guía.',sub:'Trabaja muy bien cuando existen caminos definidos.',nodes:['CLIENTE','MENÚ','INFORMACIÓN','AGENDAR','HUMANO']},
+  'AGENTE IA':{title:'Un agente entiende y actúa.',sub:'Interpreta contexto, consulta herramientas y actúa dentro de permisos.',nodes:['INTENCIÓN','CONTEXTO','CONOCIMIENTO','ACCIÓN','HUMANO']},
+  'TU AGENTE':{title:'Tu empleado digital.',sub:'Diseñado con la identidad, conocimiento, permisos y límites de tu empresa.',nodes:['TU MARCA','PERSONALIDAD','CONOCIMIENTO','PERMISOS','ACCIONES']},
+  'BUSINESS OS':{title:'Un sistema los coordina.',sub:'Agentes, automatizaciones, datos y personas trabajando como una arquitectura.',nodes:['VENTAS AI','CX AI','OPS AI','KNOWLEDGE AI','CONTROL TOWER']}
+ }
+ const [mode,setMode]=useState('FLUJO'),[step,setStep]=useState(0),[playing,setPlaying]=useState(true)
+ const data=modes[mode]
+ useEffect(()=>{setStep(0);setPlaying(true)},[mode])
+ useEffect(()=>{if(!playing)return;const id=setInterval(()=>setStep(v=>(v+1)%data.nodes.length),1050);return()=>clearInterval(id)},[playing,data.nodes.length])
+ return <section className={"section systemCinema mode-"+mode.replaceAll(' ','-')}>
+  <div className="sectionHead"><span>EXPERIENCIA INTERACTIVA · NO SOLO TE LO CONTAMOS</span><h2>Mira cómo trabaja cada sistema.</h2><p>Toca una arquitectura y observa qué ocurre dentro. Así puedes entender qué necesitas antes de comprar tecnología.</p></div>
+  <div className="cinemaTabs">{Object.keys(modes).map(k=><button key={k} className={mode===k?'active':''} onClick={()=>setMode(k)}>{k}</button>)}</div>
+  <div className="cinemaStage">
+   <div className="stageAtmosphere"/><div className="stageGrid"/>
+   <div className="stageHeader"><span>SIMULACIÓN EN VIVO</span><button onClick={()=>setPlaying(v=>!v)}>{playing?'PAUSAR':'REPRODUCIR'}</button></div>
+   <div className="signalTrack">{data.nodes.map((n,i)=><React.Fragment key={n}><div className={"signalNode "+(i===step?'hot':'')+(i<step?' done':'')}><i>{String(i+1).padStart(2,'0')}</i><b>{n}</b>{i===step&&<small>ACTIVO</small>}</div>{i<data.nodes.length-1&&<div className={"signalLine "+(i<step?'lit':'')}><span/></div>}</React.Fragment>)}</div>
+   <div className="stageStory">
+    <div className="stagePhone"><span>CLIENTE</span><p>{mode==='CHATBOT'?'“Quiero agendar una cita.”':mode==='FLUJO'?'Nueva solicitud recibida':mode==='BUSINESS OS'?'La empresa recibe una nueva oportunidad':mode==='TU AGENTE'?'“Necesito ayuda, pero quiero hablar como habla mi marca.”':'“Quiero comprar, pero primero revisa mi pedido anterior.”'}</p></div>
+    <div className="stageBrain"><div className="brainOrb"><b>{mode==='TU AGENTE'?'TU AI':mode==='BUSINESS OS'?'OS':'AI'}</b></div><span>{data.nodes[step]}</span></div>
+    <div className="stageAction"><span>RESULTADO</span><p>{mode==='FLUJO'?'La tarea avanza automáticamente.':mode==='CHATBOT'?'El usuario recibe una ruta y una respuesta.':mode==='AGENTE IA'?'Consulta, actúa o escala según sus permisos.':mode==='TU AGENTE'?'Responde y actúa con tus reglas, tono y conocimiento.':'Cada especialista actúa y Control Tower conserva supervisión.'}</p></div>
+   </div>
+  </div>
+  <div className="cinemaCaption"><div><span>{mode}</span><h3>{data.title}</h3><p>{data.sub}</p></div><button onClick={onConsult}>¿Cómo funcionaría en mi empresa? <ArrowRight size={17}/></button></div>
+ </section>
+}
 function App(){
  const [showCarolina,setShowCarolina]=useState(false)
  const [heroScene,setHeroScene]=useState(0)
@@ -109,7 +137,7 @@ function App(){
 
    <section className="section verticalOffers"><div className="sectionHead"><span>SOLUCIONES CON RESULTADO CONCRETO</span><h2>No vendo un chatbot. Construyo capacidad para tu empresa.</h2><p>El agente aprende la personalidad, servicios, reglas, conocimiento y límites de tu negocio. Puede atender, calificar, agendar, hacer seguimiento y entregar la conversación a una persona cuando corresponde.</p></div><div className="offerShowcase"><article><span>CLÍNICAS & MED SPAS</span><h3>AI Concierge bilingüe</h3><p>Atención administrativa, financiación y promociones autorizadas, citas, recordatorios, seguimiento y reactivación. No diagnostica ni recomienda procedimientos clínicos.</p></article><article><span>FIRMAS & SERVICIOS PROFESIONALES</span><h3>AI Intake Agent</h3><p>Identifica la necesidad general, recopila información inicial, explica el proceso, agenda, hace seguimiento y escala la evaluación profesional al equipo humano.</p></article><article><span>ECOMMERCE & ALTO VALOR</span><h3>AI Sales + Operations</h3><p>Respuesta, calificación, CRM, seguimiento, recuperación de oportunidades y conexión con la operación.</p></article></div></section><section id="servicios" className="section immersiveServices"><div className="serviceWorld"><Company3D/></div><div className="sectionHead"><span>SERVICIOS</span><h2>¿Qué podemos hacer por tu empresa?</h2><p>Puedes empezar resolviendo una necesidad puntual o construir un sistema más completo. Cada solución se adapta al negocio.</p></div><div className="serviceGrid">{services.map(({icon:Icon,title,price,text,tags})=><article className="serviceCard" key={title}><Icon/><div className="servicePrice">{price}</div><h3>{title}</h3><p>{text}</p><small>{tags}</small><a href="#descubrir">¿Es para mi empresa? <ArrowRight size={14}/></a></article>)}</div></section>
 
-   <section id="como-funciona" className="section explainer"><div className="sectionHead"><span>QUE SEA CLARO</span><h2>Chatbot, flujo, agente… no son lo mismo.</h2><p>No te vendemos la palabra “IA”. Elegimos la arquitectura más sencilla que pueda resolver bien el problema.</p></div><div className="levelTrack">{levels.map(([t,d],i)=><div className="level" key={t}><b>{String(i+1).padStart(2,'0')}</b><h3>{t}</h3><p>{d}</p></div>)}</div><div className="oneLine"><b>Un chatbot responde.</b><b>Un flujo ejecuta.</b><b>Un agente entiende y actúa.</b><b>Un sistema los coordina.</b></div></section>
+   <div id="como-funciona"><InteractiveSystemDemo onConsult={()=>{setShowCarolina(true);setTimeout(()=>document.getElementById('descubrir')?.scrollIntoView({behavior:'smooth'}),60)}}/></div>
 
    <section className="section customAgent"><div className="sectionHead"><span>TU IA · NO LA NUESTRA</span><h2>Podemos construir una IA con la identidad de tu empresa.</h2><p>No instalamos una personalidad genérica. Diseñamos cómo debe hablar, qué sabe, qué puede hacer, qué no puede hacer y cuándo debe pasar a una persona.</p></div><div className="builderGrid"><div className="builderPanel"><label>Rol</label><div className="chips">{['Asesora comercial','Recepción','Servicio al cliente','Operaciones','Asistente ejecutivo'].map(x=><button className={role===x?'selected':''} onClick={()=>setRole(x)} key={x}>{x}</button>)}</div><label>Personalidad</label><div className="chips">{['Cálida y ejecutiva','Cercana','Elegante','Técnica'].map(x=><button className={tone===x?'selected':''} onClick={()=>setTone(x)} key={x}>{x}</button>)}</div><ul className="capabilities"><li><CheckCircle2/>Conoce tus productos, procesos y políticas</li><li><CheckCircle2/>Usa herramientas y acciones autorizadas</li><li><CheckCircle2/>Mantiene contexto dentro de tus reglas</li><li><CheckCircle2/>Escala excepciones a personas</li></ul></div><div className="conversation"><div className="conversationTop"><div className="avatar">AI</div><div><strong>{role}</strong><span>{tone} · personalizada para TU empresa</span></div></div><div className="bubble user">Necesito ayuda, pero no sé exactamente qué opción me conviene.</div><div className="bubble ai">Claro. Antes de recomendarte algo quiero entender qué quieres conseguir y qué está pasando hoy. Así no te ofrezco una solución que no necesitas.</div><div className="liveTag">IDENTIDAD · CONOCIMIENTO · MEMORIA · PERMISOS · ACCIONES · HANDOFF HUMANO</div></div></div></section>
 
