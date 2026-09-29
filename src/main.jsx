@@ -65,7 +65,17 @@ const prices=[
 function App(){
  const [showCarolina,setShowCarolina]=useState(false)
  const [heroScene,setHeroScene]=useState(0)
- useEffect(()=>{const id=setInterval(()=>setHeroScene(v=>(v+1)%5),4200);return()=>clearInterval(id)},[])
+ const heroSteps=[
+  {k:'TU EMPRESA',t:'Una empresa es un sistema.',d:'Ventas, clientes, operaciones, equipo, información y dirección necesitan trabajar como una sola arquitectura.'},
+  {k:'FRICCIÓN',t:'La complejidad aparece.',d:'Tareas manuales, información aislada y decisiones que dependen siempre de las mismas personas.'},
+  {k:'AUTOMATIZACIÓN',t:'El proceso empieza a ejecutarse.',d:'Conectamos solicitudes, validaciones, sistemas, aprobaciones, acciones y reportes.'},
+  {k:'CHATBOT',t:'Responder no siempre es suficiente.',d:'Un chatbot guía y responde. Es útil cuando el problema realmente se resuelve con reglas y caminos definidos.'},
+  {k:'AGENTE IA',t:'Ahora hay contexto y capacidad de actuar.',d:'Comprende la intención, consulta conocimiento y herramientas y ejecuta acciones dentro de permisos.'},
+  {k:'TU AGENTE',t:'La IA adopta la forma de tu empresa.',d:'Nombre, rol, personalidad, idioma, conocimiento, permisos, límites y escalamiento humano.'},
+  {k:'MULTIAGENTE',t:'Especialistas coordinados.',d:'Ventas, servicio, operaciones, conocimiento, growth e inteligencia ejecutiva pueden colaborar.'},
+  {k:'BUSINESS OS',t:'La empresa funciona como un sistema.',d:'Personas, agentes, automatizaciones, datos y herramientas coordinados con supervisión humana.'}
+ ]
+ useEffect(()=>{const id=setInterval(()=>setHeroScene(v=>(v+1)%heroSteps.length),3600);return()=>clearInterval(id)},[])
  const [role,setRole]=useState('Asesora comercial'),[tone,setTone]=useState('Cálida y ejecutiva')
  return <div className="app">
   <header className="nav"><a className="brand" href="#">CATALINA JARAMILLO</a><nav><a href="#servicios">Servicios</a><a href="#como-funciona">Qué construimos</a><a href="#precios">Precios</a><a href="#perfil">Perfil</a><a className="navCta" href="#descubrir">Descubrir qué necesita mi empresa</a></nav></header>
@@ -84,11 +94,15 @@ function App(){
      <div className="proof"><span>15+ años en negocio</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
     </motion.div>
     <div className="sceneNarrative" aria-live="polite">
-      <span>{['01 · TU EMPRESA','02 · FRICCIÓN','03 · AUTOMATIZACIÓN','04 · AGENTES IA','05 · BUSINESS OS'][heroScene]}</span>
-      <b>{['Una empresa es un sistema.','La complejidad aparece donde todo depende de personas y tareas aisladas.','Los procesos empiezan a conectarse y ejecutarse.','La inteligencia entra donde aporta contexto y capacidad.','Personas, agentes, datos y herramientas trabajan coordinados.'][heroScene]}</b>
-      <div className="sceneDots">{[0,1,2,3,4].map(i=><button key={i} aria-label={'Escena '+(i+1)} className={heroScene===i?'on':''} onClick={()=>setHeroScene(i)}/>)}</div>
+      <span>{String(heroScene+1).padStart(2,'0')+' · '+heroSteps[heroScene].k}</span>
+      <b>{heroSteps[heroScene].t}</b>
+      <p className="sceneDetail">{heroSteps[heroScene].d}</p><div className="sceneDots">{heroSteps.map((step,i)=><button key={step.k} aria-label={step.k} className={heroScene===i?'on':''} onClick={()=>setHeroScene(i)}><span>{step.k}</span></button>)}</div>
     </div>
-    <div className="scrollCue"><span>EXPLORA</span><i/></div>
+    <div className="heroMicroDemo">
+ <button onClick={()=>setHeroScene(4)}><b>AGENTE IA</b><span>Cliente pregunta → entiende → consulta → actúa → escala</span></button>
+ <button onClick={()=>setHeroScene(5)}><b>TU AGENTE</b><span>Personalidad · conocimiento · idioma · permisos</span></button>
+ <button onClick={()=>setHeroScene(7)}><b>BUSINESS OS</b><span>Agentes + automatización + datos + personas</span></button>
+ </div><div className="scrollCue"><span>EXPLORA</span><i/></div>
    </section>
 
    <section className="painSection"><div className="sectionHead"><span>ANTES DE HABLAR DE TECNOLOGÍA</span><h2>¿Algo de esto está frenando a tu empresa?</h2><p>No todos los problemas son de ventas. No todos necesitan IA. Empezamos por entender qué está ocurriendo de verdad.</p></div><div className="painGrid">{pains.map(([t,d])=><article key={t}><h3>“{t}”</h3><p>{d}</p></article>)}</div><div className="scaleQuestion"><span>UNA PREGUNTA IMPORTANTE</span><h3>Si mañana tu volumen creciera 2×, ¿qué parte de tu empresa se saturaría primero?</h3><a href="#descubrir">Descubrirlo con Carolina <ArrowRight size={17}/></a></div></section>
