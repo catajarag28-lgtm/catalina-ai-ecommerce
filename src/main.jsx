@@ -1,7 +1,7 @@
 import React,{Suspense,useMemo,useState} from 'react'
 import {createRoot} from 'react-dom/client'
 import {Canvas} from '@react-three/fiber'
-import {Float,Line,OrbitControls} from '@react-three/drei'
+import {Float,Line,OrbitControls,Text} from '@react-three/drei'
 import {motion} from 'framer-motion'
 import {ArrowRight,Workflow,Bot,BrainCircuit,Network,ShoppingBag,BarChart3,Users,Settings2,MessageCircleMore,CheckCircle2,BriefcaseBusiness,ShieldCheck,Sparkles} from 'lucide-react'
 import './styles.css'
@@ -9,21 +9,23 @@ import CarolinaExperience from './components/CarolinaExperience'
 import FutureTwin from './components/FutureTwin'
 
 const companyNodes=[
- ['Growth',[-2.7,1.1,0]],['Ventas',[-1.2,2.15,.4]],['Clientes',[1.25,2.05,-.2]],
- ['Operaciones',[2.7,.65,.3]],['Equipo',[1.5,-1.5,-.1]],['Dirección',[-1.55,-1.6,.2]]
+ ['Growth',[-2.8,1.2,0]],['Ventas',[-1.35,2.25,.35]],['Clientes',[1.25,2.15,-.15]],
+ ['Operaciones',[2.85,.65,.25]],['Equipo',[1.65,-1.55,-.1]],['Información',[-.15,-2.25,.15]],['Dirección',[-2.05,-1.35,.2]]
 ]
 function Company3D(){
- const pts=useMemo(()=>[...companyNodes.map(n=>n[1]),companyNodes[0][1]],[])
- return <Canvas camera={{position:[0,0,8],fov:48}} dpr={[1,1.5]}>
-  <ambientLight intensity={2.2}/><directionalLight position={[3,4,5]} intensity={3}/>
-  <Line points={pts} color="#b78a51" lineWidth={2} transparent opacity={.65}/>
-  {companyNodes.map(([label,pos],i)=><Float key={label} speed={1+i*.05} rotationIntensity={.08} floatIntensity={.22}><group position={pos}>
-   <mesh><sphereGeometry args={[.31,32,32]}/><meshStandardMaterial color="#f6ead8" emissive="#d6a96d" emissiveIntensity={.45} metalness={.25} roughness={.18}/></mesh>
-   <mesh scale={1.65}><sphereGeometry args={[.31,20,20]}/><meshBasicMaterial color="#d8b37f" transparent opacity={.12}/></mesh>
-  </group></Float>)}
-  <mesh><icosahedronGeometry args={[.62,2]}/><meshStandardMaterial color="#fffaf2" metalness={.35} roughness={.12}/></mesh>
-  <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={.32}/>
- </Canvas>
+ const [active,setActive]=useState('TU EMPRESA')
+ return <div className="world"><Canvas camera={{position:[0,0,8],fov:46}} dpr={[1,1.5]}>
+  <ambientLight intensity={2.4}/><directionalLight position={[3,4,5]} intensity={3.4}/>
+  {companyNodes.map(([label,pos],i)=><React.Fragment key={label}>
+   <Line points={[[0,0,0],pos]} color={active===label?'#8d632f':'#c7a77e'} lineWidth={active===label?3:1.2} transparent opacity={active===label?.95:.42}/>
+   <Float speed={1+i*.04} rotationIntensity={.06} floatIntensity={.18}><group position={pos} onClick={()=>setActive(label)}>
+    <mesh scale={active===label?1.28:1}><sphereGeometry args={[.3,32,32]}/><meshStandardMaterial color={active===label?'#d4aa70':'#f4e7d4'} emissive="#b9884d" emissiveIntensity={active===label?.7:.25} metalness={.48} roughness={.12}/></mesh>
+    <Text position={[0,-.55,0]} fontSize={.18} color="#55483c" anchorX="center">{label}</Text>
+   </group></Float>
+  </React.Fragment>)}
+  <Float speed={.7} rotationIntensity={.12}><mesh onClick={()=>setActive('TU EMPRESA')}><torusGeometry args={[.66,.18,32,96,4.8]}/><meshPhysicalMaterial color="#f7ead7" metalness={.72} roughness={.08} clearcoat={1}/></mesh></Float>
+  <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={.22}/>
+ </Canvas><div className="worldState"><span>EXPLORA EL SISTEMA</span><b>{active}</b><small>Toca una zona. La empresa responde.</small></div></div>
 }
 const services=[
  {icon:Workflow,title:'Automatizaciones & flujos',price:'Desde USD 500',text:'Conectamos tareas y herramientas para que procesos repetitivos ocurran sin depender de trabajo manual.',tags:'Workflows · APIs · CRM · reportes · alertas'},
@@ -73,14 +75,13 @@ function App(){
    <section className="hero">
     <motion.div className="heroCopy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}}>
      <div className="eyebrow">ESTRATEGIA · AUTOMATIZACIÓN · IA · GROWTH</div>
-     <h1>Haz que tu empresa <span>funcione mejor.</span></h1>
+     <h1>Diseño empresas que pueden <span>crecer sin multiplicar su complejidad.</span></h1>
      <p className="lead"><b>Diseño e implemento soluciones para empresas:</b> estrategia, automatizaciones, agentes de IA personalizados, ecommerce, growth, operaciones y sistemas inteligentes.</p>
      <p className="heroPlain">Desde eliminar una tarea repetitiva hasta conectar varias áreas de tu empresa. <b>No tienes que saber qué tecnología necesitas.</b></p>
-     <div className="actions"><a className="btn primary" href="#servicios">Ver servicios y precios <ArrowRight size={18}/></a><a className="btn ghost" href="#carolina">Cuéntale a Carolina qué necesitas</a></div>
-     <div className="priceStrip"><span>Automatizaciones <b>desde USD 500</b></span><span>Agentes IA <b>desde USD 1.000</b></span><span>Sistemas <b>desde USD 5.000</b></span></div>
+     <div className="actions"><a className="btn primary" href="#descubrir">Descubrir qué necesita mi empresa <ArrowRight size={18}/></a><a className="btn ghost" href="#casos">Explorar lo que he construido</a></div>
      <div className="proof"><span>15+ años en ventas y negocios</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
     </motion.div>
-    <div className="heroVisual"><Company3D/><div className="visualLabel"><b>TU EMPRESA</b><div>Growth · Ventas · Clientes · Operaciones · Equipo · Dirección</div></div></div>
+    <div className="heroVisual"><Company3D/><div className="visualLabel"><b>TU EMPRESA</b><div>Growth · Ventas · Clientes · Operaciones · Equipo · Información · Dirección</div></div></div>
    </section>
 
    <section className="painSection"><div className="sectionHead"><span>ANTES DE HABLAR DE TECNOLOGÍA</span><h2>¿Algo de esto está frenando a tu empresa?</h2><p>No todos los problemas son de ventas. No todos necesitan IA. Empezamos por entender qué está ocurriendo de verdad.</p></div><div className="painGrid">{pains.map(([t,d])=><article key={t}><h3>“{t}”</h3><p>{d}</p></article>)}</div><div className="scaleQuestion"><span>UNA PREGUNTA IMPORTANTE</span><h3>Si mañana tu volumen creciera 2×, ¿qué parte de tu empresa se saturaría primero?</h3><a href="#carolina">Descubrirlo con Carolina <ArrowRight size={17}/></a></div></section>
@@ -93,17 +94,17 @@ function App(){
 
    <section className="section osSection"><div className="osVisual"><Company3D/></div><div className="osCopy"><span>DE UNA TAREA A UN SISTEMA</span><h2>Puedes automatizar una tarea. O podemos conectar una empresa entera.</h2><p>Cuando un solo agente no basta, diseñamos sistemas donde ventas, clientes, operaciones, growth, conocimiento y dirección pueden trabajar con agentes especializados, automatizaciones y personas.</p><div className="controlTower"><b>CONTROL TOWER</b><span>Personas · permisos · métricas · alertas · excepciones · límites</span></div><a className="textLink" href="#carolina">Explorar una arquitectura para mi empresa <ArrowRight size={16}/></a></div></section>
 
-   <section id="carolina" className="section carolinaSection"><div className="sectionHead"><span>CAROLINA · ASESORA DIGITAL DE CATALINA</span><h2>No tienes que llegar sabiendo qué comprar.</h2><p>Cuéntale qué quieres conseguir o qué está siendo difícil. Carolina te ayuda a ordenar el problema antes de hablar de una solución.</p></div>{!showCarolina?<button className="carolinaLaunch" onClick={()=>setShowCarolina(true)}><MessageCircleMore/><div><b>Hablar con Carolina</b><span>Empieza por tu negocio, no por la tecnología.</span></div><ArrowRight/></button>:<CarolinaExperience/>}</section>
+   <section id="descubrir" className="section carolinaSection"><div className="sectionHead"><span>PRIMER PASO · ENTENDER ANTES DE CONSTRUIR</span><h2>Antes de hablar de soluciones, necesitamos entender tu empresa.</h2><p>No tienes que saber si necesitas automatización, un agente, estrategia o IA. Cuéntanos qué quieres conseguir y qué está frenándote hoy. Carolina organiza lo que nos cuentes y construye un primer mapa para explorar con Catalina.</p></div>{!showCarolina?<button className="carolinaLaunch" onClick={()=>setShowCarolina(true)}><MessageCircleMore/><div><b>DESCUBRIR QUÉ NECESITA MI EMPRESA</b><span>Un recorrido guiado: objetivo → fricción → impacto → oportunidad → siguiente paso con Catalina.</span></div><ArrowRight/></button>:<CarolinaExperience/>}</section>
 
    <FutureTwin/>
 
    <section id="precios" className="section pricing"><div className="sectionHead"><span>INVERSIÓN ORIENTATIVA</span><h2>Empieza pequeño. Escala cuando tenga sentido.</h2><p>Estos rangos sirven para orientarte y autocalificar el proyecto. El precio final depende del alcance, integraciones y complejidad. Plataformas y consumos externos se cotizan aparte.</p></div><div className="priceGrid">{prices.map(([n,p,d])=><article key={n}><span>{n}</span><h3>{p}</h3><p>{d}</p></article>)}</div></section>
 
-   <section id="perfil" className="section profile"><div className="profilePhoto"><img src="https://raw.githubusercontent.com/catajarag28-lgtm/catalina-ai-ecommerce/main/public/catalina.jpg" alt="Catalina Jaramillo" onError={e=>{e.currentTarget.style.display='none'}}/><div className="photoFallback">CATALINA<br/>JARAMILLO</div></div><div className="profileCopy"><span>LA PERSONA DETRÁS DE LOS SISTEMAS</span><h2>No llegué a la IA desde la tecnología. Llegué desde el negocio.</h2><p>Mi experiencia conecta estrategia comercial, ventas, customer experience, ecommerce, growth, equipos, operaciones y diseño funcional de sistemas con IA.</p><p>Eso cambia la pregunta: no es “¿dónde ponemos IA?”, sino “¿qué necesita funcionar mejor y cuál es la forma más inteligente de resolverlo?”.</p><div className="profileFacts"><b>15+ años</b><span>ventas, marketing, consultoría y operación</span><b>Founder-operator</b><span>experiencia real construyendo y operando negocios</span><b>Product Owner</b><span>sistemas y productos digitales dirigidos con IA</span></div></div></section>
+   <section className="creatorIntro"><div><span>CATALINA · CREADORA & ESTRATEGA</span><h2>Primero aprendí a operar negocios. Después aprendí a convertirlos en sistemas.</h2><p>La tecnología no es el punto de partida. El negocio sí.</p></div><a href="#perfil">Conoce quién diseña estos sistemas <ArrowRight size={17}/></a></section><section id="perfil" className="section profile"><div className="profilePhoto"><img src="https://raw.githubusercontent.com/catajarag28-lgtm/catalina-ai-ecommerce/main/public/catalina.jpg" alt="Catalina Jaramillo" onError={e=>{e.currentTarget.style.display='none'}}/><div className="photoFallback">CATALINA<br/>JARAMILLO</div></div><div className="profileCopy"><span>LA PERSONA DETRÁS DE LOS SISTEMAS</span><h2>No llegué a la IA desde la tecnología. Llegué desde el negocio.</h2><p>Mi experiencia conecta estrategia comercial, ventas, customer experience, ecommerce, growth, equipos, operaciones y diseño funcional de sistemas con IA.</p><p>Eso cambia la pregunta: no es “¿dónde ponemos IA?”, sino “¿qué necesita funcionar mejor y cuál es la forma más inteligente de resolverlo?”.</p><div className="profileFacts"><b>15+ años</b><span>ventas, marketing, consultoría y operación</span><b>Founder-operator</b><span>experiencia real construyendo y operando negocios</span><b>Product Owner</b><span>sistemas y productos digitales dirigidos con IA</span></div></div></section>
 
-   <section className="section cases"><div className="sectionHead"><span>CASOS QUE MUESTRAN CAPACIDAD</span><h2>Negocio, sistemas y producto.</h2></div><div className="caseGrid"><article><BriefcaseBusiness/><h3>Professional Glam</h3><p>Como fundadora-operadora, dirigí un ecosistema DTC que registra más de COP 1.000 millones en ventas Shopify y 9.296 órdenes digitales.</p><small>ECOMMERCE · GROWTH · VENTAS · CX · OPERACIÓN</small></article><article><Network/><h3>LAURA</h3><p>Sistema modular diseñado para conectar conversación, ventas, pedidos, postventa, operaciones, growth e inteligencia alrededor de una operación real.</p><small>AI SYSTEMS · AGENTS · OPERATIONS</small></article><article><ShieldCheck/><h3>Sin Autosabotaje</h3><p>Producto digital longitudinal basado en evidencia, diseñado alrededor de diagnóstico, memoria, intervención, acción y medición.</p><small>PRODUCT STRATEGY · AI UX · SYSTEM DESIGN</small></article></div></section>
+   <section id="casos" className="section cases"><div className="sectionHead"><span>CASOS QUE MUESTRAN CAPACIDAD</span><h2>Negocio, sistemas y producto.</h2></div><div className="caseGrid"><article className="caseHero"><div className="caseNumber">01</div><div><BriefcaseBusiness/><span>FOUNDER-OPERATOR · ECOSISTEMA REAL</span><h3>Professional Glam</h3><p>Como fundadora-operadora, dirigí un ecosistema DTC que registra más de COP 1.000 millones en ventas Shopify y 9.296 órdenes digitales.</p><small>ECOMMERCE · GROWTH · VENTAS · CX · OPERACIÓN</small><a href="https://professionalglamstore.com" target="_blank" rel="noreferrer">Entrar al ecosistema real <ArrowRight size={15}/></a></div><div className="caseFlow"><b>PRODUCTO</b><i>→</i><b>MARKETING</b><i>→</i><b>SHOPIFY</b><i>→</i><b>WHATSAPP</b><i>→</i><b>OPERACIÓN</b><i>→</i><b>CLIENTE</b></div></article><article><Network/><h3>LAURA</h3><p>Sistema modular diseñado para conectar conversación, ventas, pedidos, postventa, operaciones, growth e inteligencia alrededor de una operación real.</p><small>AI SYSTEMS · AGENTS · OPERATIONS</small></article><article><ShieldCheck/><h3>Sin Autosabotaje</h3><p>Producto digital longitudinal basado en evidencia, diseñado alrededor de diagnóstico, memoria, intervención, acción y medición.</p><small>PRODUCT STRATEGY · AI UX · SYSTEM DESIGN</small></article></div></section>
 
-   <section className="trust"><Sparkles/><span>QUIZÁS NO NECESITAS IA.</span><h2>Quizás necesitas organizar un proceso, mejorar una oferta, conectar herramientas o simplemente ver mejor lo que está pasando.</h2><p>Primero entendemos. Después recomendamos.</p><a className="btn primary" href="#carolina">Cuéntale a Carolina <ArrowRight size={18}/></a></section>
+   <section className="trust"><Sparkles/><span>QUIZÁS NO NECESITAS IA.</span><h2>Quizás necesitas organizar un proceso, mejorar una oferta, conectar herramientas o simplemente ver mejor lo que está pasando.</h2><p>Primero entendemos. Después recomendamos.</p><a className="btn primary" href="#carolina">Descubrir qué necesita mi empresa <ArrowRight size={18}/></a></section>
   </main>
   <footer><b>CATALINA JARAMILLO</b><span>Strategy · Growth · Automation · AI Systems</span><span>© 2026</span></footer>
  </div>
