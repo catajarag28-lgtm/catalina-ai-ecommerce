@@ -1,4 +1,4 @@
-import React,{Suspense,useMemo,useState} from 'react'
+import React,{Suspense,useMemo,useState,useEffect} from 'react'
 import {createRoot} from 'react-dom/client'
 import {Canvas} from '@react-three/fiber'
 import {Float,Line,OrbitControls,Text} from '@react-three/drei'
@@ -68,20 +68,31 @@ const prices=[
 ]
 function App(){
  const [showCarolina,setShowCarolina]=useState(false)
+ const [heroScene,setHeroScene]=useState(0)
+ useEffect(()=>{const id=setInterval(()=>setHeroScene(v=>(v+1)%5),4200);return()=>clearInterval(id)},[])
  const [role,setRole]=useState('Asesora comercial'),[tone,setTone]=useState('Cálida y ejecutiva')
  return <div className="app">
   <header className="nav"><a className="brand" href="#">CATALINA JARAMILLO</a><nav><a href="#servicios">Servicios</a><a href="#como-funciona">Qué construimos</a><a href="#precios">Precios</a><a href="#perfil">Perfil</a><a className="navCta" href="#carolina">Hablar con Carolina</a></nav></header>
   <main>
-   <section className="hero">
-    <motion.div className="heroCopy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}}>
-     <div className="eyebrow">ESTRATEGIA · AUTOMATIZACIÓN · IA · GROWTH</div>
+   <section className={"hero cinematic scene-"+heroScene}>
+    <div className="cinematicBg">
+      <div className="filmGlow g1"/><div className="filmGlow g2"/>
+      <div className="cinematicWorld"><Company3D/></div>
+      <div className="filmGrain"/>
+    </div>
+    <motion.div className="heroCopy cinematicCopy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}}>
+     <div className="eyebrow">CATALINA JARAMILLO · BUSINESS SYSTEMS · AI · GROWTH</div>
      <h1>Diseño empresas que pueden <span>crecer sin multiplicar su complejidad.</span></h1>
-     <p className="lead"><b>Diseño e implemento soluciones para empresas:</b> estrategia, automatizaciones, agentes de IA personalizados, ecommerce, growth, operaciones y sistemas inteligentes.</p>
-     <p className="heroPlain">Desde eliminar una tarea repetitiva hasta conectar varias áreas de tu empresa. <b>No tienes que saber qué tecnología necesitas.</b></p>
-     <div className="actions"><a className="btn primary" href="#descubrir">Descubrir qué necesita mi empresa <ArrowRight size={18}/></a><a className="btn ghost" href="#casos">Explorar lo que he construido</a></div>
-     <div className="proof"><span>15+ años en ventas y negocios</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
+     <p className="lead"><b>Primero entiendo el negocio.</b> Después diseño la estrategia, automatización o sistema inteligente que realmente necesita.</p>
+     <div className="actions"><a className="btn primary" href="#descubrir">Descubrir qué necesita mi empresa <ArrowRight size={18}/></a><a className="btn ghost" href="#casos">Ver lo que he construido</a></div>
+     <div className="proof"><span>15+ años en negocio</span><span>+9.000 órdenes digitales operadas</span><span>Creadora de LAURA</span></div>
     </motion.div>
-    <div className="heroVisual"><Company3D/><div className="visualLabel"><b>TU EMPRESA</b><div>Growth · Ventas · Clientes · Operaciones · Equipo · Información · Dirección</div></div></div>
+    <div className="sceneNarrative" aria-live="polite">
+      <span>{['01 · TU EMPRESA','02 · FRICCIÓN','03 · AUTOMATIZACIÓN','04 · AGENTES IA','05 · BUSINESS OS'][heroScene]}</span>
+      <b>{['Una empresa es un sistema.','La complejidad aparece donde todo depende de personas y tareas aisladas.','Los procesos empiezan a conectarse y ejecutarse.','La inteligencia entra donde aporta contexto y capacidad.','Personas, agentes, datos y herramientas trabajan coordinados.'][heroScene]}</b>
+      <div className="sceneDots">{[0,1,2,3,4].map(i=><button key={i} aria-label={'Escena '+(i+1)} className={heroScene===i?'on':''} onClick={()=>setHeroScene(i)}/>)}</div>
+    </div>
+    <div className="scrollCue"><span>EXPLORA</span><i/></div>
    </section>
 
    <section className="painSection"><div className="sectionHead"><span>ANTES DE HABLAR DE TECNOLOGÍA</span><h2>¿Algo de esto está frenando a tu empresa?</h2><p>No todos los problemas son de ventas. No todos necesitan IA. Empezamos por entender qué está ocurriendo de verdad.</p></div><div className="painGrid">{pains.map(([t,d])=><article key={t}><h3>“{t}”</h3><p>{d}</p></article>)}</div><div className="scaleQuestion"><span>UNA PREGUNTA IMPORTANTE</span><h3>Si mañana tu volumen creciera 2×, ¿qué parte de tu empresa se saturaría primero?</h3><a href="#carolina">Descubrirlo con Carolina <ArrowRight size={17}/></a></div></section>
