@@ -74,7 +74,10 @@ export async function handleInbound(message, env) {
   const skip = shouldSkip({ from, headers })
   if (skip) return { handled: false, reason: skip }
 
+  // Una respuesta humana detiene cualquier seguimiento y deja el estado comercial visible.
+  await env.DB.prepare("UPDATE outreach SET status='replied',updated_at=? WHERE lower(email)=? AND status='sent'").bind(now, from).run()
   if (isUnsubscribe(subject, text)) {
+    await env.DB.prepare("UPDATE outreach SET status='suppressed',updated_at=? WHERE lower(email)=? AND status IN ('sent','replied','pending','review')").bind(now, from).run()
     await env.DB.prepare('INSERT OR REPLACE INTO suppression(email,reason,created_at) VALUES (?,?,?)').bind(from, 'reply_unsubscribe', now).run()
     await notifyCatalina(env, `Baja solicitada: ${from}`, `${from} pidió no recibir más correos. Quedó en la lista de no contactar.`)
     return { handled: true, reason: 'unsubscribed' }
