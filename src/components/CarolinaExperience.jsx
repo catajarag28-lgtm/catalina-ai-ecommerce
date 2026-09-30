@@ -4,6 +4,8 @@ import {ArrowUpRight,Send,ShieldCheck} from 'lucide-react'
 const API=import.meta.env.VITE_CAROLINA_API||(import.meta.env.DEV ? 'http://localhost:8787' : 'https://carolina-portfolio-api.catajaragpyg.workers.dev')
 const opening={role:'assistant',text:'Hola, soy Carolina. Cuéntame qué te gustaría mejorar en tu empresa o qué te está quitando capacidad hoy.'}
 const suggestions=['Se pierden ventas','Mi equipo está saturado','Quiero un agente para mi negocio']
+const contexts=[['odont','Odontología'],['clínic','Salud'],['dental','Odontología'],['veterin','Veterinaria'],['mascot','Veterinaria'],['belleza','Belleza'],['salón','Belleza'],['estética','Belleza'],['shopify','Ecommerce'],['tienda','Ecommerce'],['marketing','Marketing'],['ads','Marketing'],['inmobili','Inmobiliario']]
+const detectContext=messages=>{const text=messages.map(item=>item.text).join(' ').toLowerCase();return contexts.find(([key])=>text.includes(key))?.[1]||'Estrategia y sistemas'}
 const track=(name,conversationId)=>fetch(`${API}/event`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,conversationId})}).catch(()=>{})
 
 const storageKey='carolina-conversation-v1'
@@ -12,6 +14,7 @@ function restored(){try{const value=JSON.parse(localStorage.getItem(storageKey)|
 export default function CarolinaChat(){
  const [saved]=useState(restored)
  const [messages,setMessages]=useState(saved?.messages||[opening]),[input,setInput]=useState(''),[consent,setConsent]=useState(!!saved),[session,setSession]=useState(saved?.id||''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[available,setAvailable]=useState(null)
+ const context=detectContext(messages)
  const list=useRef(null)
  useEffect(()=>{fetch(`${API}/health`).then(r=>r.json()).then(data=>setAvailable(data.modelReady===true)).catch(()=>setAvailable(false))},[])
  useEffect(()=>{list.current?.scrollTo({top:list.current.scrollHeight,behavior:'smooth'})},[messages,busy])
@@ -30,7 +33,7 @@ export default function CarolinaChat(){
   }catch(cause){setError(cause.name==='TimeoutError'?'La respuesta tardó demasiado. Inténtalo otra vez.':cause.message||'No hay conexión con Carolina en este momento.')}
   finally{setBusy(false)}
  }
- return <div className="chatShell"><div className="chatHeader"><div className="carolinaIdentity"><div className="carolinaMark">C</div><div><b>CAROLINA</b><span>Asesora digital de Catalina</span></div></div><span className="chatBadge"><i/> {available===false?'INTEGRACIÓN PENDIENTE':'CONVERSACIÓN ABIERTA'}</span></div>
+ return <div className="chatShell"><div className="chatHeader"><div className="carolinaIdentity"><img className="carolinaMiniAvatar" src="/catalina-ai-ecommerce/carolina-avatar.webp" alt="Avatar de Carolina"/><div><b>CAROLINA</b><span>Asesora digital · {context}</span></div></div><span className="chatBadge"><i/> {available===false?'INTEGRACIÓN PENDIENTE':context}</span></div>
  {available===false&&<p className="chatError">Carolina estará disponible cuando se conecte su motor de IA. Estamos preparando la experiencia.</p>}
  <div className="chatMessages" ref={list} aria-live="polite">{messages.map((message,i)=><div className={`message ${message.role}`} key={i}><span>{message.role==='assistant'?'CAROLINA':'TÚ'}</span><p>{message.text}</p></div>)}{busy&&<div className="message assistant"><span>CAROLINA</span><p className="typing">Pensando contigo <i/><i/><i/></p></div>}</div>
  {messages.length===1&&<div className="chatSuggestions">{suggestions.map(x=><button key={x} onClick={()=>send(x)}>{x} <ArrowUpRight size={14}/></button>)}</div>}
