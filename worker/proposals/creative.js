@@ -13,13 +13,13 @@ export const seedAngles = [
   { id: 'hecho-para-ustedes', name: 'Algo ya preparado para ustedes', format: 'visual',
     brief: 'ASUNTO: anuncia con sobriedad que ya hay algo preparado para ellos (ej. «Así respondería Ava a una novia que pregunta por su head spa»). Reciprocidad: el recorrido está hecho, solo tienen que mirarlo. HOOK: «Esto es lo que vería su cliente».' },
   { id: 'carta-directa', name: 'Carta personal breve', format: 'carta',
-    brief: 'Formato carta personal, sin estética de boletín. ASUNTO: 2-5 palabras en minúscula, como lo escribiría un colega (ej. «pregunta sobre sus reservas de masajes»). Cuerpo: observación concreta, una pregunta, escena de dos líneas, enlace al recorrido. Máx. 110 palabras.' },
+    brief: 'Formato carta personal, sin estética de boletín. ASUNTO: 4-9 palabras específicas sobre un servicio y su oportunidad (ej. «masajes: qué pasa fuera de horario»). Nunca empieces con «pregunta», «duda», «consulta» o «reservas». Cuerpo: observación concreta, una pregunta, escena de dos líneas, enlace al recorrido. Máx. 110 palabras.' },
   { id: 'voz-del-cliente', name: 'La pregunta de su cliente', format: 'carta',
-    brief: 'ASUNTO: una pregunta típica que haría un cliente de ese negocio, entre comillas, sobre un servicio real (ej. «“¿Tienen cita el sábado para limpieza facial?”»). Cuerpo: qué recibe hoy su equipo cuando llega esa pregunta (como hipótesis) y cómo podría verse con un agente supervisado. Aclara que es un ejemplo.' },
+    brief: 'ASUNTO: una pregunta típica sobre un servicio real, entre comillas, que revele el siguiente paso comercial (ej. «“¿Puedo reservar mi limpieza facial?”»). Cuerpo: qué recibe hoy su equipo cuando llega esa pregunta (como hipótesis) y cómo podría verse con un agente supervisado. Aclara que es un ejemplo.' },
 ]
 
 export async function ensureSeedAngles(env) {
-  const stmt = env.DB.prepare("INSERT OR IGNORE INTO outreach_angles(id,name,format,brief,status,generation,created_at) VALUES (?,?,?,?,'active',0,?)")
+  const stmt = env.DB.prepare("INSERT OR IGNORE INTO outreach_angles(id,name,format,brief,status,generation,created_at) VALUES (?,?,?,?,'active',0,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,format=excluded.format,brief=excluded.brief")
   await env.DB.batch(seedAngles.map(a => stmt.bind(a.id, a.name, a.format, a.brief, Date.now())))
 }
 
@@ -185,3 +185,4 @@ export async function webhookSecret(env) {
   const row = await env.DB.prepare("SELECT value FROM app_settings WHERE key='resend_webhook_secret'").first().catch(() => null)
   return row?.value || null
 }
+
