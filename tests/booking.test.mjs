@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {availability,book} from '../worker/integrations.js'
+import {availability,book} from '../worker/core/integrations.js'
 
 const day=new Date(Date.now()+3*86400000).toISOString().slice(0,10)
 const env={GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'secret',GOOGLE_REFRESH_TOKEN:'refresh',GOOGLE_CALENDAR_ID:'primary',RESEND_API_KEY:'test',EMAIL_FROM:'test@example.com',DB:{prepare(){return {bind(){return {run:async()=>({success:true})}}}}}}

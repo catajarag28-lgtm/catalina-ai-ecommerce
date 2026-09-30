@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { renderProposalEmail } from '../worker/emailTemplates.js'
+import { renderProposalEmail } from '../worker/core/emailTemplates.js'
 import { proposals } from '../src/proposals.js'
 import { catalog } from '../src/offers.js'
 

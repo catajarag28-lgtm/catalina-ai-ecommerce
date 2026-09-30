@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
-import { brandedProposal } from '../worker/outreach.js'
-import { renderProposalPage } from '../worker/proposalPage.js'
+import { brandedProposal } from '../worker/proposals/outreach.js'
+import { renderProposalPage } from '../worker/proposals/proposalPage.js'
 
 // Muestra pública con un negocio FICTICIO (no se usa ningún prospecto real).
 const company = 'Lumière Med Spa (ejemplo)'

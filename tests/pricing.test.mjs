@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pricing, constitution, knowledge } from '../worker/knowledge.js'
+import { pricing, constitution, knowledge } from '../worker/core/knowledge.js'
 import { recommend, catalog } from '../src/offers.js'
 import { cleanLead } from '../worker/index.js'
-import { buildMime, leadEmail } from '../worker/notify.js'
+import { buildMime, leadEmail } from '../worker/core/notify.js'
 
 test('Carolina cites only catalog prices', () => {
   assert.deepEqual(pricing.map(item => item.fromUSD), catalog.map(item => item.fromUSD))

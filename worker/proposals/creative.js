@@ -1,9 +1,9 @@
 // Motor creativo de Carolina: enfoques (ángulos) de asunto + formato que compiten entre sí.
 // Se elige con muestreo de Thompson según interés real medido; los perdedores se retiran y
 // Carolina propone nuevos enfoques aprendiendo de lo que funcionó y lo que no.
-import { notifyCatalina } from './notify.js'
-import { skill } from './carolinaSkills.js'
-import { outreachDailyLimit } from './salesStrategy.js'
+import { notifyCatalina } from '../core/notify.js'
+import { skill } from '../skills/registry.js'
+import { outreachDailyLimit } from '../skills/salesStrategy.js'
 
 export const seedAngles = [
   { id: 'pregunta-momento', name: 'Pregunta sobre el momento decisivo', format: 'visual',

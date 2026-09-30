@@ -1,6 +1,6 @@
 // Correo (ligero, compatible con Gmail/Outlook/móvil) y página de propuesta (inmersiva, animada).
 // Ni el correo ni la página muestran precios: su trabajo es despertar interés y llevar a Carolina.
-import { catalog } from '../src/offers.js'
+import { catalog } from '../../src/offers.js'
 
 export const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 const e = escapeHtml

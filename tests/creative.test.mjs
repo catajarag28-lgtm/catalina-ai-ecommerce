@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { brandedProposal, inBusinessHours } from '../worker/outreach.js'
-import { renderProposalPage } from '../worker/proposalPage.js'
-import { lintCopy } from '../worker/copywriting.js'
-import { chooseAngle, engagementScore, seedAngles } from '../worker/creative.js'
-import { detectSignals, pickBusinessEmail } from '../worker/integrations.js'
-import { excludedHosts, segments } from '../worker/discovery.js'
+import { brandedProposal, inBusinessHours } from '../worker/proposals/outreach.js'
+import { renderProposalPage } from '../worker/proposals/proposalPage.js'
+import { lintCopy } from '../worker/skills/copywriting.js'
+import { chooseAngle, engagementScore, seedAngles } from '../worker/proposals/creative.js'
+import { detectSignals, pickBusinessEmail } from '../worker/core/integrations.js'
+import { excludedHosts, segments } from '../worker/prospecting/discovery.js'
 
 const good = {
   offer: 'esencial', subject: '¿Qué ve una novia antes de reservar su head spa?', preview: 'Preparé cómo podría sentirse esa primera consulta en Ava, con lo que ya publican en su web.',
@@ -73,7 +73,7 @@ test('Research detects tools, prefers the business mailbox and skips directories
   assert.ok(!segments.some(s => s.region === 'España'))
 })
 
-import { demoPrompt, handleDemo } from '../worker/demo.js'
+import { demoPrompt, handleDemo } from '../worker/proposals/demo.js'
 test('Live demo is grounded in public text, blocks clinical advice and unknown proposals', async () => {
   const prompt = demoPrompt('Ava Spa', { publicText: 'Head spa y masajes. Sábados 9 a 2.', diagnosis: { services: ['Head spa'] } })
   assert.ok(prompt.includes('Ava Spa') && prompt.includes('Sábados 9 a 2') && /Nunca recomiendes tratamientos/.test(prompt))
@@ -87,7 +87,7 @@ test('Proposal page ships the demo script only with its nonce', () => {
   assert.equal((page.match(/<script/g) || []).length, 1)
   assert.ok(page.includes("fetch('/propuesta/abcdefghijklmnopqrstu/demo'"))
 })
-import { evidenceFound } from '../worker/outreach.js'
+import { evidenceFound } from '../worker/proposals/outreach.js'
 test('Evidence must be on the site, tolerant only to accents, quotes and case', () => {
   const text = 'Te respondo yo, no un robot. Atendemos en Adriana Plaza de lunes a sábado.'
   assert.ok(evidenceFound(text, '“Te respondo YO, no un robót”'))
@@ -95,24 +95,24 @@ test('Evidence must be on the site, tolerant only to accents, quotes and case', 
   assert.ok(!evidenceFound(text, 'Tenemos 20 años de experiencia'))
   assert.ok(!evidenceFound(text, 'yo'))
 })
-import { blockedRegions } from '../worker/outreach.js'
+import { blockedRegions } from '../worker/proposals/outreach.js'
 test('Spain is excluded from cold outreach', () => { assert.ok(blockedRegions.has('España')) })
 test('Headline cannot promise unverified outcomes', () => {
   assert.ok(lintCopy({ ...good, subhook: 'Aclarar la dinámica evita reservas abandonadas.' }).some(x => x.includes('resultado no verificado')))
   assert.deepEqual(lintCopy(good, 'Ava'), [])
 })
-import { whatsappMessage } from '../worker/engagement.js'
+import { whatsappMessage } from '../worker/proposals/engagement.js'
 test('Direct WhatsApp message is personal, links the proposal and has no price', () => {
   const m = whatsappMessage({ id: 'abc', company: 'Ava Spa' })
   assert.ok(m.includes('Ava Spa') && m.includes('/propuesta/abc') && !/USD|\$/.test(m))
 })
-import { hotFollowupText } from '../worker/outreach.js'
+import { hotFollowupText } from '../worker/proposals/outreach.js'
 test('Hot follow-up invites to a meeting, never claims a booking, offers BAJA', () => {
   const t = hotFollowupText({ SENDER_POSTAL_ADDRESS: '14818 SW 180th Terrace' }, { company: 'Ava Spa' }, 'demo')
   assert.ok(t.includes('Ava Spa') && t.includes('20 minutos') && t.includes('BAJA') && t.includes('14818'))
   assert.ok(!/agendad[ao] (para|el)/i.test(t) && !/USD|\$/.test(t))
 })
-import { partnerPlaybook } from '../worker/proposalPlaybook.js'
+import { partnerPlaybook } from '../worker/skills/proposalPlaybook.js'
 test('Partner proposals never fix a commission and partner pages skip the demo', () => {
   assert.ok(/NUNCA des porcentajes/.test(partnerPlaybook))
   assert.ok(segments.some(s => s.kind === 'partner'))
@@ -121,7 +121,7 @@ test('Partner proposals never fix a commission and partner pages skip the demo',
   const t = hotFollowupText({}, { company: 'Agencia X', kind: 'partner' }, 'view')
   assert.ok(t.includes('alianza') && !/%/.test(t))
 })
-import { pickSegment } from '../worker/discovery.js'
+import { pickSegment } from '../worker/prospecting/discovery.js'
 test('Segments that earn interest get searched more often', () => {
   const boosted = segments.find(s => s.id === 'fl-dental')
   let hits = 0
@@ -130,7 +130,7 @@ test('Segments that earn interest get searched more often', () => {
   for (let i = 0; i < 2000; i++) if (pickSegment({}).id === 'fl-dental') base++
   assert.ok(boosted && hits > base * 1.8)
 })
-import { carolinaSkills, skillsPrompt, skill } from '../worker/carolinaSkills.js'
+import { carolinaSkills, skillsPrompt, skill } from '../worker/skills/registry.js'
 test('Carolina has one organized skill registry used by chat and proposals', () => {
   const ids = carolinaSkills.map(s => s.id)
   for (const id of ['mision-y-principios', 'posicionamiento-senior', 'prospeccion', 'investigacion-de-negocio', 'copywriting-email', 'propuesta-senior', 'seguimiento-y-cierre', 'agenda', 'aliados', 'intencion-en-foros', 'aprendizaje-continuo']) assert.ok(ids.includes(id), id)

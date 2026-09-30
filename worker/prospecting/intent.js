@@ -1,7 +1,7 @@
 // Prospección por intención: publicaciones públicas donde alguien YA pide lo que Catalina ofrece
 // (foros, Reddit, grupos públicos, proyectos en Workana/Freelancer). Carolina solo lee resultados de búsqueda
 // y redacta la respuesta; no publica ni inicia sesión en plataformas (lo hace Catalina desde su cuenta).
-import { notifyCatalina } from './notify.js'
+import { notifyCatalina } from '../core/notify.js'
 
 export const intentQueries = [
   'busco alguien que me haga un chatbot de WhatsApp para mi negocio',

@@ -1,4 +1,4 @@
-import { notifyCatalina } from './notify.js'
+import { notifyCatalina } from '../core/notify.js'
 import { webhookSecret } from './creative.js'
 
 const allowedEvents = new Set(['email.sent','email.delivered','email.delivery_delayed','email.opened','email.clicked','email.bounced','email.complained','email.failed','email.suppressed'])

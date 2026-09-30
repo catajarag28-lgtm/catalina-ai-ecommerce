@@ -1,7 +1,7 @@
 // Correo-propuesta con la marca de Catalina (HTML de tablas + estilos en línea: Gmail, Outlook, Apple Mail).
 // Sin JS ni animaciones (los clientes de correo las bloquean): el botón lleva a la propuesta web animada.
-import { findProposal, proposals } from '../src/proposals.js'
-import { catalog } from '../src/offers.js'
+import { findProposal, proposals } from '../../src/proposals.js'
+import { catalog } from '../../src/offers.js'
 
 const SITE = 'https://soycatalinajaramillo.com'
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))

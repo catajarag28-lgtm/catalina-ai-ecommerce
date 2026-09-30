@@ -1,4 +1,4 @@
-import { salesStrategy, meetingNextStep } from './salesStrategy.js'
+import { salesStrategy, meetingNextStep } from '../skills/salesStrategy.js'
 // Buzón clientes@: Carolina lee cada correo entrante, responde a prospectos en el mismo hilo
 // y avisa a Catalina. Siempre se reenvía una copia íntegra a Catalina antes de cualquier otra cosa.
 import PostalMime from 'postal-mime'

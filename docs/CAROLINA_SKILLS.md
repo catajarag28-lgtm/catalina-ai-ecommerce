@@ -1,6 +1,6 @@
 # Habilidades de Carolina
 
-Generado desde `worker/carolinaSkills.js`. No editar a mano.
+Generado desde `worker/skills/registry.js`. No editar a mano.
 
 ## Misión y principios de Catalina
 *Se usa en: chat, propuesta, prospeccion, seguimiento*

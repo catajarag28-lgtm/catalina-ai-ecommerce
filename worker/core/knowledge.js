@@ -1,4 +1,4 @@
-import { catalog, maintenance, launchBonus } from '../src/offers.js'
+import { catalog, maintenance, launchBonus } from '../../src/offers.js'
 
 // Catálogo aprobado por Catalina (30-sep-2026). Fuente única: src/offers.js.
 export const pricing = catalog.map(({ id, name, price, fromUSD, toUSD, monthlyFromUSD, gets, excludes, note }) => ({ id, name, price, fromUSD, toUSD, monthlyFromUSD, gets, excludes, note }))

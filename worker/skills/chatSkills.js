@@ -1,5 +1,5 @@
 import { salesStrategy } from './salesStrategy.js'
-import { skillsPrompt } from './carolinaSkills.js'
+import { skillsPrompt } from './registry.js'
 
 // Habilidades completas del registro que el chat activa por tema (además de las básicas siempre activas).
 const registryTriggers = [

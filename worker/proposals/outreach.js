@@ -1,11 +1,11 @@
-import { salesStrategy, schedulingUrl, meetingNextStep } from './salesStrategy.js'
-import { critiqueRubric, lintCopy } from './copywriting.js'
-import { skill, skillsPrompt } from './carolinaSkills.js'
+import { salesStrategy, schedulingUrl, meetingNextStep } from '../skills/salesStrategy.js'
+import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
+import { skill, skillsPrompt } from '../skills/registry.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
-import { researchWebsite, researchBusiness } from './integrations.js'
+import { researchWebsite, researchBusiness } from '../core/integrations.js'
 import { brandedProposal, escapeHtml } from './proposalPage.js'
-import { catalog } from '../src/offers.js'
-import { notifyCatalina } from './notify.js'
+import { catalog } from '../../src/offers.js'
+import { notifyCatalina } from '../core/notify.js'
 
 export { brandedProposal, escapeHtml }
 const SITE = 'https://soycatalinajaramillo.com'

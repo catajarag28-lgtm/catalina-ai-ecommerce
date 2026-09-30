@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { brandedProposal, runOutreach } from '../worker/outreach.js'
-import { researchWebsite } from '../worker/integrations.js'
+import { brandedProposal, runOutreach } from '../worker/proposals/outreach.js'
+import { researchWebsite } from '../worker/core/integrations.js'
 const p={offer:'ventas',observation:'Tienen citas en línea.',hypothesis:'Si las consultas fuera de horario esperan, podemos validar un asistente.',solution:'Calificación, agenda y traspaso al equipo.'}
 test('First email escapes external content and withholds pricing',()=>{
  const html=brandedProposal('<img onerror=alert(1)>',{...p,solution:'<script>bad()</script>'})
@@ -19,7 +19,7 @@ test('Email verification is grounded in actual HTML, not model output',async()=>
  try{const r=await researchWebsite('https://spa.example');assert.deepEqual(r.publicEmails,['info@spa.example']);assert.ok(r.publicLinks.includes('https://spa.example/contact'))}finally{globalThis.fetch=original}
 })
 
-import {outreachDailyLimit,schedulingUrl,meetingNextStep} from '../worker/salesStrategy.js'
+import {outreachDailyLimit,schedulingUrl,meetingNextStep} from '../worker/skills/salesStrategy.js'
 test('Volume grows only when configured and cannot exceed 50',()=>{
  assert.equal(outreachDailyLimit({}),5)
  assert.equal(outreachDailyLimit({OUTREACH_DAILY_LIMIT:'30'}),30)

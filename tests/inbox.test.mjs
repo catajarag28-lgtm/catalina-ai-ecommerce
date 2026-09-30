@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shouldSkip, isUnsubscribe, parseDecision } from '../worker/inbox.js'
+import { shouldSkip, isUnsubscribe, parseDecision } from '../worker/core/inbox.js'
 
 test('Carolina never answers automated mail, lists or her own domain', () => {
   assert.equal(shouldSkip({ from: 'ana@clinica.com' }), null)

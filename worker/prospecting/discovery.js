@@ -1,7 +1,7 @@
-import { salesStrategy } from './salesStrategy.js'
-import { researchBusiness, pickBusinessEmail } from './integrations.js'
-import { currentDailyCap } from './creative.js'
-import { skill } from './carolinaSkills.js'
+import { salesStrategy } from '../skills/salesStrategy.js'
+import { researchBusiness, pickBusinessEmail } from '../core/integrations.js'
+import { currentDailyCap } from '../proposals/creative.js'
+import { skill } from '../skills/registry.js'
 import { placesSearch, osmSearch } from './sources.js'
 
 // Descubrimiento de prospectos: búsqueda web por segmento (OpenRouter + Exa) → candidatos →

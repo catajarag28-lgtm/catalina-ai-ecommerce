@@ -1,6 +1,6 @@
 // Demostración en vivo dentro de la propuesta: el prospecto le escribe al asistente que podría
 // tener su negocio, entrenado solo con la información pública de su web. Límites estrictos de uso.
-import { notifyCatalina } from './notify.js'
+import { notifyCatalina } from '../core/notify.js'
 
 const MAX_TURNS = 8
 const DAILY_PER_PROPOSAL = 40

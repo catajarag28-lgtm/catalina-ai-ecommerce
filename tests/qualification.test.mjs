@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {qualificationStatus} from '../worker/qualification.js'
+import {qualificationStatus} from '../worker/core/qualification.js'
 
 test('A business problem without contact cannot be qualified',()=>{
  assert.equal(qualificationStatus('qualified','exploring',{business:'Clínica',declaredProblem:'WhatsApp sin respuesta',volume:'40 por semana'}),'identified')

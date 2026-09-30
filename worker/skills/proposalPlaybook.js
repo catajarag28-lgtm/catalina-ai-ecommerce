@@ -1,4 +1,4 @@
-import { catalog } from '../src/offers.js'
+import { catalog } from '../../src/offers.js'
 
 // Criterio reutilizable para propuestas individuales. Los precios se leen solo de offers.js.
 export const proposalPlaybook = [

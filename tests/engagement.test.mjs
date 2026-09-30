@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { verifyResendSignature, receiveResendEvent } from '../worker/engagement.js'
-import { brandedProposal } from '../worker/outreach.js'
+import { verifyResendSignature, receiveResendEvent } from '../worker/proposals/engagement.js'
+import { brandedProposal } from '../worker/proposals/outreach.js'
 
 test('Resend events require an intact signed body and recent timestamp', async () => {
     const secret='whsec_'+btoa('a reproducible test secret')

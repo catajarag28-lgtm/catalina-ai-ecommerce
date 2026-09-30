@@ -90,6 +90,6 @@ export function skillsPrompt(ids) {
   return ids.map(id => byId[id]).filter(Boolean).map(s => `HABILIDAD · ${s.nombre.toUpperCase()}\n${s.contenido}`).join('\n\n')
 }
 export function skillsMarkdown() {
-  return ['# Habilidades de Carolina', '', 'Generado desde `worker/carolinaSkills.js`. No editar a mano.', '',
+  return ['# Habilidades de Carolina', '', 'Generado desde `worker/skills/registry.js`. No editar a mano.', '',
     ...carolinaSkills.flatMap(s => [`## ${s.nombre}`, `*Se usa en: ${s.usos.join(', ')}*`, '', s.contenido, ''])].join('\n')
 }
