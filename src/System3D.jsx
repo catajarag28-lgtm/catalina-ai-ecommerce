@@ -1,6 +1,0 @@
-import React from 'react'
-import {Canvas} from '@react-three/fiber'
-import {Float,Line,OrbitControls} from '@react-three/drei'
-
-const points=[[-2,1,0],[-.8,2,.3],[1.5,1.5,-.2],[2.4,-.4,0],[.6,-1.9,.2],[-1.8,-1.4,0]]
-export default function System3D(){return <Canvas camera={{position:[0,0,8],fov:46}} dpr={[1,1.25]} gl={{alpha:true,antialias:false,powerPreference:'low-power'}}><ambientLight intensity={1.4}/><pointLight position={[1,2,4]} intensity={25} color="#f4c995"/>{points.map((point,i)=><React.Fragment key={i}><Line points={[[0,0,0],point]} color="#c7a576" lineWidth={1} transparent opacity={.5}/><Float speed={.6+i*.08} rotationIntensity={.06} floatIntensity={.13}><mesh position={point}><sphereGeometry args={[.16,16,16]}/><meshStandardMaterial color="#f4dfbd" emissive="#b08048" emissiveIntensity={.5} metalness={.6} roughness={.2}/></mesh></Float></React.Fragment>)}<Float speed={.5} rotationIntensity={.08}><mesh><icosahedronGeometry args={[.9,1]}/><meshStandardMaterial color="#d7b787" metalness={.85} roughness={.18} wireframe/></mesh><mesh><sphereGeometry args={[.33,24,24]}/><meshStandardMaterial color="#f9ecd8" metalness={.7} roughness={.14}/></mesh></Float><OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate autoRotateSpeed={.28}/></Canvas>}

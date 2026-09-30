@@ -2,9 +2,20 @@ import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
 import { qualificationStatus } from './qualification.js'
 import { skillContext } from './skills.js'
+import { notifyCatalina, leadEmail } from './notify.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
+const API_PATHS = ['/health', '/session', '/chat', '/event', '/lead']
+const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 'diagnosis_started', 'diagnosis_completed', 'diagnosis_handoff', 'direct_contact']
+const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
+export function cleanLead(body) {
+  const lead = {}
+  for (const key of LEAD_FIELDS) if (typeof body[key] === 'string' && body[key].trim()) lead[key] = body[key].trim().slice(0, key === 'note' || key === 'problem' ? 1200 : 200)
+  if (Array.isArray(body.tools)) lead.tools = body.tools.filter(x => typeof x === 'string').slice(0, 10).map(x => x.slice(0, 60))
+  lead.source = lead.source === 'diagnosis' ? 'diagnosis' : 'contact'
+  return lead
+}
 const safeJson = value => { try { return JSON.parse(value) } catch { return {} } }
 const fields = ['name', 'company', 'email', 'phone', 'website', 'social', 'location', 'niche', 'business', 'offer', 'declaredProblem', 'detectedProblems', 'desiredOutcomes', 'goal', 'stack', 'channels', 'volume', 'team', 'opportunities', 'solution', 'integrations', 'budget', 'acceptedRange', 'urgency', 'objections', 'intent', 'interests', 'publicResearch', 'nextStep', 'summary', 'proposalDraft']
 const tools = [
@@ -26,7 +37,7 @@ async function rateLimit(env, request, kind, max) {
 }
 
 async function complete(env, messages, withTools = true, maxTokens = 1100, modelSlug = env.OPENROUTER_MODEL) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': env.ALLOWED_ORIGIN, 'X-Title': 'Carolina · Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens }), signal: AbortSignal.timeout(25000) })
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': (env.ALLOWED_ORIGIN || '').split(',')[0], 'X-Title': 'Carolina · Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens }), signal: AbortSignal.timeout(25000) })
   if (!response.ok) throw new Error(`model_${response.status}`)
   const data = await response.json()
   return { message: data.choices?.[0]?.message, usage: data.usage }
@@ -42,6 +53,12 @@ async function runTool(env, conversationId, name, args, latestUser) {
     const status = qualificationStatus(args.status, row?.status, data)
     await env.DB.prepare('INSERT INTO leads(conversation_id,data,updated_at,status) VALUES (?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at,status=excluded.status').bind(conversationId, JSON.stringify(data), now(), status).run()
     await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(conversationId, `lead_${status}`, now()).run()
+    // Aviso único cuando el chat cualifica al prospecto: sin calendario, este es el handoff real.
+    const hot = ['qualified', 'high_intent']
+    if (hot.includes(status) && !hot.includes(row?.status)) {
+      const mail = leadEmail({ source: 'chat', name: data.name, company: data.company, email: data.email, phone: data.phone, business: data.business || data.niche, problem: data.declaredProblem, tools: data.stack, volume: data.volume, timing: data.urgency, budget: data.budget || data.acceptedRange, recommendation: data.solution, note: data.summary })
+      await notifyCatalina(env, mail.subject.replace('Formulario de contacto', 'Chat con Carolina'), mail.text.replace('Formulario de contacto', 'Chat con Carolina') + `\n\nConversación ID: ${conversationId}`, data.email)
+    }
     return { ok: true, storedFields: Object.keys(patch), status }
   }
   if (name === 'research_public_website') {
@@ -123,11 +140,12 @@ async function chat(request, env) {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin')
-    const allowed = origin === env.ALLOWED_ORIGIN
-    const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type' } : {}
-    if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
     const url = new URL(request.url)
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM) }, 200, cors)
+    if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
+    const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
+    const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
+    if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
@@ -146,9 +164,23 @@ export default {
       if (url.pathname === '/event' && request.method === 'POST') {
         if (!(await rateLimit(env, request, 'event', 100))) return json({ error: 'Límite de eventos.' }, 429, cors)
         const body = safeJson(await request.text())
-        if (!['conversation_started', 'meaningful_conversation', 'abandoned'].includes(body.name)) return json({ error: 'Evento inválido.' }, 400, cors)
+        if (!EVENTS.includes(body.name)) return json({ error: 'Evento inválido.' }, 400, cors)
         await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(/^[0-9a-f-]{36}$/i.test(body.conversationId || '') ? body.conversationId : null, body.name, now()).run()
         return json({ ok: true }, 200, cors)
+      }
+      if (url.pathname === '/lead' && request.method === 'POST') {
+        if (!(await rateLimit(env, request, 'lead', 8))) return json({ error: 'Has enviado varios formularios. Escríbenos a hola@soycatalinajaramillo.com.' }, 429, cors)
+        const raw = await request.text()
+        if (raw.length > 8000) return json({ error: 'Datos demasiado largos.' }, 413, cors)
+        const lead = cleanLead(safeJson(raw))
+        if (!lead.email && !lead.phone) return json({ error: 'Déjanos un email o un teléfono para poder contactarte.' }, 400, cors)
+        if (lead.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(lead.email)) return json({ error: 'Revisa el email.' }, 400, cors)
+        const id = 'web-' + crypto.randomUUID()
+        await env.DB.prepare('INSERT INTO leads(conversation_id,data,updated_at,status) VALUES (?,?,?,?)').bind(id, JSON.stringify(lead), now(), 'form').run()
+        await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(null, `lead_form_${lead.source}`, now()).run()
+        const mail = leadEmail(lead)
+        const sent = await notifyCatalina(env, mail.subject, mail.text + `\n\nID: ${id}`, lead.email)
+        return json({ ok: true, notified: sent.ok }, 201, cors)
       }
       return json({ error: 'Ruta no encontrada.' }, 404, cors)
     } catch { return json({ error: 'Servicio temporalmente no disponible.' }, 500, cors) }
