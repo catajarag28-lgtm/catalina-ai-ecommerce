@@ -1,17 +1,14 @@
 # Carolina: contactos, investigación y propuestas
 
 ## Estado
-Implementado y probado en esta rama. NO activado ni desplegado. La producción responde modelReady/emailReady/notifyReady=true y calendarReady=false. El CLI de Cloudflare no tiene sesión en este entorno.
-
-La rama pública main no contiene los archivos de propuestas por sector que Claude publicó desde su PC. Integrar esos cambios antes de desplegar esta rama para no sustituir trabajo que existe solamente en producción/local.
-
+El Worker y sus assets están desplegados en soycatalinajaramillo.com; la integración de Claude está en main. El formulario, el chat, el aviso y la entrega a correos propios se probaron. La prospección comercial sigue desactivada (`OUTREACH_ENABLED=false`). Calendar del Worker no está conectado. Ver el estado fechado al final.
 ## Flujo
 - Ficha antes del chat: nombre, empresa, correo, teléfono, país; web y redes cuando existan. Consentimiento explícito para investigación, resumen y propuesta preliminar.
 - Cron de 15 minutos, existente: crea una cola de prospectos cualificados del chat y explora fuentes públicas configuradas.
-- PROSPECT_SOURCES es un array JSON de objetos {url}. Debe contener webs públicas de negocios o directorios pertinentes. Sin fuentes configuradas no hay descubrimiento automático.
+- PROSPECT_SOURCES es un array JSON de objetos {url}. Contiene sitios oficiales de negocios verificados; los directorios no son destinatarios. Sin fuentes configuradas no hay descubrimiento automático.
 - El descubrimiento recorre dos páginas por ejecución, obtiene correos del HTML, y exige evidencia literal de un negocio con atención en español. No usa sesiones privadas, no aplica en Workana y no salta verificaciones.
 - Investigación previa, observación respaldada por una cita literal y oportunidad expresada como hipótesis. Las páginas son datos no instrucciones. Las inferencias del modelo requieren supervisión y ajuste inicial: una cita literal no demuestra por sí sola que el análisis comercial sea correcto.
-- Email con marca negro/marfil/dorado, catálogo único, fases, alcance y exclusiones. CTA a propuesta web individual y Carolina. Sin resultados financieros inventados.
+- Primer email breve con marca negro/marfil/dorado, observación verificable, escena visual y CTA a una propuesta web o Carolina. Sin precio inicial ni resultados inventados. El catálogo único se usa para rangos posteriores a la calificación.
 - Precios de implementación desde USD 2200. Mantenimiento separado. No ofrece diagnósticos de USD 490 como sustituto del proyecto.
 - Máximo 5 envíos diarios entre propuestas entrantes y salientes; reserva atómica por fila y límite al reclamar. Supresión por BAJA y registro de contactos anteriores.
 - Idempotencia Resend; un envío incierto no se repite automáticamente.
@@ -19,12 +16,12 @@ La rama pública main no contiene los archivos de propuestas por sector que Clau
 - La lista persistente de contactos está en D1 outreach. No existe aún un dashboard visual ni búsqueda general con motor externo. Sin fuentes configuradas no se puede prometer búsqueda web ilimitada. No hay seguimiento comercial programado en esta versión.
 
 ## Activación (operador autenticado)
-1. Integrar los cambios locales de Claude. Ejecutar npm ci, npm test, npm run build.
+1. Integración de Claude, pruebas y despliegue ya realizados; repetir npm test y npm run build antes de cada publicación.
 2. Verificar remitente en Resend y destino en Cloudflare; comprobar un aviso de prueba al correo correcto.
-3. Aplicar npx wrangler d1 execute carolina-portfolio --remote --file=migrations/0002_outreach.sql.
-4. Importar los contactos ya atendidos (KB Digital, Nodena, E-Luxe, Luis Victoria) como enviados para evitar repetición. Sus registros reales están en el correo, no inferir entrega desde esta rama.
-5. Configurar PROSPECT_SOURCES con fuentes verificadas pertinentes para clientes hispanohablantes; empezar con una fuente y revisar investigación/propuestas iniciales.
-6. Cambiar OUTREACH_ENABLED a true, desplegar npm run deploy y comprobar un envío controlado consentido. No activar antes de completar migración, prueba de correo y fuentes.
+3. Migraciones 0002 a 0005 aplicadas en D1 remoto sin borrar datos. No repetir ALTER TABLE de 0005.
+4. El historial de KB Digital, Nodena, E-Luxe y Luis Victoria ya se importó y suprimió para evitar repetición.
+5. Las 11 fuentes oficiales ya están configuradas. Revisar calidad de la investigación y propuestas de cada segmento.
+6. Antes de activar: corregir la validación de evidencia del modelo, rotar y configurar el secreto de webhook, verificar entrega/clic/rebote/baja y seguimiento, y comprobar un lote pequeño. Después subir volumen manualmente según resultados.
 7. Conectar Google Calendar aparte si se desean reservas reales. Sin calendario, Carolina solicita franjas y Catalina confirma; no afirmar cita reservada.
 
 ## Lista y control
@@ -55,3 +52,15 @@ Las reuniones son en español; otros idiomas solo mediante comunicación escrita
 - Calendar del Worker carece de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN` autorizados para `catalinajaramillogirldo28@gmail.com`. `calendarReady=false`: no hay reservas ni recordatorios reales desde el Worker.
 - No existe aún una secuencia de seguimiento verificada ni recepción completa de rebotes. Mantener los envíos automáticos desactivados hasta probar esos circuitos y el análisis individual.
 - Datos en D1: tablas `outreach`, `discovery_state`, `suppression`, `emails`, `leads`, `meetings`. Revisar los estados allí con Wrangler o el panel de Cloudflare, sin publicar datos personales.
+
+## Medición y aprendizaje comercial
+
+- Vista previa interna del nuevo asunto y diseño: https://soycatalinajaramillo.com/muestra-correo-carolina.html. El asunto de muestra pregunta: “¿Qué sabe su asesor antes de mostrar Brickell?”.
+- La migración `0005_engagement.sql` agrega eventos con deduplicación, ángulo creativo y control de pausa. Las muestras `test-*` no cuentan en tasas ni umbrales.
+- Cada contacto real recibe uno de tres ángulos de asunto: pregunta sobre una decisión, pregunta diagnóstica o observación operativa. La propuesta debe citar una fuente real. Comparar resultados por ángulo y segmento; no declarar ganadora una variante por pocas aperturas.
+- La página personalizada registra una visita por día y expediente. Las visitas pueden incluir escáneres de seguridad. Una apertura medida por Resend significa que se descargó un píxel, no que se leyó el mensaje. Priorizar respuestas, reuniones y contratos verificados.
+- Resend: el dominio tiene un CNAME `links` en Cloudflare apuntando a `links2.resend-dns.com`, DNS only. Resend confirmó el dominio como Verified y mostró activados Click tracking y Open tracking. Los eventos todavía no llegan a D1 porque el webhook está desactivado.
+- El endpoint `/webhooks/resend` valida la firma Svix, evita eventos duplicados y suprime rebotes y quejas. El webhook de Resend está DESACTIVADO y `RESEND_WEBHOOK_SECRET` NO está guardado en Cloudflare. El primer secreto quedó visible en una salida de herramienta durante la configuración; se canceló antes de guardarlo. Debe rotarse en Resend y configurarse el nuevo valor directamente como secreto del Worker antes de habilitar el webhook. Nunca copiarlo al repositorio ni a un mensaje.
+- Reglas de pausa: una queja; al menos 20 envíos en 14 días con rebotes de 5 % o más; o 50 entregas con al menos 7 días sin clics, visitas ni respuestas. El sistema se detiene y avisa a Catalina. No aumenta volumen automáticamente.
+- Un informe semanal de siete días se envía los lunes a las 18:00 hora Colombia cuando hubo envíos reales. Incluye resultados por ángulo y advierte las limitaciones de aperturas y clics. Consultar los registros también en D1 (`outreach`, `outreach_events`, `outreach_control`) y en Resend > Metrics.
+- El volumen comercial continúa en cero: `OUTREACH_ENABLED=false`. No hay una secuencia de seguimiento a prospectos reales activada.

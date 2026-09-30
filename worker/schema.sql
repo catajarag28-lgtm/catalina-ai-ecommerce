@@ -11,3 +11,18 @@ CREATE TABLE IF NOT EXISTS suppression (email TEXT PRIMARY KEY, reason TEXT, cre
 
 CREATE TABLE IF NOT EXISTS outreach (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, company TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'outbound', dossier TEXT, website TEXT NOT NULL, source_url TEXT NOT NULL, authorized INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', research TEXT, subject TEXT, html TEXT, provider_id TEXT, error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS discovery_state (source_url TEXT PRIMARY KEY, next_index INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS outreach_events (
+  event_id TEXT PRIMARY KEY,
+  outreach_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  occurred_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_outreach_events_type ON outreach_events(type,occurred_at);
+CREATE TABLE IF NOT EXISTS outreach_control (
+  id INTEGER PRIMARY KEY CHECK (id=1),
+  paused INTEGER NOT NULL DEFAULT 0,
+  reason TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO outreach_control(id,paused,reason,updated_at) VALUES (1,0,'',0);
+ALTER TABLE outreach ADD COLUMN angle TEXT NOT NULL DEFAULT '';

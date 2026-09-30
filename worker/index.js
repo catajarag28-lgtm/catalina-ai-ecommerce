@@ -1,5 +1,6 @@
 import { discoverProspects } from './discovery.js'
 import { runOutreach, queueQualifiedLeads, escapeHtml } from './outreach.js'
+import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport } from './engagement.js'
 import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
 import { qualificationStatus } from './qualification.js'
@@ -184,10 +185,16 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin')
     const url = new URL(request.url)
+    if (url.pathname === '/webhooks/resend' && request.method === 'POST') return receiveResendEvent(request,env)
     const proposalId=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})$/i)?.[1]
     if(proposalId && request.method==='GET'){
       const proposal=await env.DB.prepare("SELECT html,research FROM outreach WHERE id=? AND status='sent'").bind(proposalId).first()
       if(!proposal?.html)return new Response('Propuesta no disponible',{status:404})
+      const agent=request.headers.get('user-agent') || ''
+      if (!/bot|crawler|spider|preview|scanner|headless/i.test(agent)) {
+        const day=new Date().toISOString().slice(0,10)
+        await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
+      }
       const detail=JSON.parse(proposal.research || '{}').solution || ''
       const detailHtml=detail ? '<tr><td style="padding:18px 28px;font:15px/1.6 Arial,sans-serif"><p style="color:#947347;font-size:11px;letter-spacing:2px">CÓMO LO EXPLORARÍAMOS</p><p>'+escapeHtml(detail)+'</p><p style="font-size:13px;color:#655b4f">El alcance se definiría tras revisar el proceso y las herramientas con su equipo.</p></td></tr>' : ''
       const page=proposal.html.replace('<tr><td align="center" style="padding:24px',detailHtml+'<tr><td align="center" style="padding:24px').replace('Explorar la idea para mi negocio','Hablar con Carolina sobre esta idea').replace(/https:\/\/soycatalinajaramillo.com\/propuesta\/[a-z0-9-]+/gi,'https://soycatalinajaramillo.com/#carolina').replace('</head>','<style>@keyframes appear{from{opacity:.2;transform:translateY(12px)}to{opacity:1;transform:none}}body>table{animation:appear .6s ease-out}@media(prefers-reduced-motion:reduce){body>table{animation:none}}</style></head>')
@@ -255,6 +262,8 @@ export default {
   async scheduled(_event, env) {
     await queueQualifiedLeads(env).catch(e => console.error("proposal_queue_failure", e?.message))
     await discoverProspects(env).catch(e => console.error("discovery_failure", e?.message))
+    await checkOutreachHealth(env).catch(e => console.error("outreach_health_failure", e?.message))
+    await sendDailyOutreachReport(env).catch(e => console.error("outreach_report_failure", e?.message))
     await runOutreach(env).catch(e => console.error("outreach_failure", e?.message))
     const clock = now()
     const meetings = await env.DB.prepare('SELECT * FROM meetings WHERE starts_at>? AND starts_at<?').bind(new Date(clock).toISOString(), new Date(clock + 27 * 3600000).toISOString()).all()
