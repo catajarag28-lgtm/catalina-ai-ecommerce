@@ -70,6 +70,7 @@ export function lintCopy(p, company) {
   if (preview && subject && preview.toLowerCase().includes(subject.toLowerCase().slice(0, 20))) issues.push('la vista previa repite el asunto')
   if (/usd|\$\s?\d|precio|cuesta|inversión de/i.test([p.subject, p.preview, p.hook, p.subhook, p.ps, p.scene?.agent].join(' '))) issues.push('menciona precio')
   if (/pierde[ns]? (ventas|clientes)|no responden|no tienen|carecen|necesitan urgentemente/i.test([p.hook, p.subhook, p.observation, p.hypothesis].join(' '))) issues.push('afirma una carencia no verificada')
+  if (/\b(evita|evitaría|reduce|reduciría|aumenta|aumentaría|duplica|multiplica|recupera|recuperaría)\b.{0,30}\b(reservas|ventas|conversi|clientes|pacientes|abandon|pérdid|perdid)/i.test([p.subject, p.preview, p.hook, p.subhook].join(' '))) issues.push('promete o insinúa un resultado no verificado en el asunto o titular')
   if (!p.scene || !['customer', 'agent', 'handoff'].every(k => typeof p.scene[k] === 'string' && p.scene[k].trim().length >= 8)) issues.push('escena incompleta')
   if (!Array.isArray(p.moments) || p.moments.length !== 3) issues.push('faltan los tres momentos')
   const wc = v => String(v || '').split(/\s+/).filter(Boolean).length

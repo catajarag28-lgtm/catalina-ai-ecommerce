@@ -97,3 +97,12 @@ test('Evidence must be on the site, tolerant only to accents, quotes and case', 
 })
 import { blockedRegions } from '../worker/outreach.js'
 test('Spain is excluded from cold outreach', () => { assert.ok(blockedRegions.has('España')) })
+test('Headline cannot promise unverified outcomes', () => {
+  assert.ok(lintCopy({ ...good, subhook: 'Aclarar la dinámica evita reservas abandonadas.' }).some(x => x.includes('resultado no verificado')))
+  assert.deepEqual(lintCopy(good, 'Ava'), [])
+})
+import { whatsappMessage } from '../worker/engagement.js'
+test('Direct WhatsApp message is personal, links the proposal and has no price', () => {
+  const m = whatsappMessage({ id: 'abc', company: 'Ava Spa' })
+  assert.ok(m.includes('Ava Spa') && m.includes('/propuesta/abc') && !/USD|\$/.test(m))
+})

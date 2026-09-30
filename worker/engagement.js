@@ -138,3 +138,44 @@ export async function setupResendWebhook(env, endpoint='https://soycatalinajaram
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('resend_webhook_id',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(String(created.id),Date.now()).run()
   return {ok:true,webhookId:created.id,removed}
 }
+
+// Lista diaria de contacto directo (lun-vie, 8 a. m. Bogotá): negocios que ya recibieron propuesta, ordenados por interés,
+// con su teléfono/WhatsApp publicado y un enlace wa.me con el mensaje listo. Catalina revisa y envía cada uno personalmente.
+export function whatsappMessage(row) {
+  const link = 'https://soycatalinajaramillo.com/propuesta/' + row.id
+  return `Hola, equipo de ${row.company}. Soy Catalina Jaramillo. Les escribí por correo con una idea para su atención por WhatsApp y les preparé una demo con sus propios servicios, que pueden probar aquí: ${link}\n¿Les parece si lo conversamos 15 minutos esta semana?`
+}
+export async function sendDailyContactList(env, now = Date.now()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', weekday: 'short', hour: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(p => [p.type, p.value]))
+  if (['Sat', 'Sun'].includes(parts.weekday) || Number(parts.hour) !== 8) return { due: false }
+  const day = parts.year + '-' + parts.month + '-' + parts.day
+  const rows = (await env.DB.prepare(`SELECT o.id,o.company,o.subject,o.research,o.dossier,o.sent_at,
+      MAX(CASE WHEN e.type IN ('demo.used','cta.clicked','chat.started') THEN 3 WHEN e.type IN ('page.viewed','email.clicked') THEN 2 WHEN e.type='email.opened' THEN 1 ELSE 0 END) AS heat
+    FROM outreach o LEFT JOIN outreach_events e ON e.outreach_id=o.id
+    WHERE o.status='sent' AND o.id NOT LIKE 'test-%' AND o.sent_at>? GROUP BY o.id ORDER BY heat DESC, o.sent_at DESC LIMIT 40`).bind(now - 10 * 86400000).all()).results || []
+  const list = []
+  for (const r of rows) {
+    let d = {}; try { d = JSON.parse(r.research || '{}') } catch {}
+    const phone = (d.phones || [])[0]
+    if (!phone) continue
+    const contacted = await env.DB.prepare("SELECT 1 FROM outreach_events WHERE outreach_id=? AND type='contact.listed'").bind(r.id).first()
+    if (contacted && r.heat < 3) continue
+    list.push({ ...r, phone })
+    if (list.length >= 15) break
+  }
+  if (!list.length) return { due: true, sent: false }
+  const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('contactlist-' + day, 'system', 'contactlist.sent', now).run()
+  if (!mark.meta.changes) return { due: false }
+  const heatLabel = ['recibió el correo', 'abrió el correo', 'vio su propuesta', '🔥 probó la demo o pidió hablar']
+  const lines = list.map((r, i) => {
+    const wa = 'https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(whatsappMessage(r))
+    return `${i + 1}. ${r.company} — ${heatLabel[r.heat]}\n   Teléfono: ${r.phone}\n   Abrir WhatsApp con el mensaje listo: ${wa}\n   Su propuesta: https://soycatalinajaramillo.com/propuesta/${r.id}`
+  })
+  for (const r of list) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'contact.listed',?)").bind('listed-' + r.id, r.id, now).run()
+  await notifyCatalina(env, `Tu lista de contacto directo de hoy · ${list.length} negocios`, [
+    'Negocios que ya recibieron su propuesta de Carolina, ordenados de más a menos interés. Escríbeles tú, uno por uno, desde tu WhatsApp: el enlace abre el chat con el mensaje listo para que lo revises y envíes.',
+    'Prioriza los 🔥. Si alguien responde, pásalo al chat de Carolina o agenda directamente.', '', ...lines, '',
+    'Consejo: un mensaje personal por negocio, nunca en masa. Si alguien dice que no, respeta y no insistas.'
+  ].join('\n'))
+  return { due: true, sent: true, count: list.length }
+}

@@ -1,6 +1,6 @@
 import { discoverProspects, searchSegment, verifyCandidate, segments } from './discovery.js'
 import { runOutreach, queueQualifiedLeads } from './outreach.js'
-import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './engagement.js'
+import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook, sendDailyContactList } from './engagement.js'
 import { renderProposalPage } from './proposalPage.js'
 import { handleDemo } from './demo.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
@@ -304,6 +304,7 @@ export default {
     await step('angles', () => evolveAngles(env))
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))
+    await step('contacts', () => sendDailyContactList(env))
     await step('outreach', () => runOutreach(env))
     await step('discovery', () => discoverProspects(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
