@@ -81,7 +81,7 @@ async function prepare(env, row, research, angle) {
   if (p.diagnosis?.fit === 'bajo') throw new Error('low_fit: ' + String(p.diagnosis.why || '').slice(0, 160))
   if (!evidenceFound(research.publicText, p.evidence)) {
     const fix = await llm(env, [{ role: 'system', content: 'Devuelve JSON {"evidence":"..."} con UNA frase copiada carácter por carácter del texto, de 12 a 160 caracteres, que respalde la observación. Si ninguna la respalda, devuelve {"evidence":""}.' }, { role: 'user', content: JSON.stringify({ observation: p.observation, text: research.publicText }) }], { temperature: 0, max_tokens: 400 }).catch(() => ({}))
-    if (!evidenceFound(research.publicText, fix.evidence)) throw new Error('unverified_observation')
+    if (!evidenceFound(research.publicText, fix.evidence)) throw new Error('unverified_observation: «' + String(p.evidence || '').slice(0, 120) + '» / reparación: «' + String(fix.evidence || '').slice(0, 120) + '»')
     p.evidence = fix.evidence
   }
   if (![p.subject, p.hook, p.observation, p.hypothesis, p.solution].every(v => typeof v === 'string' && v.trim().length >= 12)) throw new Error('copy_incomplete')

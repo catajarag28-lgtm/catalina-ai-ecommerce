@@ -19,8 +19,8 @@
 
 ### Bloqueos para escribir a prospectos nuevos (el sistema los respeta solo)
 - `SENDER_POSTAL_ADDRESS` (variable): dirección postal obligatoria por CAN-SPAM en los correos comerciales a EE. UU. (sirve un buzón virtual o un apartado postal).
-- Métricas de Resend: la API key del Worker solo permite enviar (401 al gestionar webhooks). Hay que crear el webhook en el panel de Resend → `https://soycatalinajaramillo.com/webhooks/resend`, todos los eventos, y guardar la clave con `Get-Clipboard | npx wrangler secret put RESEND_WEBHOOK_SECRET --name carolina-portfolio-api`. Borrar el webhook anterior, cuya clave quedó expuesta.
-- Avisos a Catalina: `catalinajaramillogirldo28@gmail.com` debe confirmar el correo de verificación de Cloudflare Email Routing.
+- Métricas de Resend: CONECTADAS el 30-sep (webhook existente reactivado con clave rotada; la expuesta quedó inválida). Verificado: email.sent y email.delivered registrados con firma.
+- Avisos a Catalina: `catalinajaramillogirldo28@gmail.com` VERIFICADO en Cloudflare el 30-sep.
 
 ### Dónde consultar
 - `/health`: `metricsReady`, `postalReady`, `outreachEnabled`.
