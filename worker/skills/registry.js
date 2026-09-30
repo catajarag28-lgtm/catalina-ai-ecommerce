@@ -47,7 +47,23 @@ Aprendizaje: los segmentos que generan interés reciben más búsquedas; los que
 - Encaje: alto, medio o bajo; si es bajo, no se escribe.
 Reglas: separa hechos públicos (con cita literal), datos declarados por el prospecto e hipótesis. La ausencia de una herramienta en la web no prueba que no la tengan ni que pierdan ventas. En salud y derecho solo tareas administrativas y logísticas.`,
   },
-  { id: 'copywriting-email', nombre: 'Copywriting de correo B2B (asunto, hook, escena, CTA)', usos: ['propuesta', 'seguimiento'], contenido: copywritingSkill },
+  {
+    id: 'mapa-de-oportunidades', nombre: 'Mapa experto de oportunidades de automatización con IA', usos: ['propuesta', 'prospeccion', 'chat'],
+    contenido: `Analiza el negocio por su operación, no por la palabra chatbot. Primero identifica qué vende, cómo entra una consulta, dónde decide el cliente, qué pasa después y qué información termina en una persona o herramienta.
+
+Mapa de oportunidades por sector:
+- Spa, estética, salón y bienestar: concierge 24/7 para servicios, horarios y reservas; calificación de intención; agenda y recordatorios; recuperación de consultas que no reservaron; reactivación de clientes; cancelaciones y lista de espera; reseñas y seguimiento postservicio. No prometas resultados estéticos ni inventes disponibilidad.
+- Consultorio médico, odontología, veterinaria y salud: orientación administrativa sobre servicios publicados, ubicación, horarios, requisitos y agenda; captura de motivo, especie o servicio, preferencia y urgencia declarada; recordatorios, formularios y escalamiento al personal. Nunca diagnostiques, indiques tratamientos, decidas idoneidad ni prometas resultados. En veterinaria, urgencias se pasan de inmediato a una persona.
+- Inmobiliaria: captación y calificación de compradores o arrendatarios; presupuesto y zona; recomendación de propiedades solo con inventario real; agenda de visitas; seguimiento de leads y distribución por asesor; reactivación de interesados.
+- E-commerce: asesor de producto con catálogo real; recuperación de carrito; estado de pedido; cambios y devoluciones; preguntas frecuentes; venta cruzada; recompra; captura de incidencias y paso al equipo.
+- Servicios profesionales, abogados, seguros y contabilidad: intake inicial; calificación por tipo de caso; lista de documentos; agenda; seguimiento de formularios incompletos; distribución al especialista. En derecho y finanzas no des asesoría profesional ni garantías.
+- Restaurantes, hoteles, turismo y eventos: reservas, disponibilidad solo si está conectada a una fuente real, preguntas frecuentes, cambios y cancelaciones, venta adicional contextual, lista de espera y seguimiento.
+- Agencias de marketing, web, CRM y consultores: sistema de captación y calificación para sus propios clientes; automatización de briefs, seguimiento y reportes; alianza de implementación. No competir con su servicio ni prometer comisiones.
+- Varias sedes, franquicias o empresas con operación compleja: enrutamiento por sede, permisos, tablero de demanda, alertas, conciliación y agentes coordinados. Solo proponer multiagente si hay señales de complejidad real.
+- Cualquier negocio: leer señales de WhatsApp, formularios, agenda, CRM, tienda, correo, hojas de cálculo, comentarios, reseñas, sedes y políticas. La presencia de una herramienta muestra un punto de integración; su ausencia solo permite una hipótesis, nunca una afirmación.
+
+Regla de selección: genera varias oportunidades internamente, puntúalas por dolor visible, frecuencia probable, cercanía al dinero o al tiempo del equipo, facilidad de explicar con evidencia y encaje con el catálogo. Elige una sola para el primer contacto. La propuesta debe responder: qué está pasando hoy, qué viviría distinto el cliente, qué recibiría el equipo y por qué conviene explorar esto antes que otras mejoras. Si no puedes responder las cuatro con hechos e hipótesis separadas, no envíes.`
+  },  { id: 'copywriting-email', nombre: 'Copywriting de correo B2B (asunto, hook, escena, CTA)', usos: ['propuesta', 'seguimiento'], contenido: copywritingSkill },
   {
     id: 'propuesta-senior', nombre: 'Propuesta de alto impacto (nivel empresarial senior)', usos: ['propuesta'],
     contenido: proposalPlaybook + `
@@ -98,3 +114,4 @@ export function skillsMarkdown() {
   return ['# Habilidades de Carolina', '', 'Generado desde `worker/skills/registry.js`. No editar a mano.', '',
     ...carolinaSkills.flatMap(s => [`## ${s.nombre}`, `*Se usa en: ${s.usos.join(', ')}*`, '', s.contenido, ''])].join('\n')
 }
+

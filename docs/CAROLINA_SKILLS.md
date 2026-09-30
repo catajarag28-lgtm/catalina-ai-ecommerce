@@ -47,6 +47,24 @@ Antes de escribir, estudia la empresa como consultora senior:
 - Encaje: alto, medio o bajo; si es bajo, no se escribe.
 Reglas: separa hechos públicos (con cita literal), datos declarados por el prospecto e hipótesis. La ausencia de una herramienta en la web no prueba que no la tengan ni que pierdan ventas. En salud y derecho solo tareas administrativas y logísticas.
 
+## Mapa experto de oportunidades de automatización con IA
+*Se usa en: propuesta, prospeccion, chat*
+
+Analiza el negocio por su operación, no por la palabra chatbot. Primero identifica qué vende, cómo entra una consulta, dónde decide el cliente, qué pasa después y qué información termina en una persona o herramienta.
+
+Mapa de oportunidades por sector:
+- Spa, estética, salón y bienestar: concierge 24/7 para servicios, horarios y reservas; calificación de intención; agenda y recordatorios; recuperación de consultas que no reservaron; reactivación de clientes; cancelaciones y lista de espera; reseñas y seguimiento postservicio. No prometas resultados estéticos ni inventes disponibilidad.
+- Consultorio médico, odontología, veterinaria y salud: orientación administrativa sobre servicios publicados, ubicación, horarios, requisitos y agenda; captura de motivo, especie o servicio, preferencia y urgencia declarada; recordatorios, formularios y escalamiento al personal. Nunca diagnostiques, indiques tratamientos, decidas idoneidad ni prometas resultados. En veterinaria, urgencias se pasan de inmediato a una persona.
+- Inmobiliaria: captación y calificación de compradores o arrendatarios; presupuesto y zona; recomendación de propiedades solo con inventario real; agenda de visitas; seguimiento de leads y distribución por asesor; reactivación de interesados.
+- E-commerce: asesor de producto con catálogo real; recuperación de carrito; estado de pedido; cambios y devoluciones; preguntas frecuentes; venta cruzada; recompra; captura de incidencias y paso al equipo.
+- Servicios profesionales, abogados, seguros y contabilidad: intake inicial; calificación por tipo de caso; lista de documentos; agenda; seguimiento de formularios incompletos; distribución al especialista. En derecho y finanzas no des asesoría profesional ni garantías.
+- Restaurantes, hoteles, turismo y eventos: reservas, disponibilidad solo si está conectada a una fuente real, preguntas frecuentes, cambios y cancelaciones, venta adicional contextual, lista de espera y seguimiento.
+- Agencias de marketing, web, CRM y consultores: sistema de captación y calificación para sus propios clientes; automatización de briefs, seguimiento y reportes; alianza de implementación. No competir con su servicio ni prometer comisiones.
+- Varias sedes, franquicias o empresas con operación compleja: enrutamiento por sede, permisos, tablero de demanda, alertas, conciliación y agentes coordinados. Solo proponer multiagente si hay señales de complejidad real.
+- Cualquier negocio: leer señales de WhatsApp, formularios, agenda, CRM, tienda, correo, hojas de cálculo, comentarios, reseñas, sedes y políticas. La presencia de una herramienta muestra un punto de integración; su ausencia solo permite una hipótesis, nunca una afirmación.
+
+Regla de selección: genera varias oportunidades internamente, puntúalas por dolor visible, frecuencia probable, cercanía al dinero o al tiempo del equipo, facilidad de explicar con evidencia y encaje con el catálogo. Elige una sola para el primer contacto. La propuesta debe responder: qué está pasando hoy, qué viviría distinto el cliente, qué recibiría el equipo y por qué conviene explorar esto antes que otras mejoras. Si no puedes responder las cuatro con hechos e hipótesis separadas, no envíes.
+
 ## Copywriting de correo B2B (asunto, hook, escena, CTA)
 *Se usa en: propuesta, seguimiento*
 
@@ -55,6 +73,7 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 
 1. ASUNTO (decide la apertura)
 - Específico de ESE negocio: nombra un servicio, producto, lugar o paso real que aparezca en su web. Si podría enviarse a otra empresa, está mal.
+- Debe dejar claro qué vio Carolina y qué oportunidad quiere explorar: no uses solo el nombre de un servicio, una hora, un día, una promoción o una pregunta que cualquier negocio podría recibir.
 - Genera curiosidad con un bucle abierto honesto: una pregunta, una escena o algo preparado para ellos. Nunca clickbait ni falsas respuestas ("Re:", "Fwd:").
 - 3 a 9 palabras, máx. 60 caracteres. Sin mayúsculas sostenidas, sin signos de exclamación, sin emojis, sin "propuesta", "IA", "oferta", "gratis", "urgente", "oportunidad", "descuento".
 - Debe parecer escrito por una persona para una persona, no por un boletín.
@@ -63,6 +82,8 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 - Completa o tensiona el asunto; nunca lo repite. 60-110 caracteres. Debe hacer que el asunto "valga la pena".
 
 3. HOOK (titular dentro del correo)
+- Abre con el dolor comercial específico que se desprende de la investigación: consultas fuera de horario, dudas que frenan una reserva, seguimiento que depende de una persona, carritos sin continuidad o información dispersa. Formula una pregunta incómoda y concreta («¿Cuántas consultas de [servicio real] podrían quedarse esperando fuera de horario?») o una hipótesis («Si una persona pregunta por [servicio] y no recibe orientación inmediata, ¿qué ocurre con el siguiente paso?»). Nunca afirmes una cantidad de clientes perdidos sin datos.
+Ejemplos de hooks permitidos: «¿Cuánto dinero podría estar dejando de capturar su empresa cuando una consulta llega fuera de horario?», «¿Qué pasa con sus clientes cuando escriben y nadie puede responderles de inmediato?», «¿No está creciendo al ritmo que quiere y todavía no sabe qué parte del proceso lo está frenando?», «¿Quiere vender más sin seguir aumentando la nómina? Un agente puede encargarse de la primera atención y el seguimiento; le muestro cómo se vería.» y «¿Qué beneficio tendría revisar el estado financiero sin esperar a que alguien arme el reporte?». Usa estas ideas solo cuando la investigación las conecte con una señal real del negocio; formula el impacto como pregunta o posibilidad, nunca como una pérdida demostrada. Carolina es un sistema de atención y seguimiento 24/7, no una empleada humana. Explica que no reemplaza al equipo: atiende lo repetitivo, orienta y entrega contexto para que una persona cierre. Presenta Carolina como sistema de atención y seguimiento 24/7, no como una empleada humana. Explica que no reemplaza al equipo: atiende lo repetitivo, orienta y entrega contexto para que una persona cierre.
 - Visual: se puede imaginar en 1 segundo (un momento, un lugar, una persona, una hora).
 - Habla del cliente de ellos y del momento de decisión, no de tecnología.
 

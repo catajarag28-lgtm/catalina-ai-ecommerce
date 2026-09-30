@@ -133,9 +133,10 @@ test('Segments that earn interest get searched more often', () => {
 import { carolinaSkills, skillsPrompt, skill } from '../worker/skills/registry.js'
 test('Carolina has one organized skill registry used by chat and proposals', () => {
   const ids = carolinaSkills.map(s => s.id)
-  for (const id of ['mision-y-principios', 'posicionamiento-senior', 'prospeccion', 'investigacion-de-negocio', 'copywriting-email', 'propuesta-senior', 'seguimiento-y-cierre', 'agenda', 'aliados', 'intencion-en-foros', 'aprendizaje-continuo']) assert.ok(ids.includes(id), id)
+  for (const id of ['mision-y-principios', 'posicionamiento-senior', 'prospeccion', 'investigacion-de-negocio', 'copywriting-email', 'propuesta-senior', 'seguimiento-y-cierre', 'agenda', 'aliados', 'intencion-en-foros', 'aprendizaje-continuo', 'mapa-de-oportunidades']) assert.ok(ids.includes(id), id)
   assert.ok(skill('posicionamiento-senior').includes('multiagente') && !/hace chatbots"?\s*\./.test(skillsPrompt(['posicionamiento-senior']).replace('"hace chatbots"', '')))
   assert.ok(/primer correo no lleva precio/.test(skill('mision-y-principios')))
+  assert.ok(/mapa de oportunidades|Mapa de oportunidades/i.test(skill('mapa-de-oportunidades')))
 })
 test('Scenes adapt to the solution: workflow and dashboard render without chat demo or invented numbers', () => {
   const flow = { ...good, scene: { type: 'flujo', title: 'Recuperación de cancelaciones', steps: [{ when: 'Cancelación', what: 'Se detecta en la agenda' }, { what: 'Se ofrece un nuevo horario' }, { what: 'El equipo recibe el caso' }] } }
@@ -148,3 +149,4 @@ test('Scenes adapt to the solution: workflow and dashboard render without chat d
   assert.deepEqual(lintCopy(board, 'Ava'), [])
   assert.ok(lintCopy({ ...board, scene: { ...board.scene, tiles: ['Ventas 45%', 'x', 'y'] } }).some(x => x.includes('cifras')))
 })
+

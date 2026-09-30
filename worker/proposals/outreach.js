@@ -59,7 +59,7 @@ fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene dem
 async function prepare(env, row, research, angle) {
   const learning = await learningExamples(env).catch(() => ({ good: [], bad: [] }))
   const playbook = await learnedPlaybook(env, 15).catch(() => '')
-  const system = [salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
+  const system = [salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'mapa-de-oportunidades', 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
     `ENFOQUE ASIGNADO (${angle.id}, formato ${angle.format}): ${angle.brief}\nLos ejemplos entre « » son ilustrativos: NUNCA los copies ni los parafrasees de cerca; crea asunto y hook desde los datos de ESTE negocio.`,
     playbook,
     learning.good.length ? 'Asuntos que SÍ generaron interés (aprende el patrón, no los copies): ' + learning.good.join(' | ') : '',
@@ -249,6 +249,7 @@ export async function runHotFollowup(env, now = Date.now()) {
   await notifyCatalina(env, `Carolina invitó a ${row.company} a reunirse contigo`, `Señal: ${signal === 'demo' ? 'probó la demo' : signal === 'cta' ? 'pidió hablar con Carolina' : 'vio su propuesta'}.\nCarolina les escribió en el mismo hilo con el enlace para agendar. Si agendan, te llega la cita.\n\nTeléfono publicado (solo si quieres llamar tú): ${phones || 'no publicado'}\nPropuesta: ${SITE}/propuesta/${row.id}`).catch(() => {})
   return { sent: true, company: row.company, signal }
 }
+
 
 
 
