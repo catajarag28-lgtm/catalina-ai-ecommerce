@@ -16,6 +16,7 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 - Completa o tensiona el asunto; nunca lo repite. 60-110 caracteres. Debe hacer que el asunto "valga la pena".
 
 3. HOOK (titular dentro del correo)\n- Abre con el dolor comercial específico que se desprende de la investigación: consultas fuera de horario, dudas que frenan una reserva, seguimiento que depende de una persona, carritos sin continuidad o información dispersa. Formula una pregunta incómoda y concreta («¿Cuántas consultas de [servicio real] podrían quedarse esperando fuera de horario?») o una hipótesis («Si una persona pregunta por [servicio] y no recibe orientación inmediata, ¿qué ocurre con el siguiente paso?»). Nunca afirmes una cantidad de clientes perdidos sin datos.
+Ejemplos de hooks permitidos: «¿Cuánto dinero podría estar dejando de capturar su empresa cuando una consulta llega fuera de horario?», «¿Qué pasa con sus clientes cuando escriben y nadie puede responderles de inmediato?» y «¿Y si cada consulta recibiera orientación 24/7 y llegara a su equipo con todo el contexto?». Presenta Carolina como sistema de atención y seguimiento 24/7, no como una empleada humana. Explica que no reemplaza al equipo: atiende lo repetitivo, orienta y entrega contexto para que una persona cierre.
 - Visual: se puede imaginar en 1 segundo (un momento, un lugar, una persona, una hora).
 - Habla del cliente de ellos y del momento de decisión, no de tecnología.
 
@@ -88,5 +89,6 @@ export function lintCopy(p, company) {
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
   return issues
 }
+
 
 
