@@ -54,8 +54,7 @@ const SPEC = `Devuelve SOLO JSON con esta forma:
 "executive":{"headline":"titular ejecutivo de 6-10 palabras","situation":"2 frases: cómo funciona hoy su captación/atención según la web","opportunity":"2 frases, condicional","approach":"2 frases: qué haríamos, por fases y con su equipo","measures":["3 indicadores concretos a medir, sin cifras prometidas, ej. tiempo de primera respuesta fuera de horario"]},
 "demoGreeting":"saludo del asistente demo con el nombre del negocio, máx. 20 palabras","demoPrompts":["3 preguntas cortas que haría un cliente real, sobre servicios publicados"]}
 Tono de consultor senior de estrategia comercial: preciso, sobrio, orientado a decisión. Nada de entusiasmo vacío.
-fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene demanda visible o nada del catálogo encaja.
-Antes de redactar, construye un diagnóstico con tres hechos concretos de su web, el recorrido visible de captación, atención, reserva, venta o postventa, las automatizaciones que sí aparecen y una oportunidad que no aparece resuelta públicamente. Puedes decir «no encontré una señal pública de…», nunca afirmar «no tiene» solo por ausencia. Después recomienda una sola automatización prioritaria y explica el beneficio para sus clientes y su equipo. El asunto debe unir el hecho observado con esa oportunidad; no uses una hora, un día, un nombre de servicio aislado ni una pregunta genérica.`
+fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene demanda visible o nada del catálogo encaja. Para correo frío solo se envía cuando fit=alto: fit=medio queda fuera hasta encontrar una señal mejor.\nAntes de redactar, construye un diagnóstico con tres hechos concretos de su web, el recorrido visible de captación, atención, reserva, venta o postventa, las automatizaciones que sí aparecen y una oportunidad que no aparece resuelta públicamente. Puedes decir «no encontré una señal pública de…», nunca afirmar «no tiene» solo por ausencia. Elige EXACTAMENTE una fricción prioritaria y una solución del catálogo que la atienda. La propuesta debe permitir que el dueño diga «eso es lo que nos está pasando» y explicar qué cambiaría para su cliente y su equipo. Si no puedes construir esa conexión con evidencia, devuelve fit=bajo. El asunto y el hook deben unir el hecho observado con esa oportunidad; no uses una hora, un día, un nombre de servicio aislado ni una pregunta genérica. No redactes por volumen ni para ver qué pesca. Ejemplo de razonamiento válido: si una clínica veterinaria publica servicios y canales de contacto, pero no encontramos una señal pública de atención automatizada, plantea «¿Sabías que podrías tener orientación y agenda 24/7 para que una consulta llegue al equipo con especie, motivo y urgencia?». Para un centro médico, limita la propuesta a orientación administrativa sobre servicios publicados, requisitos, horarios, ubicación, preparación no clínica y agenda; nunca diagnóstico, indicaciones, idoneidad médica ni promesas de salud. En cualquier sector, el agente debe filtrar la intención y pasar al personal a las personas con una necesidad concreta y posibilidad real de avanzar, sin fingir que reemplaza al profesional.`
 
 async function prepare(env, row, research, angle) {
   const learning = await learningExamples(env).catch(() => ({ good: [], bad: [] }))
@@ -84,7 +83,10 @@ async function prepare(env, row, research, angle) {
   p.critique = critique?.scores || null
   p.critiqueIssues = critique?.issues || []
   if (critiqueError) p.critiqueError = critiqueError
-  if (p.diagnosis?.fit === 'bajo') throw new Error('low_fit: ' + String(p.diagnosis.why || '').slice(0, 160))
+  if (p.diagnosis?.fit !== 'alto') throw new Error('low_fit: el encaje no es suficientemente claro para correo frío')
+  if (!Array.isArray(p.diagnosis?.opportunities) || p.diagnosis.opportunities.length !== 1) throw new Error('low_fit: debe existir una sola oportunidad prioritaria')
+  const ex = p.executive || {}
+  if (![ex.situation, ex.opportunity, ex.approach].every(v => typeof v === 'string' && v.trim().length >= 20) || !Array.isArray(ex.measures) || ex.measures.length < 2) throw new Error('low_fit: diagnóstico ejecutivo incompleto')
   if (!evidenceFound(research.publicText, p.evidence)) {
     const fix = await llm(env, [{ role: 'system', content: 'Devuelve JSON {"evidence":"..."} con UNA frase copiada carácter por carácter del texto, de 12 a 160 caracteres, que respalde la observación. Si ninguna la respalda, devuelve {"evidence":""}.' }, { role: 'user', content: JSON.stringify({ observation: p.observation, text: research.publicText }) }], { temperature: 0, max_tokens: 400 }).catch(() => ({}))
     if (!evidenceFound(research.publicText, fix.evidence)) throw new Error('unverified_observation: «' + String(p.evidence || '').slice(0, 120) + '» / reparación: «' + String(fix.evidence || '').slice(0, 120) + '»')
@@ -247,5 +249,7 @@ export async function runHotFollowup(env, now = Date.now()) {
   await notifyCatalina(env, `Carolina invitó a ${row.company} a reunirse contigo`, `Señal: ${signal === 'demo' ? 'probó la demo' : signal === 'cta' ? 'pidió hablar con Carolina' : 'vio su propuesta'}.\nCarolina les escribió en el mismo hilo con el enlace para agendar. Si agendan, te llega la cita.\n\nTeléfono publicado (solo si quieres llamar tú): ${phones || 'no publicado'}\nPropuesta: ${SITE}/propuesta/${row.id}`).catch(() => {})
   return { sent: true, company: row.company, signal }
 }
+
+
 
 
