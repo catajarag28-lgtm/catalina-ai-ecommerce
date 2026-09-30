@@ -1,5 +1,13 @@
 # Carolina: operación y conexiones pendientes
 
+## Producción actual (30-sep-2026)
+
+- **Sitio oficial:** https://soycatalinajaramillo.com (y `www.`). Web y API viven en el mismo Worker `carolina-portfolio-api` (assets en `dist/`). Publicar con `npm run deploy` (build + `wrangler deploy`). GitHub Pages queda como copia y usa la URL `workers.dev`, que sigue activa.
+- **Precios:** fuente única en `src/offers.js` (página, `#precios`, diagnóstico guiado y conocimiento del chat). `tests/pricing.test.mjs` impide que Carolina cite precios fuera del catálogo.
+- **Leads:** el diagnóstico guiado y el formulario de contacto envían a `POST /lead`; se guardan en D1 (`leads`, `conversation_id` con prefijo `web-`, status `form`) y se avisa a Catalina por email mediante Email Routing (binding `send_email` `NOTIFY`, de `carolina@soycatalinajaramillo.com` a `NOTIFY_TO`). El chat libre también avisa una vez cuando un prospecto llega a `qualified`/`high_intent`. `/health` expone `notifyReady`.
+- **Correo:** `hola@soycatalinajaramillo.com` reenvía (Email Routing) a `catajaragpyg@gmail.com`. Para cambiar el destino, verificar la nueva dirección en Email Routing y actualizar `NOTIFY_TO` y `send_email.destination_address` en `wrangler.jsonc`.
+- **WhatsApp:** pendiente. Al tener número, completar `CONTACT.whatsapp` en `src/offers.js`.
+
 ## Estado de la arquitectura
 
 La web está en GitHub Pages. El backend está en `https://carolina-portfolio-api.catajaragpyg.workers.dev` y usa D1 `carolina-portfolio`. El navegador solo envía mensajes y un ID aleatorio de sesión; la clave de OpenRouter y los tokens de integraciones permanecen en Cloudflare Worker. Las conversaciones, expedientes, eventos y citas se eliminan después de 30 días. La página solicita consentimiento antes de crear una sesión.
