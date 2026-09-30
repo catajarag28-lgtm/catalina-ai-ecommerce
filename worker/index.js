@@ -217,6 +217,20 @@ export default {
       if(!(await rateLimit(env, request, 'demo', 40))) return json({ error: 'Demasiados mensajes. Inténtelo en una hora.' }, 429)
       return handleDemo(request, env, demoRoute[1])
     }
+    // Botón «agendar directamente»: registra la intención (señal fuerte) y lleva a la página oficial de reservas de Google.
+    const bookRoute=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})\/agendar$/i)
+    if(bookRoute && request.method==='GET'){
+      const target=schedulingUrl(env)
+      if(!target)return new Response(null,{status:302,headers:{location:'/propuesta/'+bookRoute[1]+'/hablar'}})
+      const row=await env.DB.prepare("SELECT company FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(bookRoute[1]).first()
+      if(row&&!/bot|crawler|spider|preview|scanner|headless/i.test(request.headers.get('user-agent')||'')){
+        const r=await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'booking.opened',?)").bind('book-'+bookRoute[1],bookRoute[1],Date.now()).run().catch(()=>({meta:{changes:0}}))
+        if(r.meta.changes&&!bookRoute[1].startsWith('test-'))await notifyCatalina(env,`📅 ${row.company} abrió tu agenda`,`Abrieron la página de reservas desde su propuesta. Si eligen horario, Google te enviará la cita a tu calendario.
+
+Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()=>{})
+      }
+      return new Response(null,{status:302,headers:{location:target,'cache-control':'no-store','referrer-policy':'no-referrer'}})
+    }
     const route=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})(\/hablar)?$/i)
     if(route && request.method==='GET'){
       const [,proposalId,talk]=route
@@ -236,13 +250,13 @@ export default {
       if(human)await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
       const proposal=safeJson(row.research||'{}')
       const nonce=crypto.randomUUID().replace(/-/g,'')
-      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject,nonce,demo:row.kind!=='partner'}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-"+nonce+"'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
+      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject,nonce,demo:row.kind!=='partner',bookingUrl:schedulingUrl(env)||''}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-"+nonce+"'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
     }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {

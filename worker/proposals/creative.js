@@ -41,7 +41,7 @@ export async function angleStats(env, now = Date.now()) {
       MAX(CASE WHEN e.type='email.clicked' THEN 1 ELSE 0 END) AS clicked,
       MAX(CASE WHEN e.type='page.viewed' THEN 1 ELSE 0 END) AS visited,
       MAX(CASE WHEN e.type='cta.clicked' THEN 1 ELSE 0 END) AS cta,
-      MAX(CASE WHEN e.type='demo.used' THEN 1 ELSE 0 END) AS demo,
+      MAX(CASE WHEN e.type IN ('demo.used','booking.opened') THEN 1 ELSE 0 END) AS demo,
       MAX(CASE WHEN e.type='email.delivered' THEN 1 ELSE 0 END) AS delivered,
       (SELECT COUNT(*) FROM emails m WHERE m.direction='in' AND m.thread_key=lower(o.email) AND m.category IN ('prospect','meeting','question','needs_catalina')) AS positive,
       (SELECT COUNT(*) FROM meetings mt WHERE lower(mt.email)=lower(o.email)) AS meeting
