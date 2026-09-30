@@ -6,11 +6,16 @@ const opening={role:'assistant',text:'Hola, soy Carolina. Cuéntame qué te gust
 const suggestions=['Se pierden ventas','Mi equipo está saturado','Quiero un agente para mi negocio']
 const track=(name,conversationId)=>fetch(`${API}/event`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,conversationId})}).catch(()=>{})
 
+const storageKey='carolina-conversation-v1'
+function restored(){try{const value=JSON.parse(localStorage.getItem(storageKey)||'null');if(value?.id&&Array.isArray(value.messages)&&Date.now()-value.savedAt<30*86400000)return value}catch{}return null}
+
 export default function CarolinaChat(){
- const [messages,setMessages]=useState([opening]),[input,setInput]=useState(''),[consent,setConsent]=useState(false),[session,setSession]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[available,setAvailable]=useState(null)
+ const [saved]=useState(restored)
+ const [messages,setMessages]=useState(saved?.messages||[opening]),[input,setInput]=useState(''),[consent,setConsent]=useState(!!saved),[session,setSession]=useState(saved?.id||''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[available,setAvailable]=useState(null)
  const list=useRef(null)
  useEffect(()=>{fetch(`${API}/health`).then(r=>r.json()).then(data=>setAvailable(data.modelReady===true)).catch(()=>setAvailable(false))},[])
  useEffect(()=>{list.current?.scrollTo({top:list.current.scrollHeight,behavior:'smooth'})},[messages,busy])
+ useEffect(()=>{try{if(session&&consent)localStorage.setItem(storageKey,JSON.stringify({id:session,messages:messages.slice(-30),savedAt:Date.now()}));else localStorage.removeItem(storageKey)}catch{}},[session,messages,consent])
  async function send(suggestion){
   const value=(suggestion||input).trim();if(!value||busy||available===false)return
   if(!consent){setError('Para conversar, acepta el aviso de privacidad bajo el chat.');return}
@@ -31,5 +36,5 @@ export default function CarolinaChat(){
  {messages.length===1&&<div className="chatSuggestions">{suggestions.map(x=><button key={x} onClick={()=>send(x)}>{x} <ArrowUpRight size={14}/></button>)}</div>}
  {error&&<p className="chatError" role="alert">{error}</p>}
  <div className="chatComposer"><textarea aria-label="Tu mensaje para Carolina" value={input} maxLength={3000} rows={2} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Cuéntame qué está pasando en tu empresa…"/><button onClick={()=>send()} disabled={busy||available===false||!input.trim()} aria-label="Enviar mensaje"><Send size={19}/></button></div>
- <label className="privacy"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>Acepto que mi conversación y los datos que comparta se guarden hasta 30 días para recibir esta asesoría y preparar un posible contacto con Catalina. No compartas información sensible.</span></label><div className="chatFoot"><ShieldCheck size={15}/> Conversación privada · Carolina puede equivocarse; los alcances y precios finales se validan con Catalina.</div></div>
+ <label className="privacy"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>Acepto que mi conversación y los datos que comparta se guarden hasta 30 días para recibir esta asesoría y preparar un posible contacto con Catalina. No compartas información sensible.</span></label><div className="chatFoot"><ShieldCheck size={15}/> Conversación guardada en este navegador · Los alcances y precios finales se validan con Catalina.</div></div>
 }

@@ -129,7 +129,7 @@ export default {
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
-        if (!(await rateLimit(env, request, 'session', 12))) return json({ error: 'Límite de sesiones alcanzado.' }, 429, cors)
+        if (!(await rateLimit(env, request, 'session', 30))) return json({ error: 'Límite de sesiones alcanzado.' }, 429, cors)
         const body = safeJson(await request.text())
         if (body.consent !== true) return json({ error: 'Se requiere consentimiento para guardar la conversación.' }, 400, cors)
         const id = crypto.randomUUID()

@@ -10,3 +10,4 @@ footer button{background:none;border:0;color:inherit;font:inherit;letter-spacing
 .explainerPlay{background:#d6b98e;color:#231b12;border:0;border-radius:99px;font-size:.65rem;font-weight:700;letter-spacing:.12em;padding:13px 19px;margin:0 0 17px}.explainerProgress{position:absolute;top:0;left:0;height:2px;background:#e9c693;transition:width 2.9s linear}
 
 .stageRail{scrollbar-width:none}.stageRail::-webkit-scrollbar{display:none}@media(max-width:700px){.chatMessages{height:225px}}
+.lauraAgents{scrollbar-width:none}.lauraAgents::-webkit-scrollbar{display:none}
