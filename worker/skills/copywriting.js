@@ -15,7 +15,7 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 2. VISTA PREVIA (preheader)
 - Completa o tensiona el asunto; nunca lo repite. 60-110 caracteres. Debe hacer que el asunto "valga la pena".
 
-3. HOOK (titular dentro del correo)
+3. HOOK (titular dentro del correo)\n- Abre con el dolor comercial específico que se desprende de la investigación: consultas fuera de horario, dudas que frenan una reserva, seguimiento que depende de una persona, carritos sin continuidad o información dispersa. Formula una pregunta incómoda y concreta («¿Cuántas consultas de [servicio real] podrían quedarse esperando fuera de horario?») o una hipótesis («Si una persona pregunta por [servicio] y no recibe orientación inmediata, ¿qué ocurre con el siguiente paso?»). Nunca afirmes una cantidad de clientes perdidos sin datos.
 - Visual: se puede imaginar en 1 segundo (un momento, un lugar, una persona, una hora).
 - Habla del cliente de ellos y del momento de decisión, no de tecnología.
 
@@ -72,7 +72,7 @@ export function lintCopy(p, company) {
   if (preview.length < 40 || preview.length > 140) issues.push('vista previa fuera de 40-140 caracteres')
   if (preview && subject && preview.toLowerCase().includes(subject.toLowerCase().slice(0, 20))) issues.push('la vista previa repite el asunto')
   if (/usd|\$\s?\d|precio|cuesta|inversión de/i.test([p.subject, p.preview, p.hook, p.subhook, p.ps, p.scene?.agent].join(' '))) issues.push('menciona precio')
-  if (/pierde[ns]? (ventas|clientes)|no responden|no tienen|carecen|necesitan urgentemente/i.test([p.hook, p.subhook, p.observation, p.hypothesis].join(' '))) issues.push('afirma una carencia no verificada')
+  if (/pierde[ns]? (ventas|clientes)|estás perdiendo|están perdiendo|cuántos clientes perdiste|no responden|no tienen|carecen|necesitan urgentemente/i.test([p.hook, p.subhook, p.observation, p.hypothesis].join(' '))) issues.push('afirma una carencia no verificada')
   if (/\b(evita|evitaría|reduce|reduciría|aumenta|aumentaría|duplica|multiplica|recupera|recuperaría)\b.{0,30}\b(reservas|ventas|conversi|clientes|pacientes|abandon|pérdid|perdid)/i.test([p.subject, p.preview, p.hook, p.subhook].join(' '))) issues.push('promete o insinúa un resultado no verificado en el asunto o titular')
   const st = p.scene?.type === 'flujo' || p.scene?.type === 'tablero' ? p.scene.type : 'chat'
   if (st === 'flujo' && !(Array.isArray(p.scene.steps) && p.scene.steps.filter(x => x?.what).length >= 3)) issues.push('flujo con menos de 3 pasos')
@@ -88,4 +88,5 @@ export function lintCopy(p, company) {
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
   return issues
 }
+
 
