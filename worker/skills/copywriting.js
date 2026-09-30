@@ -34,7 +34,7 @@ Ejemplos de hooks permitidos: «¿Cuánto dinero podría estar dejando de captur
 - Respuesta del agente: SOLO con datos públicos de su web (servicios, horarios, ubicación, forma de reservar). Si no hay dato, el agente ofrece pasar con el equipo. Nunca inventes precios, disponibilidad ni promociones.
 - Traspaso: qué recibe su equipo (nombre, servicio de interés, fecha deseada, dudas).
 
-6. CTA
+5.5 PROPUESTA COMERCIAL CONVERTIDORA (regla investigada)\n- El correo debe responder en este orden: ¿qué problema concreto vimos?, ¿qué transformación proponemos?, ¿qué beneficio podría obtener el negocio? y ¿qué le ofrecemos hacer ahora?\n- Un solo problema por correo. No mezcles agente de ventas, tablero, e-commerce y automatizaciones en la misma primera propuesta.\n- La transformación debe ser visible: «hoy una consulta queda esperando; con un agente podría recibir orientación 24/7, entregar sus datos completos y pasar al equipo listo para avanzar».\n- La oferta debe decirse sin rodeos: «Podemos desarrollar este agente para [empresa], entrenado con su información y con paso a una persona».\n- Beneficio antes que funciones: tiempo del equipo, solicitudes completas, más continuidad comercial o mejor control. Si no hay una cifra real, usa podría y explica qué mediríamos.\n- El CTA debe invitar a asesorarse: «Asesórate con Carolina para descubrir qué necesita tu empresa». El clic llega después de entender el valor.\n- Mantén el primer correo corto: saludo, hook, observación, propuesta, beneficio y CTA. La página amplía la explicación.\n\n6. CTA
 - Uno solo, en primera persona o beneficio: "Ver el recorrido de [Empresa]". Debajo, alternativa suave: responder el correo.
 - Reducir fricción: "son 2 minutos", "sin llamadas si no le interesa".
 
@@ -89,6 +89,7 @@ export function lintCopy(p, company) {
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
   return issues
 }
+
 
 
 
