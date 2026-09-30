@@ -80,7 +80,8 @@ h1,h2,h3{font-family:'Manrope',sans-serif}
 /* CASE + DEMOS */
 .caseSection{background:#1b1916}
 .tag{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.14em;border-radius:99px;padding:6px 10px}.tag.real{background:#2f4a33;color:#bfe3bd}.tag.sim{background:#3a3026;color:#e3c796;margin-left:8px;vertical-align:middle}
-.realCase{border:1px solid #5c4c3a;border-radius:20px;padding:28px;background:radial-gradient(circle at 90% 0,#3d2f21,#1f1c18 60%);max-width:900px}
+.caseGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.realCase{border:1px solid #5c4c3a;border-radius:20px;padding:28px;background:radial-gradient(circle at 90% 0,#3d2f21,#1f1c18 60%)}
 .realCase h3{font-size:1.5rem;letter-spacing:-.03em;margin:14px 0 10px}.realCase p{color:#c9bfb2;line-height:1.65;margin:0;font-size:.98rem}
 .demoIntro{margin:48px 0 16px;font-size:1.1rem;color:#e7dccb}
 .demoTabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.demoTabs button{background:none;border:1px solid #5c4c3a;color:#bfb3a3;border-radius:99px;padding:10px 16px;font-size:.84rem}.demoTabs button.on{background:#d7bd95;border-color:#d7bd95;color:#221a11;font-weight:600}
@@ -127,7 +128,7 @@ footer{display:flex;justify-content:space-between;gap:20px;padding:26px 6vw;back
  .hero{grid-template-columns:1fr;min-height:auto;padding-top:44px}
  .offerGrid,.guaranteeGrid{grid-template-columns:1fr 1fr}.offerGrid article:last-child{grid-column:1/-1}
  .processGrid{grid-template-columns:1fr 1fr}.processGrid li:nth-child(3){padding-left:0;border-left:0}
- .demoBox,.contactSection,.profileSection{grid-template-columns:1fr}
+ .demoBox,.contactSection,.profileSection,.caseGrid{grid-template-columns:1fr}
 }
 @media(max-width:700px){
  .nav{height:60px}.wordmark{font-size:.66rem}.navTalk{font-size:.68rem;padding:8px 11px}

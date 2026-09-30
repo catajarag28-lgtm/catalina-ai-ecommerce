@@ -6,7 +6,7 @@ import {offers,catalog,maintenance,launchBonus,CONTACT} from './offers.js'
 import {track} from './api.js'
 
 const base=import.meta.env.BASE_URL
-const proof=[['15+','años en ventas, servicio al cliente y operación'],['35+','personas dirigidas; equipos coordinados de hasta 100'],['9.296','pedidos en mi propia marca de e-commerce*']]
+const proof=[['15+','años en ventas, marketing, lanzamientos y operación'],['7.531','clientas atendidas en mis 3 sedes físicas*'],['9.296','pedidos en mi tienda online de Shopify*']]
 const demos=[
  {id:'cita',tab:'Clínica: consulta → cita',problem:'Una clínica estética recibe consultas por WhatsApp de noche y los fines de semana. Cuando responden el lunes, la persona ya reservó en otro lado.',
   chat:[['c','Hola, ¿cuánto cuesta la limpieza facial?'],['a','¡Hola! La limpieza profunda está en USD 85 e incluye extracción e hidratación. ¿Es para ti? ¿Tienes piel sensible o alguna condición que deba saber la especialista?'],['c','Sí, para mí. Piel mixta, nada especial.'],['a','Perfecto. Tengo disponible el jueves a las 10:00 o el sábado a las 11:30. ¿Cuál te queda mejor?'],['c','Sábado'],['a','Listo, quedaste el sábado a las 11:30. Te llega la confirmación y te recuerdo el viernes. ¿A nombre de quién la registro?']],
@@ -55,8 +55,11 @@ function Home(){
    <div className="offerFoot"><p className="bonus">{launchBonus}</p><a href="#precios">Ver precios completos y qué incluye <ArrowUpRight size={16}/></a></div>
   </section>
 
-  <section id="caso" className="caseSection section"><span className="label">02 / NO TE LO CUENTO: MÍRALO</span><h2>Esto ya funciona.<br/><em>Empezó en mi propio negocio.</em></h2>
-   <div className="realCase"><span className="tag real">CASO REAL · EN OPERACIÓN</span><h3>LAURA, el agente de Professional Glam</h3><p>Antes de ofrecer esto a otras empresas, lo construí para la mía, una marca de cuidado capilar con venta por WhatsApp. LAURA atiende a las clientas, recomienda productos, confirma pedidos con pago contraentrega, avisa del envío, hace postventa y pasa a una persona los casos delicados. Todo lo que te ofrezco lo probé primero con mi propio dinero y mis propias clientas.</p></div>
+  <section id="caso" className="caseSection section"><span className="label">02 / NO TE LO CUENTO: MÍRALO</span><h2>Esto ya funciona.<br/><em>Lo estás viendo.</em></h2>
+   <div className="caseGrid">
+    <div className="realCase"><span className="tag real">EN VIVO · AHORA MISMO</span><h3>Carolina, la asesora de esta página</h3><p>Es un agente de IA. Conversa, entiende tu negocio, te recomienda por dónde empezar, estima la inversión y le pasa tu caso a Catalina con todo el contexto. Lo que sientes al hablar con ella es lo que sentirán tus clientes.</p><a className="heroDirect" href="#carolina">Hablar con Carolina <ArrowUpRight size={15}/></a></div>
+    <div className="realCase"><span className="tag real">CASO REAL · EN OPERACIÓN</span><h3>LAURA, el agente de Professional Glam</h3><p>Lo construí primero para mi propia marca de cuidado capilar. Atiende a las clientas por WhatsApp, recomienda productos, confirma pedidos contraentrega, avisa del envío, hace postventa y pasa a una persona los casos delicados.</p></div>
+   </div>
    <p className="demoIntro">Así se vería en tu negocio. <span className="tag sim">SIMULACIONES DE EJEMPLO</span></p>
    <div className="demoTabs" role="tablist">{demos.map(x=><button key={x.id} role="tab" aria-selected={demo===x.id} className={demo===x.id?'on':''} onClick={()=>setDemo(x.id)}>{x.tab}</button>)}</div>
    <div className="demoBox"><div className="demoChat"><p className="demoProblem"><b>El problema:</b> {d.problem}</p>{d.chat.map(([who,text],i)=><div key={i} className={`bubble ${who}`}>{text}</div>)}</div>
@@ -65,9 +68,10 @@ function Home(){
 
   <section id="catalina" className="profileSection section"><div className="portrait"><img src={`${base}catalina.jpg`} alt="Catalina Jaramillo" loading="lazy"/><span>CATALINA JARAMILLO</span></div>
    <div className="profileText"><span className="label">03 / POR QUÉ CONMIGO</span><h2>Primero el negocio.<br/><em>Luego la tecnología.</em></h2>
-    <p>Llevo más de 15 años en ventas, experiencia del cliente, marca y operación. He dirigido equipos, construido funnels y fundado una marca de e-commerce que registra más de COP 1.000 millones en ventas en Shopify.</p>
-    <p>Por eso no te vendo un chatbot: diseño cómo debe vender y atender tu empresa, y después construyo el agente que lo hace. Hablo el idioma del dueño del negocio, no el del programador.</p>
-    <p className="fine">* Ventas y pedidos registrados en Shopify por mi marca Professional Glam. Son resultados comerciales de mi negocio, no atribuidos a la IA.</p>
+    <p>Empecé en 2009 como directora comercial y de marketing de Biboban, una empresa textil colombiana. Desde 2013 asesoro a empresas y expertos en servicio al cliente, entrenamiento de equipos de ventas, cierre por WhatsApp, retención y lanzamientos: cursos, ebooks y una app para un referente de neuroventas en México, y una marca de muebles en Ecuador, entre otros.</p>
+    <p>En 2018 fundé Professional Glam: tres sedes físicas en Colombia y una tienda online con más de COP 1.000 millones en ventas en Shopify. Para operarla diseñé LAURA, el sistema de agentes que atiende, vende y hace seguimiento por WhatsApp.</p>
+    <p>Por eso no te vendo un chatbot: diseño cómo debe vender y atender tu empresa, y después dirijo la construcción del agente que lo hace. Hablo el idioma del dueño del negocio, no el del programador. <b>Y la prueba la tienes enfrente: Carolina, la asesora que te atiende en esta página, es un agente de IA que construí.</b></p>
+    <p className="fine">* Registros de Professional Glam (sedes físicas y Shopify). Son resultados comerciales de mi negocio, no atribuidos a la IA.</p>
    </div>
   </section>
 
