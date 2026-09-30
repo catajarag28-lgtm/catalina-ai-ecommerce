@@ -3,6 +3,7 @@ import { availability, book, researchWebsite, sendEmail } from './integrations.j
 import { qualificationStatus } from './qualification.js'
 import { skillContext } from './skills.js'
 import { notifyCatalina, leadEmail } from './notify.js'
+import { handleInbound } from './inbox.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -208,6 +209,11 @@ export default {
       }
       return json({ error: 'Ruta no encontrada.' }, 404, cors)
     } catch { return json({ error: 'Servicio temporalmente no disponible.' }, 500, cors) }
+  },
+  // Correos que llegan a clientes@ (regla de Email Routing → este Worker).
+  async email(message, env) {
+    try { console.log('inbox', JSON.stringify(await handleInbound(message, env))) }
+    catch (e) { console.error('inbox_failure', e?.message) }
   },
   async scheduled(_event, env) {
     const clock = now()

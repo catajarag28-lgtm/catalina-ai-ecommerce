@@ -48,6 +48,17 @@ export async function sendEmail(env, to, subject, body) {
   return { ok: res.ok, reason: res.ok ? undefined : 'email_provider_error' }
 }
 
+// Envío con cabeceras (respuestas en hilo). Devuelve el id de Resend para trazabilidad.
+export async function sendThreadedEmail(env, { to, subject, text, inReplyTo, references }) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, reason: 'email_unavailable' }
+  const replyTo = (env.EMAIL_FROM.match(/<([^>]+)>/) || [])[1] || env.EMAIL_FROM
+  const headers = {}
+  if (inReplyTo) { headers['In-Reply-To'] = inReplyTo; headers.References = references || inReplyTo }
+  const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], reply_to: replyTo, subject, text, headers }), signal: AbortSignal.timeout(10000) })
+  const data = await res.json().catch(() => ({}))
+  return { ok: res.ok, id: data.id, reason: res.ok ? undefined : 'email_provider_error' }
+}
+
 export async function researchWebsite(url) {
   try {
     const target = new URL(url)
