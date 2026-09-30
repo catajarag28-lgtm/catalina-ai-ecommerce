@@ -43,7 +43,8 @@ export async function book(env, { start, email, name, summary }, conversationId)
 
 export async function sendEmail(env, to, subject, body) {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, reason: 'email_unavailable' }
-  const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], subject, text: body }), signal: AbortSignal.timeout(10000) })
+  const replyTo = (env.EMAIL_FROM.match(/<([^>]+)>/) || [])[1] || env.EMAIL_FROM
+  const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], reply_to: replyTo, subject, text: body }), signal: AbortSignal.timeout(10000) })
   return { ok: res.ok, reason: res.ok ? undefined : 'email_provider_error' }
 }
 

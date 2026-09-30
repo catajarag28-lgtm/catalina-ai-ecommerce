@@ -9,6 +9,27 @@ const now = () => Date.now()
 const API_PATHS = ['/health', '/session', '/chat', '/event', '/lead']
 const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 'diagnosis_started', 'diagnosis_completed', 'diagnosis_handoff', 'direct_contact']
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
+export function confirmationText(lead) {
+  const first = (lead.name || '').split(' ')[0] || 'hola'
+  return [
+    `Hola ${first},`,
+    '',
+    'Soy Carolina, la asesora digital de Catalina Jaramillo. Ya le pasé a Catalina tu caso con todo el contexto:',
+    lead.business ? `· Negocio: ${lead.business}` : null,
+    lead.goal ? `· Lo que quieres mejorar: ${lead.goal}` : null,
+    lead.recommendation ? `· Recomendación inicial: ${lead.recommendation}` : null,
+    lead.problem ? `· Lo que nos contaste: ${lead.problem}` : null,
+    '',
+    'Catalina revisa personalmente cada caso y te escribe en menos de 24 horas hábiles para agendar una reunión de 30 minutos, en español, por videollamada. Ahí valida tus herramientas y te presenta una propuesta con alcance y precio final.',
+    '',
+    'Si quieres añadir algo antes de la reunión, responde a este correo.',
+    '',
+    'Carolina',
+    'Agente de IA · Catalina Jaramillo',
+    'soycatalinajaramillo.com',
+  ].filter(line => line !== null).join('\n')
+}
+
 export function cleanLead(body) {
   const lead = {}
   for (const key of LEAD_FIELDS) if (typeof body[key] === 'string' && body[key].trim()) lead[key] = body[key].trim().slice(0, key === 'note' || key === 'problem' ? 1200 : 200)
@@ -180,7 +201,10 @@ export default {
         await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(null, `lead_form_${lead.source}`, now()).run()
         const mail = leadEmail(lead)
         const sent = await notifyCatalina(env, mail.subject, mail.text + `\n\nID: ${id}`, lead.email)
-        return json({ ok: true, notified: sent.ok }, 201, cors)
+        // Confirmación inmediata al prospecto desde clientes@: parte de la experiencia "un agente te atiende mejor que una persona".
+        let confirmed = false
+        if (lead.email) confirmed = (await sendEmail(env, lead.email, 'Recibí tu caso · Carolina, asesora de Catalina Jaramillo', confirmationText(lead)).catch(() => ({ ok: false }))).ok
+        return json({ ok: true, notified: sent.ok, confirmed }, 201, cors)
       }
       return json({ error: 'Ruta no encontrada.' }, 404, cors)
     } catch { return json({ error: 'Servicio temporalmente no disponible.' }, 500, cors) }

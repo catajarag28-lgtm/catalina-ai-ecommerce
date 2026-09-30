@@ -193,4 +193,20 @@ footer{display:flex;justify-content:space-between;gap:20px;padding:26px 6vw;back
  .lauraAgents{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid #5c4c3a}.lauraAgents button{flex:0 0 auto;padding:15px;border-bottom:0}.lauraAgents button svg{display:none}.lauraPanel{min-height:400px;padding:22px}
  .heroDiagnosis:before{inset:-6% -4%}
 }
+/* ===== Hero 3D (WebGL) ===== */
+.hero{overflow:hidden;isolation:isolate}
+.hero3d{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.8s ease}
+.hero3d.ready{opacity:1}
+.hero3dCanvas,.hero3dCanvas canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block}
+/* Velo para que el titular siempre se lea sobre la escena */
+.hero3d:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(17,17,16,.92) 0%,rgba(17,17,16,.72) 34%,rgba(17,17,16,.12) 58%,transparent 72%),linear-gradient(0deg,rgba(17,17,16,.7) 0%,transparent 22%)}
+.hero .heroTexture{z-index:1}
+.hero .heroContent,.hero .heroDiagnosis{z-index:2}
+.hero.has3d .heroDiagnosis:before,.hero.has3d .heroDiagnosis:after{display:none}
+/* Carolina flota sobre el sistema como vidrio */
+.hero.has3d .diagnosis{background:rgba(27,25,21,.58);backdrop-filter:blur(18px) saturate(1.25);-webkit-backdrop-filter:blur(18px) saturate(1.25);border-color:rgba(215,189,149,.42);box-shadow:0 40px 100px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,236,204,.12),0 0 0 1px rgba(215,189,149,.08)}
+.hero.has3d .diagSay{background:rgba(48,42,35,.72)}
+.hero.has3d .diagOptions button{background:rgba(40,36,31,.72)}
+@media(max-width:1050px){.hero3d:after{background:linear-gradient(180deg,rgba(17,17,16,.35) 0%,rgba(17,17,16,.55) 45%,rgba(17,17,16,.85) 100%)}}
+@media(max-width:700px){.hero3d.ready{opacity:.8}.hero3d:after{background:linear-gradient(180deg,rgba(17,17,16,.1) 0%,rgba(17,17,16,.45) 38%,rgba(17,17,16,.82) 70%,rgba(17,17,16,.9) 100%),linear-gradient(90deg,rgba(17,17,16,.55) 0%,transparent 70%)}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

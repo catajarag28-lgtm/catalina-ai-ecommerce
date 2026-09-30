@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react'
 import {ArrowUpRight,ArrowLeft,Check,ShieldCheck,UserRound,KeyRound,LifeBuoy,HandCoins,Sparkles} from 'lucide-react'
 import CarolinaDiagnosis from './components/CarolinaDiagnosis.jsx'
+import Hero3D from './components/Hero3D.jsx'
 import {offers,catalog,maintenance,launchBonus} from './offers.js'
 
 // Regla de negocio: nadie llega a Catalina sin pasar por Carolina. Todos los CTA apuntan a #carolina.
@@ -38,11 +39,11 @@ export default function App(){
 }
 
 function Home(){
- const [demo,setDemo]=useState(demos[0].id),d=demos.find(x=>x.id===demo)
+ const [demo,setDemo]=useState(demos[0].id),d=demos.find(x=>x.id===demo),[has3d,setHas3d]=useState(false)
  // Al volver desde #precios, el destino (#carolina, #soluciones…) aún no existía: se desplaza al montar.
  useEffect(()=>{try{const el=window.location.hash&&document.querySelector(window.location.hash);if(el&&window.location.hash!=='#inicio')el.scrollIntoView()}catch{}},[])
  return <>
-  <section id="inicio" className="hero"><div className="heroTexture"/>
+  <section id="inicio" className={`hero ${has3d?'has3d':''}`}><Hero3D anchorId="carolina" onActive={setHas3d}/><div className="heroTexture"/>
    <div className="heroContent">
     <p className="eyebrow"><span className="pulse"/> ESTRATEGIA · OPERACIÓN · INTELIGENCIA ARTIFICIAL</p>
     <h1>Descubre dónde tu empresa está perdiendo <em>dinero, tiempo</em> y clientes.</h1>
