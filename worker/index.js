@@ -2,6 +2,7 @@ import { discoverProspects, searchSegment, verifyCandidate, segments } from './d
 import { runOutreach, queueQualifiedLeads } from './outreach.js'
 import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './engagement.js'
 import { renderProposalPage } from './proposalPage.js'
+import { handleDemo } from './demo.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
 import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
@@ -199,6 +200,11 @@ export default {
       for (const c of found.slice(0, 4)) { const v = await verifyCandidate(env, c, seg).catch(e => ({ ok: false, reason: e.message })); checked.push({ website: c.website, ok: v.ok, company: v.company, email: v.ok ? v.email.replace(/^(.).*@/, '$1***@') : undefined, reason: v.reason }) }
       return json({ segment: seg.id, found: found.map(f => f.website), checked })
     }
+    const demoRoute=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})\/demo$/i)
+    if(demoRoute && request.method==='POST'){
+      if(!(await rateLimit(env, request, 'demo', 40))) return json({ error: 'Demasiados mensajes. Inténtelo en una hora.' }, 429)
+      return handleDemo(request, env, demoRoute[1])
+    }
     const route=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})(\/hablar)?$/i)
     if(route && request.method==='GET'){
       const [,proposalId,talk]=route
@@ -216,7 +222,8 @@ export default {
       }
       if(human)await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
       const proposal=safeJson(row.research||'{}')
-      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
+      const nonce=crypto.randomUUID().replace(/-/g,'')
+      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject,nonce}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-"+nonce+"'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
     }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)

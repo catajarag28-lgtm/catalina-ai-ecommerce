@@ -50,7 +50,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
       '<p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine,
       '<p style="margin:0 0 16px">', e(proposal.hypothesis), '</p>',
       scene ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid #c6a26b;margin:0 0 16px"><tr><td style="padding:4px 0 4px 14px;color:#3c352c"><em>«' + e(scene.customer) + '»</em><br><span style="color:#7a5a30">&#8594; ' + e(scene.agent) + '</span><br><span style="font-size:13px;color:#81786b">Su equipo recibe: ' + e(scene.handoff) + '</span></td></tr></table>' : '<p style="margin:0 0 16px">' + e(proposal.example || '') + '</p>',
-      '<p style="margin:0 0 16px">Preparé el recorrido completo para ', e(company), ' (2 minutos): <a href="', e(proposalUrl), '" style="color:#7a5a30;font-weight:bold">verlo aquí</a>. Si le hace sentido, respóndame y lo conversamos.</p>',
+      '<p style="margin:0 0 16px">Preparé el recorrido completo para ', e(company), ' (2 minutos), con una demo que puede probar como si fuera su cliente: <a href="', e(proposalUrl), '" style="color:#7a5a30;font-weight:bold">verlo aquí</a>. Si le hace sentido, respóndame y lo conversamos.</p>',
       '<p style="margin:0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">15+ años en ventas y operación · soycatalinajaramillo.com</span></p>', ps,
       '<p style="margin:26px 0 0;font:11px/1.5 Arial,sans-serif;color:#9a9186">', footer(opts.postal), '</p>',
       '</td></tr></table></td></tr></table></body></html>'].join('')
@@ -74,7 +74,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
     '<p style="margin:0 0 20px">', e(proposal.hypothesis), '</p>',
     scene ? '' : '<p style="margin:0 0 20px;font-size:17px;color:#2f2921">' + e(proposal.example || '') + '</p>',
     cta('Ver el recorrido de ' + company),
-    '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Son 2 minutos. Si le hace sentido, Carolina le cuenta los detalles; si no, basta con ignorar este correo.</p>',
+    '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Incluye una demo que puede probar escribiéndole como si fuera su cliente. Son 2 minutos; si no le interesa, basta con ignorar este correo.</p>',
     '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">15+ años en ventas y operación</span></p>', ps,
     '</td></tr>',
     '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr>',
@@ -88,7 +88,9 @@ const phases = [
   ['Lanzamiento con control', 'Paso a una persona cuando hace falta y métricas acordadas desde el inicio.'],
 ]
 
-export function renderProposalPage({ id, company, proposal, subject }) {
+export function renderProposalPage({ id, company, proposal, subject, nonce = '', demo = true }) {
+  const ex = proposal.executive && typeof proposal.executive === 'object' ? proposal.executive : null
+  const measures = Array.isArray(ex?.measures) ? ex.measures.slice(0, 4) : []
   const scene = sceneOf(proposal)
   const moments = Array.isArray(proposal.moments) ? proposal.moments.slice(0, 3) : []
   const source = typeof proposal.sourceUrl === 'string' && proposal.sourceUrl.startsWith('https://') ? proposal.sourceUrl : (typeof proposal.source === 'string' && proposal.source.startsWith('https://') ? proposal.source : '')
@@ -127,10 +129,18 @@ h2{font:500 clamp(30px,4vw,46px)/1.1 'Cormorant Garamond',Georgia,serif;margin:1
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:10px}.s{padding:20px;border-top:2px solid var(--gold);background:#fff;border-radius:0 0 14px 14px}.s b{display:block;font-size:14px;margin-bottom:6px}.s span{font-size:14px;color:#5e5549}
 .note{margin-top:22px;font-size:14px;color:#655b4f}
 .who{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center}.mono{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--gold);font:500 34px 'Cormorant Garamond',serif;color:var(--gold2)}
+.exec{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.exec div{padding:24px;border:1px solid #e3d7c4;border-radius:16px;background:#fff}.exec h3{margin:0 0 8px;font:600 12px Manrope;letter-spacing:.22em;text-transform:uppercase;color:#947347}.exec p{margin:0;font-size:15px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.kpis span{padding:10px 14px;border-radius:999px;background:#efe6d6;font-size:14px;color:#4a3a24}
+.demo{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:start}.chatbox{background:linear-gradient(180deg,#221c16,#17130f);border:1px solid var(--line);border-radius:26px;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.log{height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 4px}.log .b{opacity:1;transform:none;animation:none}.log .b.a{align-self:flex-end}.log .b.c{align-self:flex-start}
+.ask{display:flex;gap:8px;margin-top:10px}.ask input{flex:1;background:#0f0c0a;border:1px solid var(--line);border-radius:999px;padding:13px 16px;color:var(--ivory);font:15px Manrope}.ask button{border:0;border-radius:999px;background:var(--gold);color:#1d1914;font-weight:700;padding:0 18px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{background:transparent;border:1px solid #5b4b34;color:var(--gold2);border-radius:999px;padding:8px 12px;font:13px Manrope;cursor:pointer}
+.after{display:none;margin-top:14px;padding:16px;border-radius:16px;background:#2a2119;border:1px solid #5b4b34;color:var(--gold2);font-size:14px}.after a{color:var(--ivory);font-weight:700}
+@media(max-width:820px){.exec,.demo{grid-template-columns:1fr}.log{height:300px}}
 .cta{text-align:center;padding:90px 0}.btn{display:inline-block;padding:18px 30px;border-radius:999px;background:var(--gold);color:#1d1914;font-weight:700;text-decoration:none;box-shadow:0 12px 40px rgba(198,162,107,.35);transition:transform .2s}.btn:hover{transform:translateY(-2px)}
 .ghost{display:inline-block;margin-top:16px;color:var(--gold2);font-size:14px}
 footer{padding:28px 0 50px;font-size:12px;color:#8d7f6b;border-top:1px solid #2a231c}
-@media(max-width:820px){.grid,.two,.moments,.steps{grid-template-columns:1fr}.hero{padding-top:30px}.phone{margin-top:10px}.who{grid-template-columns:1fr}}
+@media(max-width:820px){.grid,.two,.moments,.steps,.exec{grid-template-columns:1fr}.hero{padding-top:30px}.phone{margin-top:10px}.who{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;opacity:1!important;transform:none!important}.typing{display:none}}
 </style></head><body>
 <div class="wrap top"><b>CATALINA&nbsp;<span style="letter-spacing:.28em;color:var(--gold2);font-weight:400">JARAMILLO</span></b><span>Preparado para ${e(company)}</span></div>
@@ -139,10 +149,16 @@ footer{padding:28px 0 50px;font-size:12px;color:#8d7f6b;border-top:1px solid #2a
 <p style="margin-top:28px"><a class="btn" href="${talk}">Hablar con Carolina sobre ${e(company)}</a></p></div>
 ${scene ? `<div><div class="phone"><div class="bar"><span class="dot"></span>${e(scene.channel || 'Consulta')} · ${e(scene.time || '')}</div><div class="msgs"><div class="b c">${e(scene.customer)}</div><div class="typing"><i></i><i></i><i></i></div><div class="b a">${e(scene.agent)}</div><div class="hand">→ Llega a su equipo con: <b>${e(scene.handoff)}</b></div></div></div><p class="cap">Simulación ilustrativa, preparada solo con la información pública de su web. No es una conversación real.</p></div>` : ''}
 </div></header>
+${ex ? `<section class="paper"><div class="wrap"><div class="eyebrow">Resumen ejecutivo</div><h2>${e(ex.headline || 'Lo esencial, en un minuto')}</h2><div class="exec"><div><h3>Situación</h3><p>${e(ex.situation)}</p></div><div><h3>Oportunidad</h3><p>${e(ex.opportunity)}</p></div><div><h3>Enfoque</h3><p>${e(ex.approach)}</p></div></div>${measures.length ? `<p style="margin:26px 0 0;font-size:13px;letter-spacing:.18em;color:#947347;font-weight:700">QUÉ MEDIRÍAMOS DESDE EL PRIMER DÍA</p><div class="kpis">${measures.map(m => `<span>${e(m)}</span>`).join('')}</div>` : ''}<p class="note">Son hipótesis a validar con su equipo; no prometemos cifras antes de conocer su proceso.</p></div></section>` : ''}
 <section class="paper"><div class="wrap"><div class="eyebrow">Por qué pensamos en ustedes</div><h2>Lo que vimos, y lo que nos preguntamos</h2>
 <div class="two"><div class="card"><div class="eyebrow">Lo que vi</div><p>${e(proposal.observation)}</p>${source ? `<p class="src">Fuente: <a href="${e(source)}" rel="noopener nofollow">${e(source.replace(/^https:\/\//, ''))}</a></p>` : ''}</div>
 <div class="card"><div class="eyebrow">La pregunta</div><p>${e(proposal.hypothesis)}</p><p class="src">Es una hipótesis: solo su equipo sabe cómo funciona hoy su proceso.</p></div></div></div></section>
 ${moments.length === 3 ? `<section><div class="wrap"><div class="eyebrow">El recorrido de su cliente</div><h2>Tres momentos que podrían sentirse distintos</h2><div class="moments">${moments.map(m => `<div class="m"><h3>${e(m.title)}</h3><p>${e(m.text)}</p></div>`).join('')}</div></div></section>` : ''}
+${demo ? `<section id="demo"><div class="wrap demo"><div><div class="eyebrow">Pruébelo usted mismo</div><h2>Escríbale como si fuera uno de sus clientes</h2><p style="color:#cbbfa9;margin:0 0 14px">Preparamos una demostración con la información pública de ${e(company)}. Pregúntele por un servicio, un horario o cómo reservar, y vea cómo respondería.</p><p class="cap" style="margin:0">Demostración: solo usa datos públicos de su web. En un proyecto real se entrena con información aprobada por su equipo y con supervisión humana.</p></div>
+<div class="chatbox"><div class="bar"><span class="dot"></span>Asistente de ${e(company)} · demo</div><div class="log" id="log"><div class="b a">${e(proposal.demoGreeting || 'Hola, gracias por escribir a ' + company + '. ¿En qué le puedo ayudar?')}</div></div>
+<div class="chips" id="chips">${(Array.isArray(proposal.demoPrompts) ? proposal.demoPrompts.slice(0, 3) : scene ? [scene.customer] : []).map(q => `<button type="button">${e(q)}</button>`).join('')}</div>
+<form class="ask" id="ask"><input id="q" maxlength="400" autocomplete="off" placeholder="Escriba como lo haría un cliente…" aria-label="Mensaje para la demo"><button>Enviar</button></form>
+<div class="after" id="after">¿Le gustaría algo así para ${e(company)}, entrenado con su información real? <a href="${talk}">Hablar con Carolina →</a></div></div></div></section>` : ''}
 <section class="paper"><div class="wrap"><div class="eyebrow">Cómo lo exploraríamos</div><h2>Con su equipo al mando, paso a paso</h2><p style="max-width:70ch">${e(proposal.solution)}</p>
 <div class="steps">${phases.map(([t, d]) => `<div class="s"><b>${t}</b><span>${d}</span></div>`).join('')}</div>
 <p class="note">Siempre con supervisión humana: el agente no reemplaza a su equipo, le entrega contexto. Cualquier conexión con agenda, CRM o tienda se valida antes con ustedes. El alcance final se define tras conversar.</p></div></section>
@@ -151,5 +167,11 @@ ${moments.length === 3 ? `<section><div class="wrap"><div class="eyebrow">El rec
 <p style="color:#cbbfa9;max-width:58ch;margin:0 auto 30px">Carolina le hace unas preguntas rápidas sobre su proceso. Si hay encaje, coordina una conversación de 20–30 minutos con Catalina. Sin compromiso.</p>
 <a class="btn" href="${talk}">Hablar con Carolina ahora</a><br><a class="ghost" href="${e(mail)}">o responder por correo</a></div></section>
 <footer><div class="wrap">Idea preliminar, no es una cotización ni una oferta vinculante. Preparada por Catalina Jaramillo con apoyo de Carolina, su asistente digital, a partir de información pública. Si prefiere no recibir más mensajes, responda BAJA al correo. · <a href="${SITE}">soycatalinajaramillo.com</a></div></footer>
+${demo ? `<script nonce="${e(nonce)}">(()=>{const log=document.getElementById('log'),form=document.getElementById('ask'),q=document.getElementById('q'),after=document.getElementById('after'),msgs=[];let busy=false;
+const add=(role,text)=>{const d=document.createElement('div');d.className='b '+(role==='user'?'c':'a');d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d};
+async function send(text){if(busy||!text.trim())return;busy=true;add('user',text);msgs.push({role:'user',content:text});const t=add('assistant','…');
+try{const r=await fetch('/propuesta/${encodeURIComponent(id)}/demo',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:msgs})});const j=await r.json();t.textContent=j.reply||j.error||'No pude responder.';if(j.reply)msgs.push({role:'assistant',content:j.reply});if(msgs.length>=4||j.done)after.style.display='block'}catch{t.textContent='No pude responder. Inténtelo de nuevo.'}busy=false}
+form.addEventListener('submit',ev=>{ev.preventDefault();const v=q.value;q.value='';send(v)});
+document.querySelectorAll('#chips button').forEach(b=>b.addEventListener('click',()=>send(b.textContent)))})()</script>` : ''}
 </body></html>`
 }

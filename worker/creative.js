@@ -25,8 +25,10 @@ export async function ensureSeedAngles(env) {
 
 // Puntuación por correo enviado. Aperturas pesan poco (Apple y los antivirus las inflan).
 export function engagementScore(row) {
-  if (row.replied) return 1
-  if (row.cta) return 0.8
+  if (row.meeting) return 1
+  if (row.replied && row.positive) return 1
+  if (row.replied) return 0.3
+  if (row.cta || row.demo) return 0.8
   if (row.visited || row.clicked) return 0.5
   if (row.opened) return 0.2
   return 0
@@ -39,7 +41,10 @@ export async function angleStats(env, now = Date.now()) {
       MAX(CASE WHEN e.type='email.clicked' THEN 1 ELSE 0 END) AS clicked,
       MAX(CASE WHEN e.type='page.viewed' THEN 1 ELSE 0 END) AS visited,
       MAX(CASE WHEN e.type='cta.clicked' THEN 1 ELSE 0 END) AS cta,
-      MAX(CASE WHEN e.type='email.delivered' THEN 1 ELSE 0 END) AS delivered
+      MAX(CASE WHEN e.type='demo.used' THEN 1 ELSE 0 END) AS demo,
+      MAX(CASE WHEN e.type='email.delivered' THEN 1 ELSE 0 END) AS delivered,
+      (SELECT COUNT(*) FROM emails m WHERE m.direction='in' AND m.thread_key=lower(o.email) AND m.category IN ('prospect','meeting','question','needs_catalina')) AS positive,
+      (SELECT COUNT(*) FROM meetings mt WHERE lower(mt.email)=lower(o.email)) AS meeting
     FROM outreach o LEFT JOIN outreach_events e ON e.outreach_id=o.id
     WHERE o.sent_at IS NOT NULL AND o.sent_at < ? AND o.id NOT LIKE 'test-%' AND o.angle <> ''
     GROUP BY o.id`).bind(now - MATURE_MS).all()
@@ -48,7 +53,7 @@ export async function angleStats(env, now = Date.now()) {
     r.replied = r.status === 'replied' ? 1 : 0
     const a = byAngle[r.angle] ||= { angle: r.angle, n: 0, score: 0, opened: 0, engaged: 0, replied: 0, subjects: [] }
     const s = engagementScore(r)
-    a.n++; a.score += s; a.opened += r.opened; a.engaged += (r.cta || r.visited || r.clicked || r.replied) ? 1 : 0; a.replied += r.replied
+    a.n++; a.score += s; a.opened += r.opened; a.engaged += (r.cta || r.demo || r.visited || r.clicked || r.replied) ? 1 : 0; a.replied += r.replied; a.positive = (a.positive || 0) + (r.positive ? 1 : 0)
     a.subjects.push({ subject: r.subject, score: s })
   }
   return byAngle
@@ -90,7 +95,11 @@ export async function learningExamples(env) {
   const all = Object.values(stats).flatMap(a => a.subjects)
   const good = all.filter(s => s.score >= 0.5).slice(-6).map(s => s.subject)
   const bad = all.filter(s => s.score === 0).slice(-6).map(s => s.subject)
-  return { good, bad }
+  // Lo que respondieron los prospectos: objeciones e intereses reales para la próxima propuesta.
+  const replies = ((await env.DB.prepare(`SELECT m.category, substr(m.body,1,260) AS body FROM emails m JOIN outreach o ON lower(o.email)=m.thread_key
+    WHERE m.direction='in' AND o.id NOT LIKE 'test-%' ORDER BY m.id DESC LIMIT 8`).all().catch(() => ({ results: [] }))).results || [])
+    .map(r => `[${r.category || 'sin clasificar'}] ${String(r.body || '').replace(/\s+/g, ' ').trim()}`)
+  return { good, bad, replies }
 }
 
 // Evolución diaria: retira enfoques con bajo rendimiento y crea retadores nuevos.

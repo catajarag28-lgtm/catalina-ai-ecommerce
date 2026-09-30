@@ -27,6 +27,12 @@ export const segments = [
   { id: 'mx-clinicas', weight: 2, region: 'México', sector: 'spa', q: 'clínica de medicina estética o dermatología con varias sucursales en Ciudad de México, Monterrey o Guadalajara' },
   { id: 'mx-realestate', weight: 2, region: 'México', sector: 'inmobiliaria', q: 'desarrolladora o inmobiliaria en Cancún, Tulum, Playa del Carmen o Los Cabos que vende a compradores extranjeros' },
   { id: 'mx-ecommerce', weight: 1, region: 'México', sector: 'ecommerce', q: 'marca mexicana de cosmética o moda con tienda online propia y envíos nacionales' },
+  { id: 'usa-ny-chi', weight: 2, region: 'EE. UU.', sector: 'spa', q: 'med spa, clínica dental o estética latina en Nueva York, Nueva Jersey o Chicago con citas en línea y atención en español' },
+  { id: 'usa-az-nv', weight: 1, region: 'EE. UU.', sector: 'servicios', q: 'negocio hispano de servicios profesionales, estética o bienes raíces en Phoenix, Las Vegas o Denver con reservas o consultas en línea' },
+  { id: 'fl-orlando-tampa', weight: 2, region: 'EE. UU.', sector: 'inmobiliaria', q: 'inmobiliaria o med spa en Orlando o Tampa que atiende clientes latinoamericanos en español' },
+  { id: 'do-realestate', weight: 1, region: 'Rep. Dominicana', sector: 'inmobiliaria', q: 'inmobiliaria o desarrolladora en Punta Cana o Santo Domingo que vende a compradores extranjeros en dólares' },
+  { id: 'cr-services', weight: 1, region: 'Costa Rica', sector: 'spa', q: 'clínica dental o estética en Costa Rica que atiende pacientes de Estados Unidos (turismo médico) con citas en línea' },
+  { id: 'cl-uy-clinicas', weight: 1, region: 'Chile', sector: 'spa', q: 'clínica de estética o dermatología con varias sedes en Santiago de Chile o Montevideo con reservas en línea' },
   { id: 'co-premium', weight: 1, region: 'Colombia', sector: 'spa', q: 'clínica de cirugía plástica o estética premium en Medellín o Bogotá que atiende pacientes internacionales' },
 ]
 const rotation = segments.flatMap(s => Array(s.weight).fill(s))

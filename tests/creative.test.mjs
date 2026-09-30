@@ -48,7 +48,9 @@ test('Angle selection favours what earns interest but keeps exploring', () => {
   let wins = 0
   for (let i = 0; i < 400; i++) if (chooseAngle(angles, stats).id === angles[0].id) wins++
   assert.ok(wins > 360)
-  assert.equal(engagementScore({ replied: 1 }), 1)
+  assert.equal(engagementScore({ replied: 1, positive: 1 }), 1)
+  assert.equal(engagementScore({ replied: 1 }), 0.3)
+  assert.equal(engagementScore({ meeting: 1 }), 1)
   assert.equal(engagementScore({ opened: 1 }), 0.2)
 })
 
@@ -69,4 +71,27 @@ test('Research detects tools, prefers the business mailbox and skips directories
   for (const h of ['yelp.com', 'www.doctoralia.com.mx', 'zillow.com', 'booksy.com']) assert.ok(excludedHosts.test(h), h)
   assert.ok(!excludedHosts.test('avaluxuryspa.com'))
   assert.ok(!segments.some(s => s.region === 'España'))
+})
+
+import { demoPrompt, handleDemo } from '../worker/demo.js'
+test('Live demo is grounded in public text, blocks clinical advice and unknown proposals', async () => {
+  const prompt = demoPrompt('Ava Spa', { publicText: 'Head spa y masajes. Sábados 9 a 2.', diagnosis: { services: ['Head spa'] } })
+  assert.ok(prompt.includes('Ava Spa') && prompt.includes('Sábados 9 a 2') && /Nunca recomiendes tratamientos/.test(prompt))
+  const env = { DB: { prepare: () => ({ bind: () => ({ first: async () => null }) }) } }
+  const res = await handleDemo(new Request('https://x/propuesta/abcdefghijklmnopqrstu/demo', { method: 'POST', body: '{}' }), env, 'abcdefghijklmnopqrstu')
+  assert.equal(res.status, 404)
+})
+test('Proposal page ships the demo script only with its nonce', () => {
+  const page = renderProposalPage({ id: 'abcdefghijklmnopqrstu', company: 'Ava', proposal: good, subject: 's', nonce: 'abc123' })
+  assert.ok(page.includes('<script nonce="abc123">'))
+  assert.equal((page.match(/<script/g) || []).length, 1)
+  assert.ok(page.includes("fetch('/propuesta/abcdefghijklmnopqrstu/demo'"))
+})
+import { evidenceFound } from '../worker/outreach.js'
+test('Evidence must be on the site, tolerant only to accents, quotes and case', () => {
+  const text = 'Te respondo yo, no un robot. Atendemos en Adriana Plaza de lunes a sábado.'
+  assert.ok(evidenceFound(text, '“Te respondo YO, no un robót”'))
+  assert.ok(evidenceFound(text, 'Te respondo yo… Atendemos en Adriana Plaza'))
+  assert.ok(!evidenceFound(text, 'Tenemos 20 años de experiencia'))
+  assert.ok(!evidenceFound(text, 'yo'))
 })
