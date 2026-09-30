@@ -296,13 +296,18 @@ export default {
     catch (e) { console.error('inbox_failure', e?.message) }
   },
   async scheduled(_event, env) {
-    await queueQualifiedLeads(env).catch(e => console.error("proposal_queue_failure", e?.message))
-    await discoverProspects(env).catch(e => console.error("discovery_failure", e?.message))
-    await checkOutreachHealth(env).catch(e => console.error("outreach_health_failure", e?.message))
-    await evolveAngles(env).catch(e => console.error("angles_failure", e?.message))
-    await adjustDailyCap(env).catch(e => console.error("ramp_failure", e?.message))
-    await sendDailyOutreachReport(env).catch(e => console.error("outreach_report_failure", e?.message))
-    await runOutreach(env).catch(e => console.error("outreach_failure", e?.message))
+    // Primero enviar (prioridad), después buscar prospectos (lo más pesado). Cada ciclo deja registro de su resultado.
+    const cycle = { at: new Date().toISOString() }
+    const step = async (name, fn) => { try { cycle[name] = await fn() } catch (e) { cycle[name] = { error: e?.message }; console.error(name + '_failure', e?.message) } }
+    await step('queue', () => queueQualifiedLeads(env))
+    await step('health', () => checkOutreachHealth(env))
+    await step('angles', () => evolveAngles(env))
+    await step('ramp', () => adjustDailyCap(env))
+    await step('report', () => sendDailyOutreachReport(env))
+    await step('outreach', () => runOutreach(env))
+    await step('discovery', () => discoverProspects(env))
+    console.log('carolina_cycle', JSON.stringify(cycle))
+    await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})
     const clock = now()
     const meetings = await env.DB.prepare('SELECT * FROM meetings WHERE starts_at>? AND starts_at<?').bind(new Date(clock).toISOString(), new Date(clock + 27 * 3600000).toISOString()).all()
     for (const meeting of meetings.results) {
