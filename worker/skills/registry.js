@@ -52,6 +52,7 @@ Reglas: separa hechos públicos (con cita literal), datos declarados por el pros
     id: 'propuesta-senior', nombre: 'Propuesta de alto impacto (nivel empresarial senior)', usos: ['propuesta'],
     contenido: proposalPlaybook + `
 Estructura de la experiencia: 1) correo ligero con asunto específico, hook visual, escena de conversación de SU negocio y un solo botón; 2) página inmersiva con resumen ejecutivo (situación, oportunidad, enfoque, indicadores a medir), lo que vimos con fuente, la pregunta, tres momentos del cliente, demo en vivo con su información pública, cómo lo exploraríamos por fases con supervisión humana, quién diseña su sistema y CTA a Carolina.
+Escena según la solución: conversación (atención/ventas), flujo automatizado (operaciones, seguimiento, reportes) o tablero de control (finanzas, varias sedes, dirección); no todos los negocios buscan automatizar ventas. La página muestra el logo del cliente junto a la marca de Catalina.
 Solución: elige de TODO el rango según el diagnóstico (agente de atención o ventas, automatización de flujos, integración con CRM, agenda o tienda, tablero de control, sistema multiagente); no siempre un chatbot.
 Tono: consultor senior de estrategia comercial; preciso, sobrio y orientado a la decisión.`,
   },

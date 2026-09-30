@@ -71,7 +71,11 @@ export function lintCopy(p, company) {
   if (/usd|\$\s?\d|precio|cuesta|inversión de/i.test([p.subject, p.preview, p.hook, p.subhook, p.ps, p.scene?.agent].join(' '))) issues.push('menciona precio')
   if (/pierde[ns]? (ventas|clientes)|no responden|no tienen|carecen|necesitan urgentemente/i.test([p.hook, p.subhook, p.observation, p.hypothesis].join(' '))) issues.push('afirma una carencia no verificada')
   if (/\b(evita|evitaría|reduce|reduciría|aumenta|aumentaría|duplica|multiplica|recupera|recuperaría)\b.{0,30}\b(reservas|ventas|conversi|clientes|pacientes|abandon|pérdid|perdid)/i.test([p.subject, p.preview, p.hook, p.subhook].join(' '))) issues.push('promete o insinúa un resultado no verificado en el asunto o titular')
-  if (!p.scene || !['customer', 'agent', 'handoff'].every(k => typeof p.scene[k] === 'string' && p.scene[k].trim().length >= 8)) issues.push('escena incompleta')
+  const st = p.scene?.type === 'flujo' || p.scene?.type === 'tablero' ? p.scene.type : 'chat'
+  if (st === 'flujo' && !(Array.isArray(p.scene.steps) && p.scene.steps.filter(x => x?.what).length >= 3)) issues.push('flujo con menos de 3 pasos')
+  if (st === 'tablero' && !(Array.isArray(p.scene.tiles) && p.scene.tiles.filter(Boolean).length >= 3)) issues.push('tablero con menos de 3 indicadores')
+  if (st === 'tablero' && /\d{2,}\s?(%|usd|\$|citas|ventas)/i.test(JSON.stringify(p.scene))) issues.push('tablero con cifras inventadas')
+  if (st === 'chat' && (!p.scene || !['customer', 'agent', 'handoff'].every(k => typeof p.scene[k] === 'string' && p.scene[k].trim().length >= 8))) issues.push('escena incompleta')
   if (!Array.isArray(p.moments) || p.moments.length !== 3) issues.push('faltan los tres momentos')
   const wc = v => String(v || '').split(/\s+/).filter(Boolean).length
   if (p.scene && (wc(p.scene.customer) > 30 || wc(p.scene.agent) > 55 || wc(p.scene.handoff) > 24)) issues.push('burbujas de la escena demasiado largas')

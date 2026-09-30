@@ -137,3 +137,14 @@ test('Carolina has one organized skill registry used by chat and proposals', () 
   assert.ok(skill('posicionamiento-senior').includes('multiagente') && !/hace chatbots"?\s*\./.test(skillsPrompt(['posicionamiento-senior']).replace('"hace chatbots"', '')))
   assert.ok(/primer correo no lleva precio/.test(skill('mision-y-principios')))
 })
+test('Scenes adapt to the solution: workflow and dashboard render without chat demo or invented numbers', () => {
+  const flow = { ...good, scene: { type: 'flujo', title: 'Recuperación de cancelaciones', steps: [{ when: 'Cancelación', what: 'Se detecta en la agenda' }, { what: 'Se ofrece un nuevo horario' }, { what: 'El equipo recibe el caso' }] } }
+  assert.deepEqual(lintCopy(flow, 'Ava'), [])
+  const mail = brandedProposal('Ava', flow, 'https://soycatalinajaramillo.com/propuesta/abc')
+  assert.ok(mail.includes('Recuperación de cancelaciones') && !mail.includes('Incluye una demo'))
+  const page = renderProposalPage({ id: 'abcdefghijklmnopqrstu', company: 'Ava', proposal: { ...flow, logo: 'https://ava.example/logo.png' }, subject: 's', nonce: 'n' })
+  assert.ok(page.includes('class="flow"') && !page.includes('<script') && page.includes('https://ava.example/logo.png'))
+  const board = { ...good, scene: { type: 'tablero', title: 'Sedes', tiles: ['Facturación por sede', 'Citas perdidas', 'Pagos pendientes'], alert: 'Una sede sin cierre de caja' } }
+  assert.deepEqual(lintCopy(board, 'Ava'), [])
+  assert.ok(lintCopy({ ...board, scene: { ...board.scene, tiles: ['Ventas 45%', 'x', 'y'] } }).some(x => x.includes('cifras')))
+})

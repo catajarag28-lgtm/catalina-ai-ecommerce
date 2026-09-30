@@ -81,7 +81,10 @@ export async function researchWebsite(url) {
     const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
     const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
     const publicPhones = [...new Set([...html.matchAll(/href=["'](?:tel:|https:\/\/wa\.me\/|https:\/\/api\.whatsapp\.com\/send\?phone=)\+?([\d\s().-]{7,20})/gi)].map(m => '+' + m[1].replace(/\D/g, '')).filter(x => x.length >= 9))].slice(0, 4)
-    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, publicPhones, signals: detectSignals(html, links) }
+    // Logo del negocio (para personalizar la propuesta): logo explícito, ícono de alta resolución o imagen social.
+    const abs = u => { try { const x = new URL(u.replace(/&amp;/g, '&'), target); return x.protocol === 'https:' ? x.toString() : '' } catch { return '' } }
+    const logo = abs((html.match(/<img[^>]+src=["']([^"']*logo[^"']*\.(?:png|svg|webp|jpe?g)[^"']*)["']/i) || html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i) || [])[1] || '')
+    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, publicPhones, logo, signals: detectSignals(html, links) }
   } catch { return { ok: false, reason: 'site_unavailable' } }
 }
 
@@ -127,6 +130,7 @@ export async function researchBusiness(url) {
     publicText: all.map(r => `[${new URL(r.source).pathname}] ${r.publicText}`).join('\n').slice(0, 9000),
     publicEmails: Object.keys(emailPages), emailPages, pages: all.map(r => r.source), signals,
     publicPhones: [...new Set(all.flatMap(r => r.publicPhones || []))].slice(0, 4),
+    logo: home.logo || '',
     publicLinks: home.publicLinks,
   }
 }
