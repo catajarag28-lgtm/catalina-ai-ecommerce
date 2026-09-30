@@ -1,3 +1,4 @@
+import { salesStrategy } from './salesStrategy.js'
 const skillCatalog = [
   { id: 'diagnostico', keywords: ['problema','frena','automat','proceso','equipo','tiempo'], guidance: 'Diagnostica antes de proponer: objetivo, fricción, consecuencia y proceso actual. Haz una sola pregunta pertinente.' },
   { id: 'ventas-consultivas', keywords: ['vender','ventas','cliente','lead','prospect','cotiz','precio','cita','agend'], guidance: 'Vende consultivamente: conecta problema con impacto, explica una solución aplicada y confirma encaje antes de ofrecer reunión.' },
@@ -16,7 +17,7 @@ export function selectSkills(text = '') {
 }
 
 export function skillContext(text = '') {
-  return selectSkills(text).map(skill => `HABILIDAD ${skill.id.toUpperCase()}: ${skill.guidance}`).join('\n')
+  return salesStrategy+'\n'+selectSkills(text).map(skill => `HABILIDAD ${skill.id.toUpperCase()}: ${skill.guidance}`).join('\n')
 }
 
 export { skillCatalog }
