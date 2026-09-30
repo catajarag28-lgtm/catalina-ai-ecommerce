@@ -4,6 +4,7 @@ import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setup
 import { renderProposalPage } from './proposalPage.js'
 import { handleDemo } from './demo.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
+import { schedulingUrl } from './salesStrategy.js'
 import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
 import { qualificationStatus } from './qualification.js'
@@ -149,7 +150,7 @@ async function chat(request, env) {
   if (!session) return json({ error: 'Sesión no encontrada.' }, 404)
   const previous = await env.DB.prepare('SELECT role,content FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 12').bind(body.conversationId).all()
   const lead = await env.DB.prepare('SELECT data FROM leads WHERE conversation_id=?').bind(body.conversationId).first()
-  const context = [{ role: 'system', content: `${constitution}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${env.BOOKING_URL || 'no disponible todavía'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
+  const context = [{ role: 'system', content: `${constitution}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${schedulingUrl(env) ? schedulingUrl(env) + ' (página oficial de reservas de Google Calendar de Catalina: el cliente elige horario y Google le envía a su correo la invitación con enlace de Meet y recordatorios; tú no confirmas la cita, la confirma Google)' : 'no disponible todavía: pide dos horarios con zona horaria y di que quedan pendientes de confirmación'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
   let model
   try {
     model = await complete(env, context)
@@ -219,7 +220,8 @@ export default {
         if(human){
           const first=!(await env.DB.prepare("SELECT 1 FROM outreach_events WHERE outreach_id=? AND type='cta.clicked'").bind(proposalId).first())
           await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'cta.clicked',?)").bind('cta-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
-          if(first&&!proposalId.startsWith('test-'))await notifyCatalina(env,`${row.company} quiere hablar con Carolina`,`Hicieron clic en «Hablar con Carolina» desde su propuesta («${row.subject}»).\nSi dejan sus datos en el chat, te llega el expediente completo.\n\nPropuesta: https://soycatalinajaramillo.com/propuesta/${proposalId}`).catch(()=>{})
+          const phones=(safeJson(row.research||'{}').phones||[]).join(' · ')
+          if(first&&!proposalId.startsWith('test-'))await notifyCatalina(env,`🔥 ${row.company} quiere hablar con Carolina`,`Hicieron clic en «Hablar con Carolina» desde su propuesta («${row.subject}»).\nSi dejan sus datos en el chat, te llega el expediente completo.\n\nLLÁMALOS O ESCRÍBELES HOY: ${phones || 'sin teléfono publicado; responde a su correo'}\n\nPropuesta: https://soycatalinajaramillo.com/propuesta/${proposalId}`).catch(()=>{})
         }
         return new Response(null,{status:302,headers:{location:'/?p='+proposalId+'#carolina','cache-control':'no-store','referrer-policy':'no-referrer'}})
       }

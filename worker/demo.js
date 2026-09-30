@@ -50,7 +50,7 @@ export async function handleDemo(request, env, proposalId) {
   const first = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'demo.used',?)").bind('demo-' + proposalId, proposalId, Date.now()).run()
   if (first.meta.changes && !proposalId.startsWith('test-')) {
     const question = history.filter(m => m.role === 'user').pop().content.slice(0, 300)
-    await notifyCatalina(env, `${row.company} está probando su demo`, `Alguien de ${row.company} está usando la demostración de su propio agente en la propuesta.\n\nPrimera pregunta: «${question}»\n\nEs una señal fuerte de interés. Propuesta: https://soycatalinajaramillo.com/propuesta/${proposalId}`).catch(() => {})
+    await notifyCatalina(env, `🔥 ${row.company} está probando su demo`, `Alguien de ${row.company} está usando la demostración de su propio agente en la propuesta.\n\nPrimera pregunta: «${question}»\n\nEs una señal fuerte de interés. LLÁMALOS O ESCRÍBELES HOY: ${(r.phones || []).join(' · ') || 'sin teléfono publicado; responde a su correo'}\n\nPropuesta: https://soycatalinajaramillo.com/propuesta/${proposalId}`).catch(() => {})
   }
   return Response.json({ reply, remaining: MAX_TURNS - userTurns })
 }
