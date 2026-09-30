@@ -2,14 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {qualificationStatus} from '../worker/core/qualification.js'
 
-test('A business problem without contact cannot be qualified',()=>{
- assert.equal(qualificationStatus('qualified','exploring',{business:'Clínica',declaredProblem:'WhatsApp sin respuesta',volume:'40 por semana'}),'identified')
-})
-test('A concrete prospect with contact and urgency may be qualified',()=>{
- assert.equal(qualificationStatus('qualified','identified',{business:'Clínica',declaredProblem:'WhatsApp sin respuesta',email:'owner@example.com',urgency:'este mes'}),'qualified')
-})
-test('High intent needs an explicit acceptance or meeting intent',()=>{
- const lead={business:'Clínica',goal:'Agendar',email:'owner@example.com',budget:'USD 3000'}
- assert.equal(qualificationStatus('high_intent','qualified',lead),'qualified')
- assert.equal(qualificationStatus('high_intent','qualified',{...lead,intent:'Quiero agendar reunión'}),'high_intent')
-})
+test('problem without contact',()=>{ assert.equal(qualificationStatus('qualified','exploring',{business:'Clinica',declaredProblem:'WhatsApp sin respuesta'}),'identified') })
+test('need with contact may qualify',()=>{ assert.equal(qualificationStatus('qualified','exploring',{business:'Tienda online',desiredOutcomes:'recuperar carritos',email:'owner@example.com',urgency:'este mes'}),'qualified') })
+test('contact and urgency may qualify',()=>{ assert.equal(qualificationStatus('qualified','identified',{business:'Clinica',declaredProblem:'WhatsApp sin respuesta',email:'owner@example.com',urgency:'este mes'}),'qualified') })
+test('high intent needs acceptance',()=>{ const lead={business:'Clinica',goal:'Agendar',email:'owner@example.com',budget:'USD 3000'}; assert.equal(qualificationStatus('high_intent','qualified',lead),'qualified'); assert.equal(qualificationStatus('high_intent','qualified',{...lead,intent:'Quiero agendar reunion'}),'high_intent') })
+

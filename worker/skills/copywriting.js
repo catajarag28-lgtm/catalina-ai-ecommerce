@@ -7,6 +7,7 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 
 1. ASUNTO (decide la apertura)
 - Específico de ESE negocio: nombra un servicio, producto, lugar o paso real que aparezca en su web. Si podría enviarse a otra empresa, está mal.
+- Debe dejar claro qué vio Carolina y qué oportunidad quiere explorar: no uses solo el nombre de un servicio, una hora, un día, una promoción o una pregunta que cualquier negocio podría recibir.
 - Genera curiosidad con un bucle abierto honesto: una pregunta, una escena o algo preparado para ellos. Nunca clickbait ni falsas respuestas ("Re:", "Fwd:").
 - 3 a 9 palabras, máx. 60 caracteres. Sin mayúsculas sostenidas, sin signos de exclamación, sin emojis, sin "propuesta", "IA", "oferta", "gratis", "urgente", "oportunidad", "descuento".
 - Debe parecer escrito por una persona para una persona, no por un boletín.
@@ -63,6 +64,8 @@ export function lintCopy(p, company) {
   const subject = String(p.subject || '')
   if (subject.length < 12 || subject.length > 62) issues.push('asunto fuera de 12-62 caracteres')
   if (bannedSubject.test(subject)) issues.push('asunto con palabra prohibida o formato engañoso')
+  if (/\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b|\b\d{1,2}:\d{2}\b/i.test(subject)) issues.push('asunto basado en hora o día sin contexto')
+  if (/^(citas?|reservas?|consulta|duda|pregunta)\b/i.test(subject)) issues.push('asunto demasiado genérico')
   if (/\p{Extended_Pictographic}/u.test(subject)) issues.push('asunto con emoji')
   if (subject === subject.toUpperCase() && /[A-ZÁÉÍÓÚ]{4}/.test(subject)) issues.push('asunto en mayúsculas')
   const preview = String(p.preview || '')
@@ -85,3 +88,4 @@ export function lintCopy(p, company) {
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
   return issues
 }
+

@@ -17,7 +17,7 @@ const zones = { 'EE. UU.': 'America/New_York', 'Puerto Rico': 'America/Puerto_Ri
 export function inBusinessHours(region, now = Date.now()) {
   const tz = zones[region] || 'America/New_York'
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]))
-  return !['Sat', 'Sun'].includes(parts.weekday) && Number(parts.hour) >= 8 && Number(parts.hour) < 17
+  return !['Sat', 'Sun'].includes(parts.weekday) && Number(parts.hour) >= 8 && Number(parts.hour) < 19
 }
 export const blockedRegions = new Set(['España'])
 const regionOf = row => { try { return JSON.parse(row.dossier || '{}').region || '' } catch { return '' } }
@@ -246,3 +246,4 @@ export async function runHotFollowup(env, now = Date.now()) {
   await notifyCatalina(env, `Carolina invitó a ${row.company} a reunirse contigo`, `Señal: ${signal === 'demo' ? 'probó la demo' : signal === 'cta' ? 'pidió hablar con Carolina' : 'vio su propuesta'}.\nCarolina les escribió en el mismo hilo con el enlace para agendar. Si agendan, te llega la cita.\n\nTeléfono publicado (solo si quieres llamar tú): ${phones || 'no publicado'}\nPropuesta: ${SITE}/propuesta/${row.id}`).catch(() => {})
   return { sent: true, company: row.company, signal }
 }
+

@@ -343,8 +343,9 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))
     await step('hot', () => runHotFollowup(env))
-    await step('outreach', () => runOutreach(env))
+    // Discover first so candidates found in this invocation can be sent immediately.
     await step('discovery', () => discoverProspects(env))
+    await step('outreach', () => runOutreach(env))
     await step('intent', () => runIntentScan(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
     await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})
@@ -368,3 +369,4 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(clock).run()
   }
 }
+
