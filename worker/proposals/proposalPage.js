@@ -63,47 +63,37 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
   const preview = String(proposal.preview || proposal.example || proposal.hypothesis).slice(0, 140)
   const pre = '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">' + e(preview) + '&zwnj;&nbsp;'.repeat(60) + '</div>'
   const ps = proposal.ps ? '<p style="margin:18px 0 0;font:14px/1.55 Arial,sans-serif;color:#4a4238"><strong>P. D.</strong> ' + e(proposal.ps) + '</p>' : ''
-  const cta = (label) => '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 0"><tr><td bgcolor="#c6a26b" style="background:#c6a26b;border-radius:6px"><a href="' + e(proposalUrl) + '" style="display:inline-block;padding:15px 26px;font:bold 15px Arial,sans-serif;color:#1d1914;text-decoration:none">' + e(label) + ' &#8594;</a></td></tr></table>'
+  const ex = proposal.executive && typeof proposal.executive === 'object' ? proposal.executive : null
+  const moments = Array.isArray(proposal.moments) ? proposal.moments.filter(m => m?.title && m?.text).slice(0, 3) : []
+  const cta = (label) => '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 0"><tr><td bgcolor="#c6a26b" style="background:#c6a26b;border-radius:8px"><a href="' + e(proposalUrl) + '" style="display:inline-block;padding:15px 26px;font:bold 15px Arial,sans-serif;color:#1d1914;text-decoration:none">' + e(label) + ' &#8594;</a></td></tr></table>'
   const sourceLine = source ? '<p style="margin:0 0 20px;font:12px Arial,sans-serif;color:#81786b">Fuente: <a href="' + e(source) + '" style="color:#7a5a30">' + e(source.replace(/^https:\/\//, '').slice(0, 60)) + '</a></p>' : ''
+  const emailProposal = [
+    ex ? '<div style="margin:22px 0 0;padding:18px 20px;background:#f3ecdf;border-left:3px solid #c6a26b"><p style="margin:0 0 8px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">LA OPORTUNIDAD</p>' + (ex.headline ? '<p style="margin:0 0 8px;font:bold 18px/1.35 Georgia,serif;color:#2f2921">' + e(ex.headline) + '</p>' : '') + '<p style="margin:0 0 8px">' + e(ex.opportunity || proposal.hypothesis) + '</p><p style="margin:0"><strong>Cómo lo abordaríamos:</strong> ' + e(ex.approach || proposal.solution) + '</p></div>' : '<div style="margin:22px 0 0;padding:18px 20px;background:#f3ecdf;border-left:3px solid #c6a26b"><p style="margin:0 0 8px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">UNA SOLUCIÓN POSIBLE</p><p style="margin:0">' + e(proposal.solution) + '</p></div>',
+    moments.length ? '<p style="margin:22px 0 8px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">QUÉ CAMBIARÍA PARA SU CLIENTE</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' + moments.map(m => '<td valign="top" style="width:33%;padding:0 8px 0 0"><strong style="font-size:13px;color:#7a5a30">' + e(m.title) + '</strong><br><span style="font-size:13px;line-height:1.45;color:#5f5549">' + e(m.text) + '</span></td>').join('') + '</tr></table>' : '',
+  ].join('')
   const head = '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><title>' + e(proposal.subject || hook) + '</title></head>'
 
   if (format === 'carta') {
-    return [head, '<body style="margin:0;background:#ffffff;color:#222;font-family:Arial,Helvetica,sans-serif">', pre,
-      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 18px"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;font:15px/1.6 Arial,sans-serif;color:#222">',
-      '<tr><td>',
-      '<p style="margin:0 0 16px">Hola, equipo de ', e(company), ':</p>',
-      '<p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine,
-      '<p style="margin:0 0 16px">', e(proposal.hypothesis), '</p>',
-      scene ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid #c6a26b;margin:0 0 16px"><tr><td style="padding:4px 0 4px 14px;color:#3c352c">' + (sceneType(scene) === 'chat' ? '<em>«' + e(scene.customer) + '»</em><br><span style="color:#7a5a30">&#8594; ' + e(scene.agent) + '</span><br><span style="font-size:13px;color:#81786b">Su equipo recibe: ' + e(scene.handoff) + '</span>' : sceneType(scene) === 'flujo' ? scene.steps.filter(x => x?.what).slice(0, 5).map((st, i) => (i + 1) + '. ' + e(st.what)).join('<br>') : e(scene.title || 'Tablero') + ': ' + scene.tiles.filter(Boolean).slice(0, 4).map(e).join(' · ')) + '</td></tr></table>' : '<p style="margin:0 0 16px">' + e(proposal.example || '') + '</p>',
-      '<p style="margin:0 0 16px">Preparé el recorrido completo para ', e(company), ' (2 minutos)', scene && sceneType(scene) === 'chat' ? ', con una demo que puede probar como si fuera su cliente' : '', ': <a href="', e(proposalUrl), '" style="color:#7a5a30;font-weight:bold">verlo aquí</a>. Si le hace sentido, respóndame y lo conversamos.</p>',
-      '<p style="margin:0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e IA · 15+ años · soycatalinajaramillo.com</span></p>', ps,
-      '<p style="margin:26px 0 0;font:11px/1.5 Arial,sans-serif;color:#9a9186">', footer(opts.postal), '</p>',
-      '</td></tr></table></td></tr></table></body></html>'].join('')
+    return [head, '<body style="margin:0;background:#ece5da;color:#25211c;font-family:Arial,Helvetica,sans-serif">', pre,
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ece5da"><tr><td align="center" style="padding:20px 10px"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px">',
+      '<tr><td bgcolor="#14110e" style="background:#14110e;padding:18px 24px;border-radius:14px 14px 0 0;font:bold 11px Arial,sans-serif;letter-spacing:3px;color:#e3cfa9">CATALINA <span style="font-weight:normal">JARAMILLO</span><span style="float:right;font-weight:normal;letter-spacing:0;color:#8d7f6b">Preparado para ', e(company), '</span></td></tr>',
+      '<tr><td bgcolor="#14110e" style="background:#14110e;padding:18px 24px 24px;color:#f6ecdc"><p style="margin:0 0 12px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#c4a676">UNA ESCENA PARA ', e(company.toUpperCase()), '</p><h1 style="margin:0;font:normal 31px/1.15 Georgia,serif;color:#f6ecdc">', e(hook), '</h1></td></tr>',
+      '<tr><td bgcolor="#faf7f1" style="background:#faf7f1;padding:26px 24px;font:15px/1.6 Arial,sans-serif;color:#2a251f">',
+      '<p style="margin:0 0 16px">Hola, equipo de ', e(company), ':</p><p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine,
+      '<p style="margin:0 0 18px">', e(proposal.hypothesis), '</p>', scene ? sceneCard(scene, company) : '', emailProposal,
+      '<p style="margin:24px 0 8px;font-weight:bold;color:#2f2921">Si esta situación se parece a lo que viven, aquí puede ver el recorrido completo y hablar con Carolina:</p>',
+      cta('Ver la propuesta y hablar con Carolina'),
+      '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">En la propuesta podrá probar la escena y, si tiene sentido, agendar una conversación con Catalina.</p>',
+      '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e IA · 15+ años · soycatalinajaramillo.com</span></p>', ps,
+      '<p style="margin:26px 0 0;font:11px/1.5 Arial,sans-serif;color:#9a9186">', footer(opts.postal), '</p></td></tr></table></td></tr></table></body></html>'].join('')
   }
 
   return [head, '<body style="margin:0;background:#ece5da;color:#25211c;font-family:Arial,Helvetica,sans-serif">', pre,
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ece5da" style="background:#ece5da"><tr><td align="center" style="padding:20px 10px">',
-    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ece5da" style="background:#ece5da"><tr><td align="center" style="padding:20px 10px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">',
     '<tr><td bgcolor="#14110e" style="background:#14110e;padding:18px 28px;border-radius:14px 14px 0 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font:bold 11px Arial,sans-serif;letter-spacing:3px;color:#e3cfa9">CATALINA <span style="font-weight:normal">JARAMILLO</span></td><td align="right" style="font:11px Arial,sans-serif;color:#8d7f6b">Preparado para ', e(company), '</td></tr></table></td></tr>',
-    '<tr><td bgcolor="#14110e" style="background:#14110e;padding:14px 28px 30px">',
-    '<p style="margin:0 0 14px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#c4a676">UNA ESCENA PARA ', e(company.toUpperCase()), '</p>',
-    '<h1 style="margin:0;font:normal 34px/1.15 Georgia,\'Times New Roman\',serif;color:#f6ecdc">', e(hook), '</h1>',
-    proposal.subhook ? '<p style="margin:14px 0 0;font:16px/1.5 Arial,sans-serif;color:#d9ccb6">' + e(proposal.subhook) + '</p>' : '',
-    scene ? sceneCard(scene, company) : '',
-    '</td></tr>',
-    '<tr><td bgcolor="#faf7f1" style="background:#faf7f1;padding:28px 28px 8px;font:15px/1.6 Arial,sans-serif;color:#2a251f">',
-    '<p style="margin:0 0 16px">Hola, equipo de ', e(company), ':</p>',
-    '<p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">LO QUE VI</p>',
-    '<p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine,
-    '<p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">LA PREGUNTA</p>',
-    '<p style="margin:0 0 20px">', e(proposal.hypothesis), '</p>',
-    scene ? '' : '<p style="margin:0 0 20px;font-size:17px;color:#2f2921">' + e(proposal.example || '') + '</p>',
-    cta('Ver el recorrido de ' + company),
-    '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">', scene && sceneType(scene) !== 'chat' ? 'Allí verá el recorrido completo con el ejemplo aplicado a ' + e(company) + '.' : 'Incluye una demo que puede probar escribiéndole como si fuera su cliente.', ' Son 2 minutos; si no le interesa, basta con ignorar este correo.</p>',
-    '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e inteligencia artificial · 15+ años</span></p>', ps,
-    '</td></tr>',
-    '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr>',
-    '</table></td></tr></table></body></html>'].join('')
+    '<tr><td bgcolor="#14110e" style="background:#14110e;padding:14px 28px 30px"><p style="margin:0 0 14px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#c4a676">UNA ESCENA PARA ', e(company.toUpperCase()), '</p><h1 style="margin:0;font:normal 34px/1.15 Georgia,\'Times New Roman\',serif;color:#f6ecdc">', e(hook), '</h1>', proposal.subhook ? '<p style="margin:14px 0 0;font:16px/1.5 Arial,sans-serif;color:#d9ccb6">' + e(proposal.subhook) + '</p>' : '', scene ? sceneCard(scene, company) : '', '</td></tr>',
+    '<tr><td bgcolor="#faf7f1" style="background:#faf7f1;padding:28px 28px 8px;font:15px/1.6 Arial,sans-serif;color:#2a251f"><p style="margin:0 0 16px">Hola, equipo de ', e(company), ':</p><p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">LO QUE VI</p><p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine, '<p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">LA PREGUNTA</p><p style="margin:0 0 20px">', e(proposal.hypothesis), '</p>', scene ? '' : '<p style="margin:0 0 20px;font-size:17px;color:#2f2921">' + e(proposal.example || '') + '</p>', emailProposal,
+    '<p style="margin:26px 0 8px;font-size:16px;color:#2f2921"><strong>Si esta lectura encaja con su negocio, el siguiente paso es conversarlo con Carolina.</strong></p>', cta('Ver la propuesta y hablar con Carolina'), '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Allí podrá probar la escena y, si tiene sentido, agendar una conversación con Catalina. Son 2 minutos y no es una cotización.</p>', '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e inteligencia artificial · 15+ años</span></p>', ps, '</td></tr>', '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr></table></td></tr></table></body></html>'].join('')
 }
 
 const phases = [
@@ -220,3 +210,4 @@ form.addEventListener('submit',ev=>{ev.preventDefault();const v=q.value;q.value=
 document.querySelectorAll('#chips button').forEach(b=>b.addEventListener('click',()=>send(b.textContent)))})()</script>` : ''}
 </body></html>`
 }
+
