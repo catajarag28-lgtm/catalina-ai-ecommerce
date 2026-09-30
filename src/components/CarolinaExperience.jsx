@@ -1,18 +1,29 @@
 import React,{useState} from 'react'
-import {ArrowRight,Sparkles,MessageCircleMore} from 'lucide-react'
-import {advisorQuestions,preliminaryResult} from '../advisor'
+import {Send,Sparkles} from 'lucide-react'
+
+const opening={role:'assistant',text:'Hola, soy Carolina, la asesora digital de Catalina. Cuéntame con tus palabras qué está pasando en tu empresa o qué te gustaría mejorar. No necesitas saber si necesitas IA, automatización o estrategia.'}
+
+function replyTo(text){
+ const t=text.toLowerCase()
+ if(/venta|cliente|lead|whatsapp|cita/.test(t)) return 'Entiendo. Antes de pensar en una herramienta, quiero ubicar dónde se está perdiendo la oportunidad. ¿Qué ocurre hoy desde que llega un cliente o contacto hasta que alguien de tu equipo lo atiende?'
+ if(/equipo|manual|tiempo|repet|operaci|proceso/.test(t)) return 'Eso puede ser un problema de proceso antes que de IA. Cuéntame qué tarea se repite, quién la hace hoy y qué pasa cuando no se hace a tiempo.'
+ if(/ia|agente|bot|automat/.test(t)) return 'Podemos explorar eso, pero no quiero recomendarte un agente solo porque suene avanzado. ¿Qué quieres que ese sistema consiga o haga por tu empresa que hoy no está ocurriendo?'
+ if(/marketing|publicidad|meta|growth|crecer/.test(t)) return 'Perfecto. Para entender el cuello de botella: ¿hoy el problema principal es atraer oportunidades, convertirlas, hacer seguimiento o lograr que los clientes vuelvan?'
+ return 'Te sigo. Cuéntame un poco más: ¿qué parte de eso te está costando más tiempo, dinero u oportunidades hoy?'
+}
 
 export default function CarolinaExperience(){
- const [step,setStep]=useState(0),[answers,setAnswers]=useState({})
- const q=advisorQuestions[step], done=step>=advisorQuestions.length
- const choose=(v)=>{setAnswers({...answers,[q.key]:v});setStep(step+1)}
- const reset=()=>{setStep(0);setAnswers({})}
- const result=done?preliminaryResult(answers):null
- return <div className="advisorShell">
-  <div className="advisorTop"><div><Sparkles size={15}/> CAROLINA · Asesora digital de Catalina</div><span>{done?'PRIMER MAPA':(step+1)+' / '+advisorQuestions.length}</span></div>
-  {step===0&&<div className="carolinaIntro"><div className="carolinaAvatar"><MessageCircleMore/></div><div><h3>Cuéntame qué quieres conseguir.</h3><p>No tienes que saber si necesitas IA, un flujo, un agente o una estrategia. Primero entiendo tu negocio; después te muestro qué tendría sentido explorar.</p></div></div>}
-  {!done&&<><p className="advisorText">{q.text}</p><div className="quickReplies">{q.options.map(v=><button key={v} onClick={()=>choose(v)}>{v}</button>)}</div></>}
-  {done&&<div className="diagnosis"><span className="prelim">LECTURA PRELIMINAR · NO ES UN DIAGNÓSTICO FINAL</span><h3>Veo una oportunidad inicial en {result.stage}.</h3><p>Llegaste hablando de <b>{answers.friction}</b>. Antes de asumir que necesitas IA, exploraría <b>{result.solution}</b> y validaría contigo impacto, proceso actual, datos y restricciones.</p><div className="diagGrid"><div><small>QUIERES</small><b>{answers.goal}</b></div><div><small>ÁREA</small><b>{answers.area}</b></div><div><small>FRICCIÓN</small><b>{answers.friction}</b></div><div><small>CRECIMIENTO 2X</small><b>{answers.scale}</b></div></div><div className="routeHint"><a href="#servicios">Ver soluciones y precios <ArrowRight size={14}/></a><a href="#proyeccion">Modelar un escenario <ArrowRight size={14}/></a><button onClick={reset}>Empezar de nuevo</button></div></div>}
-  <div className="memoryBar"><b>Cómo trabaja Carolina:</b> escucha → descubre → cuestiona → entiende → cuantifica → recomienda. Si no necesitas IA, te lo dice.</div>
+ const [messages,setMessages]=useState([opening])
+ const [input,setInput]=useState('')
+ const send=()=>{
+  const value=input.trim(); if(!value)return
+  setMessages(m=>[...m,{role:'user',text:value},{role:'assistant',text:replyTo(value)}])
+  setInput('')
+ }
+ return <div className="advisorShell chatAdvisor">
+  <div className="advisorTop"><div><Sparkles size={15}/> CAROLINA · Asesora digital de Catalina</div><span>EN LÍNEA</span></div>
+  <div className="chatMessages">{messages.map((m,i)=><div key={i} className={'chatBubble '+m.role}>{m.text}</div>)}</div>
+  <div className="chatComposer"><textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Escribe como hablarías con una persona…"/><button onClick={send} aria-label="Enviar"><Send size={18}/></button></div>
+  <div className="memoryBar"><b>Habla libremente.</b> Carolina conversa contigo para entender el problema antes de recomendar una solución.</div>
  </div>
 }
