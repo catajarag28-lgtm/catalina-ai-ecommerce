@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "node --test tests/*.test.mjs",
     "deploy": "vite build && npx wrangler deploy",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "skills:doc": "node scripts/skills-doc.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

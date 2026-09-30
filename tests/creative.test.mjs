@@ -130,3 +130,10 @@ test('Segments that earn interest get searched more often', () => {
   for (let i = 0; i < 2000; i++) if (pickSegment({}).id === 'fl-dental') base++
   assert.ok(boosted && hits > base * 1.8)
 })
+import { carolinaSkills, skillsPrompt, skill } from '../worker/carolinaSkills.js'
+test('Carolina has one organized skill registry used by chat and proposals', () => {
+  const ids = carolinaSkills.map(s => s.id)
+  for (const id of ['mision-y-principios', 'posicionamiento-senior', 'prospeccion', 'investigacion-de-negocio', 'copywriting-email', 'propuesta-senior', 'seguimiento-y-cierre', 'agenda', 'aliados', 'intencion-en-foros', 'aprendizaje-continuo']) assert.ok(ids.includes(id), id)
+  assert.ok(skill('posicionamiento-senior').includes('multiagente') && !/hace chatbots"?\s*\./.test(skillsPrompt(['posicionamiento-senior']).replace('"hace chatbots"', '')))
+  assert.ok(/primer correo no lleva precio/.test(skill('mision-y-principios')))
+})

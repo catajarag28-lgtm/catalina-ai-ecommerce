@@ -1,4 +1,13 @@
 import { salesStrategy } from './salesStrategy.js'
+import { skillsPrompt } from './carolinaSkills.js'
+
+// Habilidades completas del registro que el chat activa por tema (además de las básicas siempre activas).
+const registryTriggers = [
+  { id: 'aliados', keywords: ['alianza', 'aliad', 'agencia', 'comisi', 'referi', 'revend'] },
+  { id: 'seguimiento-y-cierre', keywords: ['caro', 'precio', 'presupuesto', 'pensarlo', 'duda', 'reunión', 'reunion', 'contrat'] },
+  { id: 'investigacion-de-negocio', keywords: ['web', 'sitio', 'instagram', 'analiza', 'revisa', 'investiga'] },
+  { id: 'propuesta-senior', keywords: ['propuesta', 'cotiza', 'alcance', 'fases'] },
+]
 const skillCatalog = [
   { id: 'diagnostico', keywords: ['problema','frena','automat','proceso','equipo','tiempo'], guidance: 'Diagnostica antes de proponer: objetivo, fricción, consecuencia y proceso actual. Haz una sola pregunta pertinente.' },
   { id: 'ventas-consultivas', keywords: ['vender','ventas','cliente','lead','prospect','cotiz','precio','cita','agend'], guidance: 'Vende consultivamente: conecta problema con impacto, explica una solución aplicada y confirma encaje antes de ofrecer reunión.' },
@@ -17,7 +26,9 @@ export function selectSkills(text = '') {
 }
 
 export function skillContext(text = '') {
-  return salesStrategy+'\n'+selectSkills(text).map(skill => `HABILIDAD ${skill.id.toUpperCase()}: ${skill.guidance}`).join('\n')
+  const normalized = text.toLowerCase()
+  const extra = registryTriggers.filter(t => t.keywords.some(k => normalized.includes(k))).map(t => t.id).slice(0, 2)
+  return salesStrategy + '\n\n' + skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'agenda', ...extra]) + '\n\n' + selectSkills(text).map(skill => `HABILIDAD ${skill.id.toUpperCase()}: ${skill.guidance}`).join('\n')
 }
 
 export { skillCatalog }
