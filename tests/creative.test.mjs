@@ -106,3 +106,9 @@ test('Direct WhatsApp message is personal, links the proposal and has no price',
   const m = whatsappMessage({ id: 'abc', company: 'Ava Spa' })
   assert.ok(m.includes('Ava Spa') && m.includes('/propuesta/abc') && !/USD|\$/.test(m))
 })
+import { hotFollowupText } from '../worker/outreach.js'
+test('Hot follow-up invites to a meeting, never claims a booking, offers BAJA', () => {
+  const t = hotFollowupText({ SENDER_POSTAL_ADDRESS: '14818 SW 180th Terrace' }, { company: 'Ava Spa' }, 'demo')
+  assert.ok(t.includes('Ava Spa') && t.includes('20 minutos') && t.includes('BAJA') && t.includes('14818'))
+  assert.ok(!/agendad[ao] (para|el)/i.test(t) && !/USD|\$/.test(t))
+})

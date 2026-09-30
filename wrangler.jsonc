@@ -32,5 +32,5 @@
   // Avisos de leads a Catalina vía Email Routing; el destino debe estar verificado en Cloudflare.
   "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillogirldo28@gmail.com" }],
   "d1_databases": [{ "binding": "DB", "database_name": "carolina-portfolio", "database_id": "67f1caa9-219a-45d1-b98a-7f7339fe7547" }],
-  "triggers": { "crons": ["*/15 * * * *"] }
+  "triggers": { "crons": ["*/15 * * * *", "7,37 * * * *"] }
 }

@@ -1,6 +1,6 @@
 import { discoverProspects, searchSegment, verifyCandidate, segments } from './discovery.js'
-import { runOutreach, queueQualifiedLeads } from './outreach.js'
-import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook, sendDailyContactList } from './engagement.js'
+import { runOutreach, queueQualifiedLeads, runHotFollowup } from './outreach.js'
+import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './engagement.js'
 import { renderProposalPage } from './proposalPage.js'
 import { handleDemo } from './demo.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
@@ -295,7 +295,16 @@ export default {
     try { console.log('inbox', JSON.stringify(await handleInbound(message, env))) }
     catch (e) { console.error('inbox_failure', e?.message) }
   },
-  async scheduled(_event, env) {
+  async scheduled(event, env) {
+    // Ciclo adicional solo de envío (minutos 7 y 37) para alcanzar el cupo diario sin sobrecargar el ciclo completo.
+    if (event?.cron === '7,37 * * * *') {
+      const quick = { at: new Date().toISOString(), kind: 'send-only' }
+      try { quick.hot = await runHotFollowup(env) } catch (e) { quick.hot = { error: e?.message } }
+      try { quick.outreach = await runOutreach(env) } catch (e) { quick.outreach = { error: e?.message } }
+      console.log('carolina_cycle', JSON.stringify(quick))
+      await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_send_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(quick).slice(0, 2000), Date.now()).run().catch(() => {})
+      return
+    }
     // Primero enviar (prioridad), después buscar prospectos (lo más pesado). Cada ciclo deja registro de su resultado.
     const cycle = { at: new Date().toISOString() }
     const step = async (name, fn) => { try { cycle[name] = await fn() } catch (e) { cycle[name] = { error: e?.message }; console.error(name + '_failure', e?.message) } }
@@ -304,7 +313,7 @@ export default {
     await step('angles', () => evolveAngles(env))
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))
-    await step('contacts', () => sendDailyContactList(env))
+    await step('hot', () => runHotFollowup(env))
     await step('outreach', () => runOutreach(env))
     await step('discovery', () => discoverProspects(env))
     console.log('carolina_cycle', JSON.stringify(cycle))

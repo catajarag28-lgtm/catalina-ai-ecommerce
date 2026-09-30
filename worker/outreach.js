@@ -1,4 +1,4 @@
-import { salesStrategy, schedulingUrl } from './salesStrategy.js'
+import { salesStrategy, schedulingUrl, meetingNextStep } from './salesStrategy.js'
 import { proposalPlaybook } from './proposalPlaybook.js'
 import { copywritingSkill, critiqueRubric, lintCopy } from './copywriting.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
@@ -199,4 +199,42 @@ export async function queueQualifiedLeads(env) {
     if (!p.email || !p.company || !(p.declaredProblem || p.goal) || !(p.solution || p.proposalDraft)) continue
     await env.DB.prepare("INSERT OR IGNORE INTO outreach(id,email,company,kind,dossier,website,source_url,authorized,status,created_at,updated_at) VALUES (?,?,?,'inbound',?,?,?,1,'pending',?,?)").bind('inbound-' + row.conversation_id, p.email.toLowerCase(), p.company, row.data, p.website || '', SITE + '/', Date.now(), Date.now()).run()
   }
+}
+
+// Seguimiento caliente: si un negocio probó la demo, pidió hablar o vio su propuesta y no ha respondido,
+// Carolina le escribe en el mismo hilo para llevarlo a la reunión con Catalina. Una sola vez por negocio.
+export function hotFollowupText(env, row, signal) {
+  const opener = signal === 'demo' ? 'Espero que la demostración les haya servido para imaginar cómo atendería a sus clientes.'
+    : signal === 'cta' ? 'Vi que querían conversar sobre la idea; con gusto les ayudo a dar el siguiente paso.'
+    : 'Les escribo por si la idea del recorrido les quedó sonando.'
+  return [`Hola, equipo de ${row.company}:`, '', `Soy Carolina, la asistente de Catalina Jaramillo. ${opener}`, '',
+    'El siguiente paso es una conversación de 20 minutos con Catalina, en español, para ver su caso real: qué preguntan sus clientes, qué herramientas usan hoy y si tiene sentido avanzar. Sin compromiso.', '',
+    meetingNextStep(env), '', 'Si prefieren resolver dudas por escrito, respóndanme aquí y les contesto.', '',
+    'Carolina · Asistente de Catalina Jaramillo', 'clientes@soycatalinajaramillo.com', '', 'Si prefieren no recibir más mensajes, respondan BAJA.', env.SENDER_POSTAL_ADDRESS || ''].join('\n')
+}
+export async function runHotFollowup(env, now = Date.now()) {
+  if (env.OUTREACH_ENABLED !== 'true' || !env.RESEND_API_KEY) return { enabled: false }
+  const rows = (await env.DB.prepare(`SELECT o.*,
+      MAX(CASE WHEN e.type='demo.used' AND e.occurred_at<? THEN 1 ELSE 0 END) AS demo,
+      MAX(CASE WHEN e.type='cta.clicked' AND e.occurred_at<? THEN 1 ELSE 0 END) AS cta,
+      MAX(CASE WHEN e.type='page.viewed' AND e.occurred_at<? THEN 1 ELSE 0 END) AS viewed,
+      MAX(CASE WHEN e.type IN ('hot.followup','chat.started') THEN 1 ELSE 0 END) AS done
+    FROM outreach o JOIN outreach_events e ON e.outreach_id=o.id
+    WHERE o.status='sent' AND o.id NOT LIKE 'test-%' AND e.occurred_at>? GROUP BY o.id
+    HAVING done=0 AND (demo=1 OR cta=1 OR viewed=1) ORDER BY demo DESC, cta DESC LIMIT 10`).bind(now - 3600000, now - 3600000, now - 3 * 3600000, now - 5 * 86400000).all()).results || []
+  const row = rows.find(r => inBusinessHours(regionOf(r), now))
+  if (!row) return { sent: false }
+  if (await env.DB.prepare('SELECT 1 FROM suppression WHERE email=?').bind(row.email.toLowerCase()).first()) return { sent: false }
+  const claim = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'hot.followup',?)").bind('hot-' + row.id, row.id, now).run()
+  if (!claim.meta.changes) return { sent: false }
+  const signal = row.demo ? 'demo' : row.cta ? 'cta' : 'view'
+  const text = hotFollowupText(env, row, signal)
+  const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `hot-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [row.email], reply_to: 'clientes@soycatalinajaramillo.com', subject: 'Re: ' + row.subject, text, headers: { 'List-Unsubscribe': '<mailto:clientes@soycatalinajaramillo.com?subject=BAJA>' } }), signal: AbortSignal.timeout(12000) }).catch(() => null)
+  const out = await res?.json().catch(() => ({}))
+  if (!res?.ok || !out?.id) return { sent: false, reason: 'hot_followup_not_confirmed' }
+  await env.DB.prepare('UPDATE outreach SET followup_at=coalesce(followup_at,?) WHERE id=?').bind(now, row.id).run()
+  await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(row.email.toLowerCase(), 'out', 'clientes@soycatalinajaramillo.com', row.email, 'Re: ' + row.subject, text, out.id, 'outreach_hot', Date.now()).run()
+  let phones = ''; try { phones = (JSON.parse(row.research || '{}').phones || []).join(' · ') } catch {}
+  await notifyCatalina(env, `Carolina invitó a ${row.company} a reunirse contigo`, `Señal: ${signal === 'demo' ? 'probó la demo' : signal === 'cta' ? 'pidió hablar con Carolina' : 'vio su propuesta'}.\nCarolina les escribió en el mismo hilo con el enlace para agendar. Si agendan, te llega la cita.\n\nTeléfono publicado (solo si quieres llamar tú): ${phones || 'no publicado'}\nPropuesta: ${SITE}/propuesta/${row.id}`).catch(() => {})
+  return { sent: true, company: row.company, signal }
 }
