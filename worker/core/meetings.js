@@ -34,11 +34,15 @@ async function llmJson(env, system, user) {
   return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1))
 }
 
-export async function analyzeMeeting(env, { from, subject, text }) {
+export async function analyzeMeeting(env, { from, subject, text, dryRun = false }) {
   const transcript = String(text || '').replace(/\r/g, '').slice(0, 60000)
   if (transcript.length < 400) return { ok: false, reason: 'transcript_too_short' }
   const a = await llmJson(env, skillsPrompt(['posicionamiento-senior', 'seguimiento-y-cierre']) + '\n\n' + ANALYSIS, JSON.stringify({ subject, transcript }))
   const id = crypto.randomUUID()
+  if (dryRun) {
+    await notifyCatalina(env, 'PRUEBA · Informe de reunión (ficticia, no se guardó)', JSON.stringify(a, null, 2).slice(0, 12000)).catch(() => {})
+    return { ok: true, dryRun: true, analysis: a }
+  }
   const emails = (a.emails || []).map(e => String(e).toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(e))
   let outreachId = null
   for (const e of emails) { const r = await env.DB.prepare('SELECT id FROM outreach WHERE lower(email)=?').bind(e).first(); if (r) { outreachId = r.id; break } }

@@ -199,6 +199,10 @@ export default {
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
     // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
+    if (env.OUTREACH_TEST_TO && url.pathname === '/ops/meeting-dry' && request.method === 'POST') {
+      const { analyzeMeeting } = await import('./core/meetings.js')
+      return json(await analyzeMeeting(env, { from: 'prueba', subject: 'PRUEBA', text: await request.text(), dryRun: true }))
+    }
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/intent-dry' && request.method === 'POST') {
       const q = intentQueries[Number(url.searchParams.get('i') || 0) % intentQueries.length]
       const posts = await searchIntent(env, q)
