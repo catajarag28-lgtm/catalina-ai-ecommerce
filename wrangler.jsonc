@@ -15,8 +15,8 @@
   ],
   "vars": {
     "ALLOWED_ORIGIN": "https://soycatalinajaramillo.com,https://www.soycatalinajaramillo.com,https://catajarag28-lgtm.github.io",
-    "OPENROUTER_MODEL": "google/gemini-2.5-flash-lite",
-    "OPENROUTER_EXTRACT_MODEL": "google/gemini-2.5-flash-lite",
+    "OPENROUTER_MODEL": "google/gemini-3.1-flash-lite",
+    "OPENROUTER_EXTRACT_MODEL": "google/gemini-3.1-flash-lite",
     "CALENDAR_TIMEZONE": "America/Bogota",
     "NOTIFY_FROM": "carolina@soycatalinajaramillo.com",
     "NOTIFY_TO": "catajaragpyg@gmail.com"

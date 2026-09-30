@@ -37,7 +37,7 @@ async function rateLimit(env, request, kind, max) {
 }
 
 async function complete(env, messages, withTools = true, maxTokens = 1100, modelSlug = env.OPENROUTER_MODEL) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': (env.ALLOWED_ORIGIN || '').split(',')[0], 'X-Title': 'Carolina · Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens }), signal: AbortSignal.timeout(25000) })
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': (env.ALLOWED_ORIGIN || '').split(',')[0], 'X-Title': 'Carolina - Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens }), signal: AbortSignal.timeout(25000) })
   if (!response.ok) throw new Error(`model_${response.status}`)
   const data = await response.json()
   return { message: data.choices?.[0]?.message, usage: data.usage }
