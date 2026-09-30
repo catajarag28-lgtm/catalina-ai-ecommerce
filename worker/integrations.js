@@ -59,15 +59,80 @@ export async function sendThreadedEmail(env, { to, subject, text, inReplyTo, ref
   return { ok: res.ok, id: data.id, reason: res.ok ? undefined : 'email_provider_error' }
 }
 
+const privateHost = host => !/^[a-z\d.-]+\.[a-z]{2,}$/i.test(host) || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(host)
+const socialHosts = /facebook|instagram|linkedin|twitter|x\.com|youtube|tiktok|workana|upwork|pinterest|wa\.me|whatsapp/i
+const junkEmail = /\.(png|jpe?g|gif|webp|svg|css|js)$|@(example|sentry|wixpress|domain|email|yourdomain|sentry-next)\.|^(u00|noreply|no-reply)/i
+
+// Lee una página pública siguiendo hasta 3 redirecciones https, sin salir a hosts privados.
 export async function researchWebsite(url) {
   try {
-    const target = new URL(url)
-    if (target.protocol !== 'https:' || !/^[a-z\d.-]+\.[a-z]{2,}$/i.test(target.hostname) || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(target.hostname)) return { ok: false, reason: 'invalid_public_url' }
-    const res = await fetch(target.toString(), { redirect: 'manual', headers: { 'user-agent': 'CarolinaResearch/1.0' }, signal: AbortSignal.timeout(7000) })
+    let target = new URL(url), res
+    for (let hop = 0; hop < 4; hop++) {
+      if (target.protocol !== 'https:' || privateHost(target.hostname)) return { ok: false, reason: 'invalid_public_url' }
+      res = await fetch(target.toString(), { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (compatible; CarolinaResearch/1.1; +https://soycatalinajaramillo.com)', 'accept-language': 'es,en;q=0.8' }, signal: AbortSignal.timeout(8000) })
+      if (res.status < 300 || res.status >= 400) break
+      const next = res.headers.get('location'); if (!next) break
+      target = new URL(next, target)
+    }
     if (!res.ok || (res.headers.get('content-type') || '').indexOf('text/html') < 0) return { ok: false, reason: 'site_unavailable' }
-    const html = (await res.text()).slice(0, 60000)
-    const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3500)
-    const publicEmails = [...new Set((html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []).map(e => e.toLowerCase()))]
-    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks: [...new Set([...html.matchAll(/href=["'](https:\/\/[^"'<>]+)["']/gi)].map(m => m[1].replace(/&amp;/g,'&')).filter(u => {try{return !/facebook|instagram|linkedin|twitter|youtube|workana|upwork/i.test(new URL(u).hostname)}catch{return false}}))].slice(0,30) }
+    const html = (await res.text()).slice(0, 250000)
+    const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 3500)
+    const publicEmails = [...new Set((html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []).map(e => e.toLowerCase()).filter(e => !junkEmail.test(e)))]
+    const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
+    const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
+    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, signals: detectSignals(html, links) }
   } catch { return { ok: false, reason: 'site_unavailable' } }
+}
+
+// Señales verificables en el HTML. La ausencia de una señal NO demuestra que el negocio carezca de esa herramienta.
+const SIGNALS = {
+  reservas: /vagaro|mindbody|fresha|joinblvd|boulevard|squareup\.com\/appointments|square\.site|calendly|acuityscheduling|setmore|zenoti|booksy|treatwell|glofox|simplybook|timely|doctoralia|zocdoc|nexhealth|localmed|jane\.app|agendapro|reservio|goldie|glossgenius|schedulicity/i,
+  whatsapp: /wa\.me\/|api\.whatsapp\.com|web\.whatsapp\.com/i,
+  chat: /intercom|tidio|driftt|crisp\.chat|livechatinc|tawk\.to|zdassets|zopim|hs-scripts|manychat|chatbase|botpress|landbot|freshchat|olark|smartsupp|elfsight.*chat|getbutton|podium/i,
+  tienda: /cdn\.shopify|myshopify|woocommerce|tiendanube|vtex|bigcommerce|wixstatic.*ecom|magento|prestashop|squarespace-commerce/i,
+  email_marketing: /klaviyo|mailchimp|list-manage|activecampaign|convertkit|brevo|sendinblue/i,
+  crm: /hubspot|salesforce|zoho|gohighlevel|leadconnector|pipedrive|kommo/i,
+  instagram: /instagram\.com\//i,
+  tiktok: /tiktok\.com\/@/i,
+}
+export function detectSignals(html, links = []) {
+  const all = html + ' ' + links.join(' ')
+  const found = {}
+  for (const [key, pattern] of Object.entries(SIGNALS)) { const m = all.match(pattern); if (m) found[key] = m[0].toLowerCase().slice(0, 40) }
+  found.formularios = (html.match(/<form\b/gi) || []).length
+  found.telefono = /href=["']tel:/i.test(html)
+  found.idiomas = [...new Set([...html.matchAll(/hreflang=["']([a-z]{2})/gi)].map(m => m[1].toLowerCase()))].concat((html.match(/<html[^>]*lang=["']([a-z]{2})/i) || [])[1] || []).filter((v, i, a) => a.indexOf(v) === i)
+  return found
+}
+
+// Investigación de negocio: portada + hasta 3 páginas clave del mismo dominio (servicios, contacto, reservas, nosotros).
+export async function researchBusiness(url) {
+  const home = await researchWebsite(url)
+  if (!home.ok) return home
+  const host = new URL(home.source).hostname.replace(/^www\./, '')
+  const key = /contact|contacto|servicio|service|tratamiento|treatment|reserv|book|cita|appointment|nosotros|about|sobre|precio|pricing|menu|productos|shop|tienda/i
+  const pages = home.publicLinks.filter(u => { try { const h = new URL(u); return h.hostname.replace(/^www\./, '') === host && key.test(h.pathname) && !/\.(pdf|jpe?g|png|webp|zip)$/i.test(h.pathname) } catch { return false } })
+  const pick = []
+  for (const group of [/contact|contacto/i, /servicio|service|tratamiento|treatment|menu|productos|shop|tienda/i, /reserv|book|cita|appointment|about|nosotros|sobre/i]) { const u = pages.find(x => group.test(x) && !pick.includes(x)); if (u) pick.push(u) }
+  const extra = []
+  for (const u of pick) { const r = await researchWebsite(u); if (r.ok) extra.push(r) }
+  const all = [home, ...extra]
+  const signals = {}
+  for (const r of all) for (const [k, v] of Object.entries(r.signals || {})) if (v && (!signals[k] || (Array.isArray(v) && v.length))) signals[k] = v
+  const emailPages = {}
+  for (const r of all) for (const e of r.publicEmails) emailPages[e] ||= r.source
+  return {
+    ok: true, source: home.source, host,
+    publicText: all.map(r => `[${new URL(r.source).pathname}] ${r.publicText}`).join('\n').slice(0, 9000),
+    publicEmails: Object.keys(emailPages), emailPages, pages: all.map(r => r.source), signals,
+    publicLinks: home.publicLinks,
+  }
+}
+
+// El correo debe estar publicado en la web del negocio; se prefiere el del propio dominio.
+export function pickBusinessEmail(emails, host) {
+  const own = emails.filter(e => e.split('@')[1].replace(/^www\./, '').endsWith(host))
+  const preferred = own.find(e => /^(info|hola|hello|contacto|contact|citas|reservas|ventas|sales|admin|office|recepcion|front|booking|appointments)@/i.test(e)) || own[0]
+  if (preferred) return preferred
+  return emails.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
 }

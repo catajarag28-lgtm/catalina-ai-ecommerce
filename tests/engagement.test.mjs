@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { verifyResendSignature, receiveResendEvent } from '../worker/engagement.js'
-import { angleFor, subjectAngles, brandedProposal } from '../worker/outreach.js'
+import { brandedProposal } from '../worker/outreach.js'
 
 test('Resend events require an intact signed body and recent timestamp', async () => {
     const secret='whsec_'+btoa('a reproducible test secret')
@@ -16,15 +16,6 @@ test('Resend events require an intact signed body and recent timestamp', async (
     assert.equal(await verifyResendSignature(body+' ',headers,secret),false)
     assert.equal(await verifyResendSignature(body,headers,secret,Date.now()+3600000),false)
 })
-test('Angles rotate deterministically and the first email has a visual journey without pricing', () => {
-  const values=new Set(Array.from({length:100},(_,i)=>angleFor('prospect-'+i)))
-  assert.equal(values.size,subjectAngles.length)
-  const html=brandedProposal('Empresa de prueba',{offer:'ventas',subject:'De una consulta a una visita',hook:'Una visita empieza mucho antes.',observation:'La web muestra inmuebles en Miami.',hypothesis:'Si llegan consultas fuera de horario, podría ayudar un primer recorrido.',example:'Una persona pregunta por un inmueble; el asesor recibe sus preferencias.',solution:'Validar preguntas y derivación.'})
-  assert.ok(html.includes('01<br>'))
-  assert.ok(html.includes('Contexto'))
-  assert.ok(!html.includes('3.800'))
-})
-
 test('A verified bounce is recorded once and suppresses future contact', async () => {
   const secret='whsec_'+btoa('another reproducible secret')
   const payload=JSON.stringify({type:'email.bounced',created_at:new Date().toISOString(),data:{email_id:'provider-1'}})

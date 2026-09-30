@@ -1,6 +1,8 @@
-import { discoverProspects } from './discovery.js'
-import { runOutreach, queueQualifiedLeads, escapeHtml } from './outreach.js'
-import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport } from './engagement.js'
+import { discoverProspects, searchSegment, verifyCandidate, segments } from './discovery.js'
+import { runOutreach, queueQualifiedLeads } from './outreach.js'
+import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './engagement.js'
+import { renderProposalPage } from './proposalPage.js'
+import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
 import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
 import { qualificationStatus } from './qualification.js'
@@ -186,25 +188,41 @@ export default {
     const origin = request.headers.get('origin')
     const url = new URL(request.url)
     if (url.pathname === '/webhooks/resend' && request.method === 'POST') return receiveResendEvent(request,env)
-    const proposalId=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})$/i)?.[1]
-    if(proposalId && request.method==='GET'){
-      const proposal=await env.DB.prepare("SELECT html,research FROM outreach WHERE id=? AND status='sent'").bind(proposalId).first()
-      if(!proposal?.html)return new Response('Propuesta no disponible',{status:404})
-      const agent=request.headers.get('user-agent') || ''
-      if (!/bot|crawler|spider|preview|scanner|headless/i.test(agent)) {
-        const day=new Date().toISOString().slice(0,10)
-        await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
+    if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
+    // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
+    if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
+    if (env.OUTREACH_TEST_TO && url.pathname === '/ops/discovery-dry' && request.method === 'POST') {
+      const seg = segments.find(x => x.id === url.searchParams.get('segment')) || segments[0]
+      const found = await searchSegment(env, seg).catch(e => ({ error: e.message }))
+      if (!Array.isArray(found)) return json(found)
+      const checked = []
+      for (const c of found.slice(0, 4)) { const v = await verifyCandidate(env, c, seg).catch(e => ({ ok: false, reason: e.message })); checked.push({ website: c.website, ok: v.ok, company: v.company, email: v.ok ? v.email.replace(/^(.).*@/, '$1***@') : undefined, reason: v.reason }) }
+      return json({ segment: seg.id, found: found.map(f => f.website), checked })
+    }
+    const route=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})(\/hablar)?$/i)
+    if(route && request.method==='GET'){
+      const [,proposalId,talk]=route
+      const row=await env.DB.prepare("SELECT company,subject,research FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(proposalId).first()
+      if(!row)return new Response('Propuesta no disponible',{status:404,headers:{'x-robots-tag':'noindex'}})
+      const human=!/bot|crawler|spider|preview|scanner|headless|proofpoint|mimecast|barracuda|safelinks|urldefense/i.test(request.headers.get('user-agent') || '')
+      const day=new Date().toISOString().slice(0,10)
+      if(talk){
+        if(human){
+          const first=!(await env.DB.prepare("SELECT 1 FROM outreach_events WHERE outreach_id=? AND type='cta.clicked'").bind(proposalId).first())
+          await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'cta.clicked',?)").bind('cta-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
+          if(first&&!proposalId.startsWith('test-'))await notifyCatalina(env,`${row.company} quiere hablar con Carolina`,`Hicieron clic en «Hablar con Carolina» desde su propuesta («${row.subject}»).\nSi dejan sus datos en el chat, te llega el expediente completo.\n\nPropuesta: https://soycatalinajaramillo.com/propuesta/${proposalId}`).catch(()=>{})
+        }
+        return new Response(null,{status:302,headers:{location:'/?p='+proposalId+'#carolina','cache-control':'no-store','referrer-policy':'no-referrer'}})
       }
-      const detail=JSON.parse(proposal.research || '{}').solution || ''
-      const detailHtml=detail ? '<tr><td style="padding:18px 28px;font:15px/1.6 Arial,sans-serif"><p style="color:#947347;font-size:11px;letter-spacing:2px">CÓMO LO EXPLORARÍAMOS</p><p>'+escapeHtml(detail)+'</p><p style="font-size:13px;color:#655b4f">El alcance se definiría tras revisar el proceso y las herramientas con su equipo.</p></td></tr>' : ''
-      const page=proposal.html.replace('<tr><td align="center" style="padding:24px',detailHtml+'<tr><td align="center" style="padding:24px').replace('Explorar la idea para mi negocio','Hablar con Carolina sobre esta idea').replace(/https:\/\/soycatalinajaramillo.com\/propuesta\/[a-z0-9-]+/gi,'https://soycatalinajaramillo.com/#carolina').replace('</head>','<style>@keyframes appear{from{opacity:.2;transform:translateY(12px)}to{opacity:1;transform:none}}body>table{animation:appear .6s ease-out}@media(prefers-reduced-motion:reduce){body>table{animation:none}}</style></head>')
-      return new Response(page,{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}})
+      if(human)await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
+      const proposal=safeJson(row.research||'{}')
+      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
     }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
@@ -212,13 +230,19 @@ export default {
         const body = safeJson(await request.text())
         if (body.consent !== true) return json({ error: 'Se requiere consentimiento para guardar la conversación.' }, 400, cors)
         const id = crypto.randomUUID()
-        await env.DB.prepare('INSERT INTO conversations(id,created_at,updated_at,consent) VALUES (?,?,?,1)').bind(id, now(), now()).run()
+        // Si llega desde una propuesta enviada, Carolina continúa esa conversación con todo el contexto.
+        let fromProposal = null
+        if (typeof body.ref === 'string' && /^[a-z0-9-]{20,90}$/i.test(body.ref)) fromProposal = await env.DB.prepare("SELECT id,company,subject,research FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(body.ref).first()
+        const r = fromProposal ? safeJson(fromProposal.research || '{}') : null
+        const summary = fromProposal ? `Llega desde la propuesta enviada a ${fromProposal.company} (asunto «${fromProposal.subject}»). Lo que vimos: ${r.observation || ''} Pregunta planteada: ${r.hypothesis || ''} Escena mostrada: «${r.scene?.customer || ''}» → ${r.scene?.agent || ''}. Oportunidades a validar: ${(r.diagnosis?.opportunities || []).map(o => o.hypothesis).join(' | ')}. Continúa desde ahí: no repitas la propuesta; valida si la hipótesis aplica, entiende su proceso, volumen, quién decide y presupuesto; si hay encaje, lleva a reunión con Catalina.`.slice(0, 2800) : ''
+        await env.DB.prepare('INSERT INTO conversations(id,created_at,updated_at,consent,summary) VALUES (?,?,?,1,?)').bind(id, now(), now(), summary).run()
+        if (fromProposal) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'chat.started',?)").bind('chat-' + id, fromProposal.id, now()).run().catch(() => {})
         // Ficha previa (nombre, empresa, contacto, web/redes): el contacto queda guardado aunque abandone la conversación.
         const profile = cleanProfile(body.profile)
         if (profile) {
           await env.DB.prepare('INSERT INTO leads(conversation_id,data,updated_at,status) VALUES (?,?,?,?)').bind(id, JSON.stringify(profile), now(), 'identified').run()
           const mail = leadEmail({ source: 'chat', ...profile, business: profile.website || profile.social })
-          await notifyCatalina(env, `Nuevo contacto hablando con Carolina: ${profile.company || profile.name}`, mail.text.replace('Formulario de contacto', 'Ficha previa al chat con Carolina') + `\n\nTe aviso de nuevo si Carolina lo califica o agenda.\nConversación ID: ${id}`, profile.email)
+          await notifyCatalina(env, `${fromProposal ? 'Viene de una propuesta · ' : ''}Nuevo contacto hablando con Carolina: ${profile.company || profile.name}`, mail.text.replace('Formulario de contacto', 'Ficha previa al chat con Carolina') + `\n\nTe aviso de nuevo si Carolina lo califica o agenda.\nConversación ID: ${id}`, profile.email)
         }
         return json({ conversationId: id }, 201, cors)
       }
@@ -263,6 +287,8 @@ export default {
     await queueQualifiedLeads(env).catch(e => console.error("proposal_queue_failure", e?.message))
     await discoverProspects(env).catch(e => console.error("discovery_failure", e?.message))
     await checkOutreachHealth(env).catch(e => console.error("outreach_health_failure", e?.message))
+    await evolveAngles(env).catch(e => console.error("angles_failure", e?.message))
+    await adjustDailyCap(env).catch(e => console.error("ramp_failure", e?.message))
     await sendDailyOutreachReport(env).catch(e => console.error("outreach_report_failure", e?.message))
     await runOutreach(env).catch(e => console.error("outreach_failure", e?.message))
     const clock = now()

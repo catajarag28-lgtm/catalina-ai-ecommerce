@@ -12,6 +12,7 @@ const rich=text=>text.split(/\*\*([^*]+)\*\*/g).map((part,i)=>i%2?<b key={i}>{li
 
 export default function CarolinaLive(){
  const saved=useRef(restore()).current
+ const ref=useRef((()=>{try{const v=new URLSearchParams(window.location.search).get('p')||'';return /^[a-z0-9-]{20,90}$/i.test(v)?v:''}catch{return ''}})()).current
  const [open,setOpen]=useState(!!saved)
  const [stage,setStage]=useState(saved?'chat':'intake')
  const [profile,setProfile]=useState({}),[consent,setConsent]=useState(false)
@@ -44,10 +45,10 @@ export default function CarolinaLive(){
   setBusy(true);setError('')
   try{
    const site=/^(no tengo|ninguna?|n\/a)$/i.test((p.website||'').trim())?'':(p.website||'').trim(),isSite=!!site
-   const res=await fetch(`${API}/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({consent:true,profile:{name:p.name,company:p.company,email:p.email,phone:p.phone,country:p.country,website:site||undefined,social:p.social||undefined}})})
+   const res=await fetch(`${API}/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({consent:true,ref:ref||undefined,profile:{name:p.name,company:p.company,email:p.email,phone:p.phone,country:p.country,website:site||undefined,social:p.social||undefined}})})
    const data=await res.json();if(!res.ok)throw new Error(data.error||'No pude iniciar la conversación.')
    setSession(data.conversationId);setStage('chat');track('conversation_started',data.conversationId)
-   const opener=`Hola Carolina, soy ${p.name} de ${p.company}.${site?` ${isSite?'Nuestra web es':'Nos encuentras en'} ${site}; te autorizo a revisarla.`:''} Quiero saber qué podemos mejorar en la empresa.`
+   const opener=`Hola Carolina, soy ${p.name} de ${p.company}.${site?` ${isSite?'Nuestra web es':'Nos encuentras en'} ${site}; te autorizo a revisarla.`:''} ${ref?' Vi el recorrido que nos preparó y quiero entender cómo funcionaría en nuestro caso.':' Quiero saber qué podemos mejorar en la empresa.'}`
    setBusy(false);await ask(data.conversationId,opener)
   }catch(e){setBusy(false);setError(e.message)}
  }

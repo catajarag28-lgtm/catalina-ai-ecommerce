@@ -8,7 +8,7 @@
   "preview_urls": false,
   "observability":{ "enabled": true, "head_sampling_rate": 0.1 },
   // La web se sirve desde este mismo Worker en soycatalinajaramillo.com (build con `npm run deploy`).
-  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/health", "/session", "/chat", "/event", "/lead", "/propuesta/*", "/webhooks/resend"] },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/health", "/session", "/chat", "/event", "/lead", "/propuesta/*", "/webhooks/resend", "/ops/*"] },
   "routes": [
     { "pattern": "soycatalinajaramillo.com", "custom_domain": true },
     { "pattern": "www.soycatalinajaramillo.com", "custom_domain": true }
@@ -17,18 +17,18 @@
     "ALLOWED_ORIGIN": "https://soycatalinajaramillo.com,https://www.soycatalinajaramillo.com,https://catajarag28-lgtm.github.io",
     "OPENROUTER_MODEL": "google/gemini-3.8-flash",
     "OPENROUTER_EXTRACT_MODEL": "google/gemini-3.1-flash-lite",
-    "OUTREACH_ENABLED": "false",
-    "OUTREACH_DAILY_LIMIT": "5",
+    "OUTREACH_ENABLED": "true",
+    "OUTREACH_DAILY_LIMIT": "30",
     "PROSPECT_SOURCES": "[{\"url\":\"https://avaluxuryspa.com/\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://refreshbymairi.com/es\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://www.miamiinmobiliario.com/contacto/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://www.awa-realty.com/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://americanhubservices.com/es/nosotros/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://professionalservicesgp.com/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://www.lausi.es/contacto\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://centroauroom.es/contacto/\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://www.tablu.mx/pages/contacto\",\"region\":\"México\",\"sector\":\"ecommerce\"},{\"url\":\"https://www.aesthetic-center.mx/contacto\",\"region\":\"México\",\"sector\":\"estética\"},{\"url\":\"https://spaanamar.com/\",\"region\":\"Colombia\",\"sector\":\"spa\"}]",
     "CALENDAR_TIMEZONE": "America/Bogota",
     "GOOGLE_CALENDAR_ID": "catalinajaramillogirldo28@gmail.com",
     // Correos de Carolina a clientes vía Resend (secreto RESEND_API_KEY, dominio verificado en Resend).
     "EMAIL_FROM": "Catalina Jaramillo <clientes@soycatalinajaramillo.com>",
     "NOTIFY_FROM": "carolina@soycatalinajaramillo.com",
-    "NOTIFY_TO": "catalinajarmillo28@gmail.com"
+    "NOTIFY_TO": "catalinajaramillo28@gmail.com"
   },
   // Avisos de leads a Catalina vía Email Routing; el destino debe estar verificado en Cloudflare.
-  "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajarmillo28@gmail.com" }],
+  "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillo28@gmail.com" }],
   "d1_databases": [{ "binding": "DB", "database_name": "carolina-portfolio", "database_id": "67f1caa9-219a-45d1-b98a-7f7339fe7547" }],
   "triggers": { "crons": ["*/15 * * * *"] }
 }
