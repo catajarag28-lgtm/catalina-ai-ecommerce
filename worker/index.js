@@ -114,10 +114,13 @@ async function runTool(env, conversationId, name, args, latestUser) {
     const result = await book(env, args, conversationId)
     if (result.ok) {
       const dossier = safeJson(lead.data)
-      if (env.CATALINA_EMAIL) {
+      const catalina = env.CATALINA_EMAIL || env.NOTIFY_TO
+      if (catalina) {
         const transcript = await env.DB.prepare('SELECT role,content FROM messages WHERE conversation_id=? ORDER BY id ASC LIMIT 40').bind(conversationId).all()
         const note = `Reunión confirmada: ${result.start} (America/Bogota)\n\nExpediente Carolina\n${JSON.stringify(dossier, null, 2)}\n\nConversación relevante\n${transcript.results.map(item => `${item.role}: ${item.content}`).join('\n').slice(-12000)}\n\nConversación ID: ${conversationId}`
-        const handoff = await sendEmail(env, env.CATALINA_EMAIL, `Prospecto cualificado: ${dossier.company || args.name}`, note).catch(() => ({ ok: false }))
+        const subject = `Cita confirmada con ${dossier.company || args.name} · ${new Date(result.start).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`
+        let handoff = await sendEmail(env, catalina, subject, note).catch(() => ({ ok: false }))
+        if (!handoff.ok) handoff = await notifyCatalina(env, subject, note).then(() => ({ ok: true })).catch(() => ({ ok: false }))
         result.handoffEmailSent = handoff.ok
       } else result.handoffEmailSent = false
       await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(conversationId, 'meeting_confirmed', now()).run()
