@@ -32,3 +32,14 @@ SELECT company,email,kind,status,source_url,provider_id,error,updated_at FROM ou
 Estados: pending → researching → sending → sent; review/uncertain requieren revisión. Se conserva historial de outreach para evitar reenvíos al depurar conversaciones de 30 días. Para retirar datos personales, eliminar también el contacto de outreach y conservar solo lo mínimo necesario en suppression para respetar BAJA.
 
 Esta implementación no garantiza clientes ni reuniones. El criterio comercial, la selección de fuentes y las respuestas reales determinan la conversión.
+
+## Estrategia comercial y volumen (actualización)
+worker/salesStrategy.js alimenta la investigación, los correos y las habilidades del chat. Incluye descubrimiento consultivo, decisión/presupuesto/plazo, evidencia, objeciones, idioma y cierre verificable. Referencias revisadas: https://blog.hubspot.com/sales/discovery-call-questions y https://github.com/SaraSoleymani/sales-outreach-agent-n8n (solo análisis de arquitectura; no se instaló ni ejecutó código externo).
+
+Inicio configurado: 5/día. Tras verificar entrega y primeras respuestas, subir manualmente a 10, 20 y objetivo 30/día. Tope de código 50; no subir automáticamente por el paso del tiempo. Configurar 100 se limita a 50. Revisar bajas, rebotes y respuestas antes de aumentar. Referencia: https://support.google.com/mail/answer/81126.
+
+Escenario, no pronóstico: 30 × 22 días = 660 contactos/mes. Con cierre hipotético del 25% de reuniones, 10–15 clientes requieren 40–60 reuniones celebradas (6–9% de contactos). La capacidad de implementar y atender 10–15 proyectos también debe validarse.
+
+GOOGLE_BOOKING_URL admite exclusivamente enlaces HTTPS de calendar.google.com o calendar.app.google. Añade CTA directo en propuesta y respuesta a intención de reunión. Este enlace no crea ni confirma eventos desde el Worker. El cliente reserva en la agenda de Google. Para reservas mediante chat y recordatorios del Worker siguen siendo necesarias las credenciales Google del servidor. La conexión Google Calendar de ChatGPT no se transfiere al Worker.
+
+Las reuniones son en español; otros idiomas solo mediante comunicación escrita con traducción aceptada por el prospecto. No hay reuniones fluidas en inglés prometidas. Las instrucciones de venta nunca convierten interés en cliente ganado sin pago/contrato verificado.
