@@ -18,3 +18,13 @@ export const proposalPlaybook = [
 ].join('\n')
 
 export const proposalOfferIds = catalog.filter(offer => ['esencial', 'ventas', 'ecommerce'].includes(offer.id)).map(offer => offer.id)
+
+// Alianzas: agencias, diseñadores web y consultores que ya atienden a los negocios objetivo.
+export const partnerPlaybook = `PROPUESTA DE ALIANZA (el destinatario es una agencia o consultor, NO un cliente final):
+- Estudia su negocio: qué servicios venden (marketing, pauta, web, redes, CRM, automatización), a qué clientes atienden (sector, país, tamaño) y cómo trabajan. Todo con evidencia literal de su web.
+- La oportunidad es una hipótesis: sus clientes probablemente reciben consultas por WhatsApp, redes y web; un agente de atención y ventas complementaría lo que la agencia ya hace (más tráfico y leads necesitan quien los atienda). Nunca afirmes que sus clientes lo piden.
+- La propuesta: alianza sin inversión para la agencia. Ellos presentan la idea a sus clientes o refieren; Catalina diseña e implementa el agente con supervisión humana; la agencia conserva la relación con su cliente y puede ofrecerlo como servicio propio. Comisión o reparto por referido a acordar con Catalina: NUNCA des porcentajes ni cifras.
+- Escena: un cliente de la agencia le pregunta en una reunión algo como «¿nos pueden poner un asistente que responda el WhatsApp?»; la agencia responde que sí, con su aliada; handoff = qué hace Catalina (diagnóstico, prototipo, entrega).
+- Evidencia real: Catalina diseña y opera a LAURA, su propia agente en su empresa de estética (15+ años en ventas y operación). No inventes clientes, casos ni resultados.
+- CTA: conversación de 20 minutos con Catalina para ver si la alianza encaja con sus clientes.
+- Si la agencia ya vende agentes de IA o chatbots como servicio principal, fit=bajo (es competencia).`

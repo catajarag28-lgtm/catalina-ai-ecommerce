@@ -1,8 +1,9 @@
-import { discoverProspects, searchSegment, verifyCandidate, segments } from './discovery.js'
+import { discoverProspects, findCandidates, verifyCandidate, segments } from './discovery.js'
 import { runOutreach, queueQualifiedLeads, runHotFollowup } from './outreach.js'
 import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './engagement.js'
 import { renderProposalPage } from './proposalPage.js'
 import { handleDemo } from './demo.js'
+import { runIntentScan, searchIntent, intentQueries } from './intent.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './creative.js'
 import { schedulingUrl } from './salesStrategy.js'
 import { constitution, knowledge } from './knowledge.js'
@@ -196,13 +197,20 @@ export default {
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
     // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
+    if (env.OUTREACH_TEST_TO && url.pathname === '/ops/intent-dry' && request.method === 'POST') {
+      const q = intentQueries[Number(url.searchParams.get('i') || 0) % intentQueries.length]
+      const posts = await searchIntent(env, q)
+      return json({ query: q, posts: posts.map(p => ({ url: p.url, platform: p.platform, date: p.date, who: p.who, need: p.need, fit: p.fit, reply: p.reply })) })
+    }
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/discovery-dry' && request.method === 'POST') {
       const seg = segments.find(x => x.id === url.searchParams.get('segment')) || segments[0]
-      const found = await searchSegment(env, seg).catch(e => ({ error: e.message }))
-      if (!Array.isArray(found)) return json(found)
+      const turn = { places: 0, web: 1, osm: 2 }[url.searchParams.get('source')] ?? 1
+      const got = await findCandidates(env, seg, turn).catch(e => ({ error: e.message, items: [] }))
+      const found = got.items || []
+      if (got.error) return json(got)
       const checked = []
       for (const c of found.slice(0, 4)) { const v = await verifyCandidate(env, c, seg).catch(e => ({ ok: false, reason: e.message })); checked.push({ website: c.website, ok: v.ok, company: v.company, email: v.ok ? v.email.replace(/^(.).*@/, '$1***@') : undefined, reason: v.reason }) }
-      return json({ segment: seg.id, found: found.map(f => f.website), checked })
+      return json({ segment: seg.id, source: got.source, found: found.map(f => f.website + (f.meta?.reseñas ? ' (' + f.meta.reseñas + ' reseñas)' : '')), checked })
     }
     const demoRoute=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})\/demo$/i)
     if(demoRoute && request.method==='POST'){
@@ -212,7 +220,7 @@ export default {
     const route=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})(\/hablar)?$/i)
     if(route && request.method==='GET'){
       const [,proposalId,talk]=route
-      const row=await env.DB.prepare("SELECT company,subject,research FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(proposalId).first()
+      const row=await env.DB.prepare("SELECT company,subject,research,kind FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(proposalId).first()
       if(!row)return new Response('Propuesta no disponible',{status:404,headers:{'x-robots-tag':'noindex'}})
       const human=!/bot|crawler|spider|preview|scanner|headless|proofpoint|mimecast|barracuda|safelinks|urldefense/i.test(request.headers.get('user-agent') || '')
       const day=new Date().toISOString().slice(0,10)
@@ -228,7 +236,7 @@ export default {
       if(human)await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'page.viewed',?)").bind('page-'+proposalId+'-'+day,proposalId,Date.now()).run().catch(()=>{})
       const proposal=safeJson(row.research||'{}')
       const nonce=crypto.randomUUID().replace(/-/g,'')
-      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject,nonce}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-"+nonce+"'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
+      return new Response(renderProposalPage({id:proposalId,company:row.company,proposal,subject:row.subject,nonce,demo:row.kind!=='partner'}),{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-"+nonce+"'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}})
     }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
@@ -316,6 +324,7 @@ export default {
     await step('hot', () => runHotFollowup(env))
     await step('outreach', () => runOutreach(env))
     await step('discovery', () => discoverProspects(env))
+    await step('intent', () => runIntentScan(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
     await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})
     const clock = now()

@@ -19,6 +19,15 @@
 12. **Ciclos**: completo cada 15 min + ciclo solo de envío a los minutos 7 y 37.
 13. **Embudo**: el botón de la propuesta pasa por `/propuesta/<id>/hablar` (te avisa en el primer clic) y abre el chat con `?p=<id>`: Carolina continúa con el contexto de esa propuesta.
 
+### Fuentes de prospectos (30-sep)
+- **Google Maps (Places API, clave `GOOGLE_PLACES_KEY`)**: negocios operativos con web y 20+ reseñas (5+ para aliados); se priorizan por número de reseñas (demanda existente).
+- **OpenStreetMap (Overpass, datos abiertos)**: negocios etiquetados por tipo (belleza, spa, dentistas, inmobiliarias, abogados, seguros, contadores) con web.
+- **Búsqueda web (OpenRouter + Exa)**: negocios independientes por segmento.
+- Las fuentes alternan en cada búsqueda; ninguna entrega correos: Carolina abre la web oficial y usa solo el correo publicado por el negocio.
+- **Segmentos que aprenden**: los que generan interés reciben hasta 3× más búsquedas; los que no, hasta 0,3× (con 15+ envíos en 30 días).
+- **Aliados** (`kind='partner'`): agencias de marketing, diseño web y CRM latinas; propuesta de alianza sin porcentajes (la comisión la define Catalina); la página no muestra demo.
+- **Intención en foros** (`worker/intent.js`, tabla `intent_leads`): cada mañana busca publicaciones públicas (Workana, Freelancer, LinkedIn, Reddit, foros) donde alguien pide un bot o agente, y envía a Catalina el enlace con una respuesta redactada. Carolina no publica en plataformas (lo prohíben); Catalina pega la respuesta desde su cuenta.
+
 ### Bloqueos para escribir a prospectos nuevos (el sistema los respeta solo)
 - `SENDER_POSTAL_ADDRESS`: CONFIGURADA el 30-sep (14818 SW 180th Terrace, Miami, FL 33187). Dirección postal obligatoria por CAN-SPAM en los correos comerciales a EE. UU. (sirve un buzón virtual o un apartado postal).
 - Métricas de Resend: CONECTADAS el 30-sep (webhook existente reactivado con clave rotada; la expuesta quedó inválida). Verificado: email.sent y email.delivered registrados con firma.

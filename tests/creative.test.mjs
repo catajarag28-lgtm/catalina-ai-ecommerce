@@ -112,3 +112,21 @@ test('Hot follow-up invites to a meeting, never claims a booking, offers BAJA', 
   assert.ok(t.includes('Ava Spa') && t.includes('20 minutos') && t.includes('BAJA') && t.includes('14818'))
   assert.ok(!/agendad[ao] (para|el)/i.test(t) && !/USD|\$/.test(t))
 })
+import { partnerPlaybook } from '../worker/proposalPlaybook.js'
+test('Partner proposals never fix a commission and partner pages skip the demo', () => {
+  assert.ok(/NUNCA des porcentajes/.test(partnerPlaybook))
+  assert.ok(segments.some(s => s.kind === 'partner'))
+  const page = renderProposalPage({ id: 'abcdefghijklmnopqrstu', company: 'Agencia', proposal: good, subject: 's', nonce: 'n', demo: false })
+  assert.ok(!page.includes('<script'))
+  const t = hotFollowupText({}, { company: 'Agencia X', kind: 'partner' }, 'view')
+  assert.ok(t.includes('alianza') && !/%/.test(t))
+})
+import { pickSegment } from '../worker/discovery.js'
+test('Segments that earn interest get searched more often', () => {
+  const boosted = segments.find(s => s.id === 'fl-dental')
+  let hits = 0
+  for (let i = 0; i < 2000; i++) if (pickSegment({ 'fl-dental': 3 }).id === 'fl-dental') hits++
+  let base = 0
+  for (let i = 0; i < 2000; i++) if (pickSegment({}).id === 'fl-dental') base++
+  assert.ok(boosted && hits > base * 1.8)
+})
