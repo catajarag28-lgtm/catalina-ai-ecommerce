@@ -18,7 +18,7 @@
 11. **Embudo**: el botón de la propuesta pasa por `/propuesta/<id>/hablar` (te avisa en el primer clic) y abre el chat con `?p=<id>`: Carolina continúa con el contexto de esa propuesta.
 
 ### Bloqueos para escribir a prospectos nuevos (el sistema los respeta solo)
-- `SENDER_POSTAL_ADDRESS` (variable): dirección postal obligatoria por CAN-SPAM en los correos comerciales a EE. UU. (sirve un buzón virtual o un apartado postal).
+- `SENDER_POSTAL_ADDRESS`: CONFIGURADA el 30-sep (14818 SW 180th Terrace, Miami, FL 33187). Dirección postal obligatoria por CAN-SPAM en los correos comerciales a EE. UU. (sirve un buzón virtual o un apartado postal).
 - Métricas de Resend: CONECTADAS el 30-sep (webhook existente reactivado con clave rotada; la expuesta quedó inválida). Verificado: email.sent y email.delivered registrados con firma.
 - Avisos a Catalina: `catalinajaramillogirldo28@gmail.com` VERIFICADO en Cloudflare el 30-sep.
 

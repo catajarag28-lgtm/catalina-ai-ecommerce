@@ -26,7 +26,8 @@
     "EMAIL_FROM": "Catalina Jaramillo <clientes@soycatalinajaramillo.com>",
     "NOTIFY_FROM": "carolina@soycatalinajaramillo.com",
     "NOTIFY_TO": "catalinajaramillogirldo28@gmail.com",
-    "CATALINA_EMAIL": "catalinajaramillogirldo28@gmail.com"
+    "CATALINA_EMAIL": "catalinajaramillogirldo28@gmail.com",
+    "SENDER_POSTAL_ADDRESS": "Catalina Jaramillo · 14818 SW 180th Terrace, Miami, FL 33187, USA"
   },
   // Avisos de leads a Catalina vía Email Routing; el destino debe estar verificado en Cloudflare.
   "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillogirldo28@gmail.com" }],
