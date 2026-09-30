@@ -8,6 +8,7 @@ const normalize = value => String(value || '').trim().toLowerCase()
 
 export async function discoverProspects(env) {
   if (env.OUTREACH_ENABLED !== 'true') return { enabled: false }
+  if (env.OUTREACH_TEST_TO) return { testOnly: true }
   if (!env.OPENROUTER_API_KEY) return { reason: 'model_missing' }
   let sources
   try { sources = JSON.parse(env.PROSPECT_SOURCES || '[]') } catch { return { reason: 'invalid_sources' } }

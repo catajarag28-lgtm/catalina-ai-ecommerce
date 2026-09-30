@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import { brandedProposal, runOutreach } from '../worker/outreach.js'
 import { researchWebsite } from '../worker/integrations.js'
 const p={offer:'ventas',observation:'Tienen citas en línea.',hypothesis:'Si las consultas fuera de horario esperan, podemos validar un asistente.',solution:'Calificación, agenda y traspaso al equipo.'}
-test('Proposal escapes external content and uses catalog prices',()=>{
+test('First email escapes external content and withholds pricing',()=>{
  const html=brandedProposal('<img onerror=alert(1)>',{...p,solution:'<script>bad()</script>'})
  assert.ok(!html.includes('<script>'));assert.ok(!html.includes('<img onerror'))
- assert.ok(html.includes('3.800'));assert.ok(html.includes('490/mes'));assert.ok(html.includes('BAJA'))
+ assert.ok(!html.includes('3.800'));assert.ok(!html.includes('490/mes'));assert.ok(html.includes('BAJA'))
  assert.throws(()=>brandedProposal('Spa',{...p,offer:'diagnostico'}))
 })
 test('No enabled outreach or missing connections performs no send',async()=>{

@@ -43,3 +43,15 @@ Escenario, no pronóstico: 30 × 22 días = 660 contactos/mes. Con cierre hipot�
 GOOGLE_BOOKING_URL admite exclusivamente enlaces HTTPS de calendar.google.com o calendar.app.google. Añade CTA directo en propuesta y respuesta a intención de reunión. Este enlace no crea ni confirma eventos desde el Worker. El cliente reserva en la agenda de Google. Para reservas mediante chat y recordatorios del Worker siguen siendo necesarias las credenciales Google del servidor. La conexión Google Calendar de ChatGPT no se transfiere al Worker.
 
 Las reuniones son en español; otros idiomas solo mediante comunicación escrita con traducción aceptada por el prospecto. No hay reuniones fluidas en inglés prometidas. Las instrucciones de venta nunca convierten interés en cliente ganado sin pago/contrato verificado.
+
+## Estado verificado el 30 de septiembre de 2026
+
+- El dominio real sirve el Worker y los assets. El formulario con consentimiento, el chat y el aviso al correo exacto de Catalina fueron probados.
+- La muestra interna `test-20260930-revised-awa-proposal` llegó a `catajarag28@gmail.com` desde `clientes@soycatalinajaramillo.com`. Su página privada respondió 200, con `noindex`, sin precio inicial y con enlace a Carolina.
+- El primer email usa un asunto específico, una observación con fuente, una hipótesis condicional, una escena concreta y un solo CTA. No incluye precios. El rango orientativo del catálogo se plantea después de calificar el interés; Catalina valida todo precio final.
+- `OUTREACH_ENABLED=false`; volumen real: 0 propuestas automáticas por día. La prueba no se envió a negocios reales. Se retiró el endpoint temporal de prueba.
+- `PROSPECT_SOURCES` contiene 11 sitios oficiales: 6 de EE. UU., 2 de España, 2 de México y 1 de Colombia. Descubrimiento y calidad del correo automático aún requieren revisión antes de activar envíos. El generador rechazó una observación del modelo que no coincidía literalmente con la fuente.
+- Las cuatro direcciones del historial de KB Digital, Nodena, E-Luxe y Luis Victoria están suprimidas para evitar duplicados.
+- Calendar del Worker carece de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN` autorizados para `catalinajaramillogirldo28@gmail.com`. `calendarReady=false`: no hay reservas ni recordatorios reales desde el Worker.
+- No existe aún una secuencia de seguimiento verificada ni recepción completa de rebotes. Mantener los envíos automáticos desactivados hasta probar esos circuitos y el análisis individual.
+- Datos en D1: tablas `outreach`, `discovery_state`, `suppression`, `emails`, `leads`, `meetings`. Revisar los estados allí con Wrangler o el panel de Cloudflare, sin publicar datos personales.

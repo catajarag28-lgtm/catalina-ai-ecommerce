@@ -1,5 +1,5 @@
 import { discoverProspects } from './discovery.js'
-import { runOutreach, queueQualifiedLeads } from './outreach.js'
+import { runOutreach, queueQualifiedLeads, escapeHtml } from './outreach.js'
 import { constitution, knowledge } from './knowledge.js'
 import { availability, book, researchWebsite, sendEmail } from './integrations.js'
 import { qualificationStatus } from './qualification.js'
@@ -16,7 +16,9 @@ export function cleanProfile(raw) {
   if (!raw || typeof raw !== 'object') return null
   const p = {}
   for (const key of ['name', 'company', 'email', 'phone', 'website', 'social', 'country']) if (typeof raw[key] === 'string' && raw[key].trim()) p[key] = raw[key].trim().slice(0, 200)
-  if(p.website && !/^https?:\/\//i.test(p.website))p.website='https://'+p.website
+  if (p.website && /^(no tengo|ninguna?|n\/a)$/i.test(p.website)) delete p.website
+  if (p.social && /^(no tengo|ninguna?|n\/a)$/i.test(p.social)) delete p.social
+  if (p.website && !/^https?:\/\//i.test(p.website)) p.website='https://'+p.website
   if (p.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(p.email)) delete p.email
   return p.name && (p.email || p.phone) ? p : null
 }
@@ -91,7 +93,7 @@ async function runTool(env, conversationId, name, args, latestUser) {
     // Aviso único cuando el chat cualifica al prospecto: sin calendario, este es el handoff real.
     const hot = ['qualified', 'high_intent']
     if (hot.includes(status) && !hot.includes(row?.status)) {
-      const mail = leadEmail({ source: 'chat', name: data.name, company: data.company, email: data.email, phone: data.phone, business: data.business || data.niche, problem: data.declaredProblem, tools: data.stack, volume: data.volume, timing: data.urgency, budget: data.budget || data.acceptedRange, recommendation: data.solution, note: data.summary })
+      const mail = leadEmail({ source: 'chat', ...data, name: data.name, company: data.company, email: data.email, phone: data.phone, business: data.business || data.niche, problem: data.declaredProblem, tools: data.stack, volume: data.volume, timing: data.urgency, budget: data.budget || data.acceptedRange, recommendation: data.solution, note: data.summary })
       await notifyCatalina(env, mail.subject.replace('Formulario de contacto', 'Chat con Carolina'), mail.text.replace('Formulario de contacto', 'Chat con Carolina') + `\n\nConversación ID: ${conversationId}`, data.email)
     }
     return { ok: true, storedFields: Object.keys(patch), status }
@@ -184,9 +186,11 @@ export default {
     const url = new URL(request.url)
     const proposalId=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})$/i)?.[1]
     if(proposalId && request.method==='GET'){
-      const proposal=await env.DB.prepare("SELECT html FROM outreach WHERE id=? AND status='sent'").bind(proposalId).first()
+      const proposal=await env.DB.prepare("SELECT html,research FROM outreach WHERE id=? AND status='sent'").bind(proposalId).first()
       if(!proposal?.html)return new Response('Propuesta no disponible',{status:404})
-      const page=proposal.html.replace(/https:\/\/soycatalinajaramillo.com\/propuesta\/[a-z0-9-]+/gi,'https://soycatalinajaramillo.com/#carolina').replace('</head>','<style>@keyframes appear{from{opacity:.2;transform:translateY(12px)}to{opacity:1;transform:none}}body>table{animation:appear .6s ease-out}@media(prefers-reduced-motion:reduce){body>table{animation:none}}</style></head>')
+      const detail=JSON.parse(proposal.research || '{}').solution || ''
+      const detailHtml=detail ? '<tr><td style="padding:18px 28px;font:15px/1.6 Arial,sans-serif"><p style="color:#947347;font-size:11px;letter-spacing:2px">CÓMO LO EXPLORARÍAMOS</p><p>'+escapeHtml(detail)+'</p><p style="font-size:13px;color:#655b4f">El alcance se definiría tras revisar el proceso y las herramientas con su equipo.</p></td></tr>' : ''
+      const page=proposal.html.replace('<tr><td align="center" style="padding:24px',detailHtml+'<tr><td align="center" style="padding:24px').replace('Explorar la idea para mi negocio','Hablar con Carolina sobre esta idea').replace(/https:\/\/soycatalinajaramillo.com\/propuesta\/[a-z0-9-]+/gi,'https://soycatalinajaramillo.com/#carolina').replace('</head>','<style>@keyframes appear{from{opacity:.2;transform:translateY(12px)}to{opacity:1;transform:none}}body>table{animation:appear .6s ease-out}@media(prefers-reduced-motion:reduce){body>table{animation:none}}</style></head>')
       return new Response(page,{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}})
     }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
@@ -272,4 +276,3 @@ export default {
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(clock).run()
   }
 }
-

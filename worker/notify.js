@@ -35,6 +35,7 @@ export async function notifyCatalina(env, subject, text, replyTo) {
 
 const labels = { name: 'Nombre', company: 'Empresa', email: 'Email', phone: 'Teléfono / WhatsApp', website: 'Web', social: 'Redes sociales', country: 'País', business: 'Negocio', goal: 'Quiere mejorar', problem: 'Problema', tools: 'Herramientas', volume: 'Volumen mensual', timing: 'Cuándo empezar', budget: 'Presupuesto', recommendation: 'Recomendación de Carolina', note: 'Nota' }
 
+Object.assign(labels, { declaredProblem: 'Necesidad declarada', detectedProblems: 'Hipótesis de fricción (por validar)', desiredOutcomes: 'Resultado buscado', channels: 'Canales actuales', opportunities: 'Mapa problema → oportunidad → solución', publicResearch: 'Fuente pública revisada', solution: 'Solución sugerida (preliminar)', proposalDraft: 'Opciones A/B/C para revisión de Catalina', acceptedRange: 'Rango aceptado por el prospecto', urgency: 'Plazo declarado', nextStep: 'Próximo paso', summary: 'Resumen de Carolina' })
 export function leadEmail(lead) {
   const lines = Object.entries(labels).filter(([key]) => lead[key]).map(([key, label]) => `${label}: ${Array.isArray(lead[key]) ? lead[key].join(', ') : lead[key]}`)
   const who = lead.company || lead.name || 'sin nombre'

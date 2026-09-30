@@ -43,7 +43,7 @@ export default function CarolinaLive(){
  async function startSession(p){
   setBusy(true);setError('')
   try{
-   const site=(p.website||'').trim(),isSite=!!site
+   const site=/^(no tengo|ninguna?|n\/a)$/i.test((p.website||'').trim())?'':(p.website||'').trim(),isSite=!!site
    const res=await fetch(`${API}/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({consent:true,profile:{name:p.name,company:p.company,email:p.email,phone:p.phone,country:p.country,website:site||undefined,social:p.social||undefined}})})
    const data=await res.json();if(!res.ok)throw new Error(data.error||'No pude iniciar la conversación.')
    setSession(data.conversationId);setStage('chat');track('conversation_started',data.conversationId)

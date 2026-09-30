@@ -19,7 +19,7 @@
     "OPENROUTER_EXTRACT_MODEL": "google/gemini-3.1-flash-lite",
     "OUTREACH_ENABLED": "false",
     "OUTREACH_DAILY_LIMIT": "5",
-    "PROSPECT_SOURCES": "[{\"url\":\"https://avaluxuryspa.com/\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://americanhubservices.com/es/nosotros/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://professionalservicesgp.com/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://www.lausi.es/contacto\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://centroauroom.es/contacto/\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://spaanamar.com/\",\"region\":\"Colombia\",\"sector\":\"spa\"},{\"url\":\"https://josepmobile.com/\",\"region\":\"Colombia\",\"sector\":\"ecommerce\"}]",
+    "PROSPECT_SOURCES": "[{\"url\":\"https://avaluxuryspa.com/\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://refreshbymairi.com/es\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://www.miamiinmobiliario.com/contacto/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://www.awa-realty.com/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://americanhubservices.com/es/nosotros/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://professionalservicesgp.com/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://www.lausi.es/contacto\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://centroauroom.es/contacto/\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://www.tablu.mx/pages/contacto\",\"region\":\"México\",\"sector\":\"ecommerce\"},{\"url\":\"https://www.aesthetic-center.mx/contacto\",\"region\":\"México\",\"sector\":\"estética\"},{\"url\":\"https://spaanamar.com/\",\"region\":\"Colombia\",\"sector\":\"spa\"}]",
     "CALENDAR_TIMEZONE": "America/Bogota",
     "GOOGLE_CALENDAR_ID": "catalinajaramillogirldo28@gmail.com",
     // Correos de Carolina a clientes vía Resend (secreto RESEND_API_KEY, dominio verificado en Resend).
@@ -32,5 +32,3 @@
   "d1_databases": [{ "binding": "DB", "database_name": "carolina-portfolio", "database_id": "67f1caa9-219a-45d1-b98a-7f7339fe7547" }],
   "triggers": { "crons": ["*/15 * * * *"] }
 }
-
-
