@@ -109,7 +109,7 @@ async function runTool(env, conversationId, name, args, latestUser) {
     if (!args.authorized || !/investiga|revisa|analiza|puedes ver|puedes consultar|autoriz/i.test(latestUser)) return { ok: false, reason: 'explicit_authorization_required' }
     return researchWebsite(args.url)
   }
-  if (name === 'get_availability') { const lead = await env.DB.prepare('SELECT status FROM leads WHERE conversation_id=?').bind(conversationId).first(); if (!lead || !['qualified', 'high_intent'].includes(lead.status)) return { ok: false, reason: 'qualification_required' }; const result = await availability(env, args.date); if (result.ok) await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(conversationId, 'meeting_started', now()).run(); return result }
+  if (name === 'get_availability') { const lead = await env.DB.prepare('SELECT status FROM leads WHERE conversation_id=?').bind(conversationId).first(); if (!lead || !['qualified', 'high_intent'].includes(lead.status)) return { ok: false, reason: 'qualification_required' }; const result = await availability(env, args.date); if (result.ok) await env.DB.prepare('INSERT INTO events(conversation_id,name,created_at) VALUES (?,?,?)').bind(conversationId, 'meeting_started', now()).run(); if (!result.ok && schedulingUrl(env)) return { ...result, reason: 'use_booking_page', bookingUrl: schedulingUrl(env) }; return result }
   if (name === 'book_meeting') {
     if (!/confirmo|agend|reserva|ese horario|esa hora|me sirve|perfecto.*hora/i.test(latestUser)) return { ok: false, reason: 'explicit_booking_confirmation_required' }
     const lead = await env.DB.prepare('SELECT status,data FROM leads WHERE conversation_id=?').bind(conversationId).first()
@@ -262,7 +262,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
@@ -369,4 +369,5 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(clock).run()
   }
 }
+
 
