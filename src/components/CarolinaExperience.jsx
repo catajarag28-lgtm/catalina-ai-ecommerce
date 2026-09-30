@@ -1,29 +1,35 @@
-import React,{useState} from 'react'
-import {Send,Sparkles} from 'lucide-react'
+import React,{useEffect,useRef,useState} from 'react'
+import {ArrowUpRight,Send,ShieldCheck} from 'lucide-react'
 
-const opening={role:'assistant',text:'Hola, soy Carolina, la asesora digital de Catalina. Cuéntame con tus palabras qué está pasando en tu empresa o qué te gustaría mejorar. No necesitas saber si necesitas IA, automatización o estrategia.'}
+const API=import.meta.env.VITE_CAROLINA_API||(import.meta.env.DEV ? 'http://localhost:8787' : 'https://carolina-portfolio-api.catajaragpyg.workers.dev')
+const opening={role:'assistant',text:'Hola, soy Carolina. Cuéntame qué te gustaría mejorar en tu empresa o qué te está quitando capacidad hoy.'}
+const suggestions=['Se pierden ventas','Mi equipo está saturado','Quiero un agente para mi negocio']
+const track=(name,conversationId)=>fetch(`${API}/event`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,conversationId})}).catch(()=>{})
 
-function replyTo(text){
- const t=text.toLowerCase()
- if(/venta|cliente|lead|whatsapp|cita/.test(t)) return 'Entiendo. Antes de pensar en una herramienta, quiero ubicar dónde se está perdiendo la oportunidad. ¿Qué ocurre hoy desde que llega un cliente o contacto hasta que alguien de tu equipo lo atiende?'
- if(/equipo|manual|tiempo|repet|operaci|proceso/.test(t)) return 'Eso puede ser un problema de proceso antes que de IA. Cuéntame qué tarea se repite, quién la hace hoy y qué pasa cuando no se hace a tiempo.'
- if(/ia|agente|bot|automat/.test(t)) return 'Podemos explorar eso, pero no quiero recomendarte un agente solo porque suene avanzado. ¿Qué quieres que ese sistema consiga o haga por tu empresa que hoy no está ocurriendo?'
- if(/marketing|publicidad|meta|growth|crecer/.test(t)) return 'Perfecto. Para entender el cuello de botella: ¿hoy el problema principal es atraer oportunidades, convertirlas, hacer seguimiento o lograr que los clientes vuelvan?'
- return 'Te sigo. Cuéntame un poco más: ¿qué parte de eso te está costando más tiempo, dinero u oportunidades hoy?'
-}
-
-export default function CarolinaExperience(){
- const [messages,setMessages]=useState([opening])
- const [input,setInput]=useState('')
- const send=()=>{
-  const value=input.trim(); if(!value)return
-  setMessages(m=>[...m,{role:'user',text:value},{role:'assistant',text:replyTo(value)}])
-  setInput('')
+export default function CarolinaChat(){
+ const [messages,setMessages]=useState([opening]),[input,setInput]=useState(''),[consent,setConsent]=useState(false),[session,setSession]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[available,setAvailable]=useState(null)
+ const list=useRef(null)
+ useEffect(()=>{fetch(`${API}/health`).then(r=>r.json()).then(data=>setAvailable(data.modelReady===true)).catch(()=>setAvailable(false))},[])
+ useEffect(()=>{list.current?.scrollTo({top:list.current.scrollHeight,behavior:'smooth'})},[messages,busy])
+ async function send(suggestion){
+  const value=(suggestion||input).trim();if(!value||busy||available===false)return
+  if(!consent){setError('Para conversar, acepta el aviso de privacidad bajo el chat.');return}
+  setError('');setBusy(true);setInput('')
+  let id=session
+  try{
+   if(!id){const res=await fetch(`${API}/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({consent:true})});const data=await res.json();if(!res.ok)throw new Error(data.error||'No pude iniciar la conversación.');id=data.conversationId;setSession(id);track('conversation_started',id)}
+   setMessages(m=>[...m,{role:'user',text:value}])
+   const res=await fetch(`${API}/chat`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({conversationId:id,message:value}),signal:AbortSignal.timeout(35000)})
+   const data=await res.json();if(!res.ok)throw new Error(data.error||'Carolina no pudo responder ahora.')
+   setMessages(m=>[...m,{role:'assistant',text:data.reply}]);if(messages.length>=3)track('meaningful_conversation',id)
+  }catch(cause){setError(cause.name==='TimeoutError'?'La respuesta tardó demasiado. Inténtalo otra vez.':cause.message||'No hay conexión con Carolina en este momento.')}
+  finally{setBusy(false)}
  }
- return <div className="advisorShell chatAdvisor">
-  <div className="advisorTop"><div><Sparkles size={15}/> CAROLINA · Asesora digital de Catalina</div><span>EN LÍNEA</span></div>
-  <div className="chatMessages">{messages.map((m,i)=><div key={i} className={'chatBubble '+m.role}>{m.text}</div>)}</div>
-  <div className="chatComposer"><textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Escribe como hablarías con una persona…"/><button onClick={send} aria-label="Enviar"><Send size={18}/></button></div>
-  <div className="memoryBar"><b>Habla libremente.</b> Carolina conversa contigo para entender el problema antes de recomendar una solución.</div>
- </div>
+ return <div className="chatShell"><div className="chatHeader"><div className="carolinaIdentity"><div className="carolinaMark">C</div><div><b>CAROLINA</b><span>Asesora digital de Catalina</span></div></div><span className="chatBadge"><i/> {available===false?'INTEGRACIÓN PENDIENTE':'CONVERSACIÓN ABIERTA'}</span></div>
+ {available===false&&<p className="chatError">Carolina estará disponible cuando se conecte su motor de IA. Estamos preparando la experiencia.</p>}
+ <div className="chatMessages" ref={list} aria-live="polite">{messages.map((message,i)=><div className={`message ${message.role}`} key={i}><span>{message.role==='assistant'?'CAROLINA':'TÚ'}</span><p>{message.text}</p></div>)}{busy&&<div className="message assistant"><span>CAROLINA</span><p className="typing">Pensando contigo <i/><i/><i/></p></div>}</div>
+ {messages.length===1&&<div className="chatSuggestions">{suggestions.map(x=><button key={x} onClick={()=>send(x)}>{x} <ArrowUpRight size={14}/></button>)}</div>}
+ {error&&<p className="chatError" role="alert">{error}</p>}
+ <div className="chatComposer"><textarea aria-label="Tu mensaje para Carolina" value={input} maxLength={3000} rows={2} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Cuéntame qué está pasando en tu empresa…"/><button onClick={()=>send()} disabled={busy||available===false||!input.trim()} aria-label="Enviar mensaje"><Send size={19}/></button></div>
+ <label className="privacy"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>Acepto que mi conversación y los datos que comparta se guarden hasta 30 días para recibir esta asesoría y preparar un posible contacto con Catalina. No compartas información sensible.</span></label><div className="chatFoot"><ShieldCheck size={15}/> Conversación privada · Carolina puede equivocarse; los alcances y precios finales se validan con Catalina.</div></div>
 }
