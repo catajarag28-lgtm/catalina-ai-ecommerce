@@ -102,7 +102,7 @@ export async function discoverProspects(env) {
   // Fuentes fijas verificadas (PROSPECT_SOURCES) entran como candidatos una sola vez.
   let fixed = []
   try { fixed = JSON.parse(env.PROSPECT_SOURCES || '[]') } catch {}
-  for (const s of fixed) { const h = hostOf(s.url); if (h && !excludedHosts.test(h)) await env.DB.prepare("INSERT OR IGNORE INTO prospect_candidates(website,company,segment,status,created_at,updated_at) VALUES (?,?,?,'new',?,?)").bind('https://' + h + '/', null, 'fuente:' + (s.region || '') + ':' + (s.sector || ''), Date.now(), Date.now()).run() }
+  for (const s of fixed) { const h = hostOf(s.url); if (h && !excludedHosts.test(h) && s.region !== 'España') await env.DB.prepare("INSERT OR IGNORE INTO prospect_candidates(website,company,segment,status,created_at,updated_at) VALUES (?,?,?,'new',?,?)").bind('https://' + h + '/', null, 'fuente:' + (s.region || '') + ':' + (s.sector || ''), Date.now(), Date.now()).run() }
   let searched = null
   const fresh = (await env.DB.prepare("SELECT COUNT(*) n FROM prospect_candidates WHERE status='new'").first())?.n || 0
   if (fresh < 6) {

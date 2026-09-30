@@ -18,6 +18,7 @@ export function inBusinessHours(region, now = Date.now()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]))
   return !['Sat', 'Sun'].includes(parts.weekday) && Number(parts.hour) >= 8 && Number(parts.hour) < 17
 }
+export const blockedRegions = new Set(['España'])
 const regionOf = row => { try { return JSON.parse(row.dossier || '{}').region || '' } catch { return '' } }
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ]+/g, ' ').trim()
 // La evidencia debe estar en la web: se aceptan fragmentos separados por «…» si cada uno (≥ 12 caracteres) aparece literalmente.
@@ -122,7 +123,9 @@ export async function runOutreach(env, now = Date.now()) {
   // En modo prueba solo se admite el buzón de prueba (o sus variantes usuario+etiqueta@dominio).
   const plus = testTo ? testTo.replace('@', '+%@') : ''
   const rows = (await env.DB.prepare("SELECT * FROM outreach WHERE authorized=1 AND status='pending' AND (?='' OR lower(email)=? OR lower(email) LIKE ?) ORDER BY created_at LIMIT 15").bind(testTo, testTo, plus).all()).results || []
-  const row = rows.find(r => testTo || r.kind === 'inbound' || inBusinessHours(regionOf(r), now))
+  // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
+  for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
+  const row = rows.find(r => (testTo || r.kind === 'inbound' || !blockedRegions.has(regionOf(r))) && (testTo || r.kind === 'inbound' || inBusinessHours(regionOf(r), now)))
   if (!row) return { reason: rows.length ? 'outside_business_hours' : 'empty_queue' }
   if (row.kind !== 'inbound' && !env.SENDER_POSTAL_ADDRESS && !testTo) return { reason: 'postal_address_missing' }
   // Sin eventos firmados de Resend no se detectarían quejas ni rebotes a tiempo: no se escribe a prospectos nuevos.

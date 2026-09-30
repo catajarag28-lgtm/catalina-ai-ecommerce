@@ -95,3 +95,5 @@ test('Evidence must be on the site, tolerant only to accents, quotes and case', 
   assert.ok(!evidenceFound(text, 'Tenemos 20 años de experiencia'))
   assert.ok(!evidenceFound(text, 'yo'))
 })
+import { blockedRegions } from '../worker/outreach.js'
+test('Spain is excluded from cold outreach', () => { assert.ok(blockedRegions.has('España')) })
