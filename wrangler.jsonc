@@ -25,11 +25,11 @@
     // Correos de Carolina a clientes vía Resend (secreto RESEND_API_KEY, dominio verificado en Resend).
     "EMAIL_FROM": "Catalina Jaramillo <clientes@soycatalinajaramillo.com>",
     "NOTIFY_FROM": "carolina@soycatalinajaramillo.com",
-    "NOTIFY_TO": "catalinajaramillo28@gmail.com",
-    "CATALINA_EMAIL": "catalinajaramillo28@gmail.com"
+    "NOTIFY_TO": "catalinajaramillogirldo28@gmail.com",
+    "CATALINA_EMAIL": "catalinajaramillogirldo28@gmail.com"
   },
   // Avisos de leads a Catalina vía Email Routing; el destino debe estar verificado en Cloudflare.
-  "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillo28@gmail.com" }],
+  "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillogirldo28@gmail.com" }],
   "d1_databases": [{ "binding": "DB", "database_name": "carolina-portfolio", "database_id": "67f1caa9-219a-45d1-b98a-7f7339fe7547" }],
   "triggers": { "crons": ["*/15 * * * *"] }
 }

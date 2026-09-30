@@ -112,8 +112,9 @@ export async function runOutreach(env, now = Date.now()) {
   const control = await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
   if (control?.paused) return { reason: 'paused', detail: control.reason }
   const cap = await currentDailyCap(env)
-  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE status IN ('researching','sending','sent','uncertain','replied') AND ((sent_at IS NOT NULL AND sent_at>?) OR (sent_at IS NULL AND updated_at>?))").bind(now - 86400000, now - 86400000).first()
-  const followups = await env.DB.prepare('SELECT COUNT(*) n FROM outreach WHERE followup_at>?').bind(now - 86400000).first()
+  // Las muestras internas (id test-*) no consumen el cupo diario de prospectos.
+  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND status IN ('researching','sending','sent','uncertain','replied') AND ((sent_at IS NOT NULL AND sent_at>?) OR (sent_at IS NULL AND updated_at>?))").bind(now - 86400000, now - 86400000).first()
+  const followups = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND followup_at>?").bind(now - 86400000).first()
   if ((count?.n || 0) + (followups?.n || 0) >= cap) return { reason: 'daily_cap', cap }
   const followed = await runFollowup(env, now).catch(e => ({ sent: false, reason: e.message }))
   if (followed?.sent) return { followup: true }
