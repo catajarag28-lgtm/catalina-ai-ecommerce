@@ -209,4 +209,14 @@ footer{display:flex;justify-content:space-between;gap:20px;padding:26px 6vw;back
 .hero.has3d .diagOptions button{background:rgba(40,36,31,.72)}
 @media(max-width:1050px){.hero3d:after{background:linear-gradient(180deg,rgba(17,17,16,.35) 0%,rgba(17,17,16,.55) 45%,rgba(17,17,16,.85) 100%)}}
 @media(max-width:700px){.hero3d.ready{opacity:.8}.hero3d:after{background:linear-gradient(180deg,rgba(17,17,16,.1) 0%,rgba(17,17,16,.45) 38%,rgba(17,17,16,.82) 70%,rgba(17,17,16,.9) 100%),linear-gradient(90deg,rgba(17,17,16,.55) 0%,transparent 70%)}}
+/* Carolina en vivo (ficha + conversación) */
+.liveDot{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.6rem;letter-spacing:.14em;color:#b8d8b3}.liveDot i{width:7px;height:7px;border-radius:50%;background:#8fd08a;box-shadow:0 0 10px #8fd08a;animation:pulseDot 1.4s infinite alternate}
+.diagnosis.live .privacy{padding:4px 0 0;font-size:.72rem}.diagnosis.live .privacy a{color:#d7bd95;text-decoration:underline}
+.liveMessages{height:380px;scrollbar-width:thin;scrollbar-color:#6a5841 transparent}.liveMessages::-webkit-scrollbar{width:6px}.liveMessages::-webkit-scrollbar-thumb{background:#6a5841;border-radius:6px}.diagnosis.live .chatComposer{margin:0 14px}
+.hero.has3d .liveMessages .message.assistant p{background:rgba(48,42,35,.78)}
+.chatLink{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:8px 12px;border-radius:99px;background:#d7bd95;color:#221a11!important;font-weight:700;text-decoration:none}
+.linkBtn{margin-left:auto;display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:#a99d8c;font-size:.66rem;padding:0}
+.realCase.solo{max-width:900px}
+.legal h3{font-size:1.1rem;margin:28px 0 8px}.legal p{max-width:760px;line-height:1.7;color:#5a5146}
+@media(max-width:700px){.liveMessages{height:340px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

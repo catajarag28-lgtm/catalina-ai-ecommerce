@@ -36,11 +36,11 @@ export const maintenance = {
 
 export const offers = [
   { id: 'ventas', tag: 'VENTAS Y AGENDA', pain: 'Te escriben, nadie responde a tiempo y el cliente se enfría.',
-    delivers: ['Responde en segundos, 24/7', 'Califica y agenda la cita', 'Retoma a quien no contestó', 'Te pasa el caso cuando hace falta'], from: 'Desde USD 2.200' },
+    delivers: ['Responde en segundos, 24/7', 'Califica y agenda la cita', 'Retoma a quien no contestó', 'Te pasa el caso cuando hace falta'], from: 'Diagnóstico desde USD 490 · implementación desde USD 2.200' },
   { id: 'atencion', tag: 'ATENCIÓN Y POSTVENTA', pain: 'Las mismas preguntas todo el día y un equipo que no da abasto.',
-    delivers: ['Responde con tu información real', 'Sigue pedidos y solicitudes', 'Gestiona cambios y devoluciones', 'Escala a una persona con el contexto'], from: 'Desde USD 2.200' },
+    delivers: ['Responde con tu información real', 'Sigue pedidos y solicitudes', 'Gestiona cambios y devoluciones', 'Escala a una persona con el contexto'], from: 'Diagnóstico desde USD 490 · implementación desde USD 2.200' },
   { id: 'operacion', tag: 'E-COMMERCE Y OPERACIÓN', pain: 'Tu tienda, WhatsApp y hojas de cálculo no se hablan entre sí.',
-    delivers: ['Conecta tienda, CRM, WhatsApp y correo', 'Recupera carritos y activa recompra', 'Reportes sin copiar y pegar', 'Todo con reglas y supervisión'], from: 'Desde USD 5.500' },
+    delivers: ['Conecta tienda, CRM, WhatsApp y correo', 'Recupera carritos y activa recompra', 'Reportes sin copiar y pegar', 'Todo con reglas y supervisión'], from: 'Diagnóstico desde USD 490 · implementación desde USD 5.500' },
 ]
 
 export const diagnosisQuestions = [

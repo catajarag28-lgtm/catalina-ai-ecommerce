@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react'
 import {ArrowUpRight,ArrowLeft,Check,ShieldCheck,UserRound,KeyRound,LifeBuoy,HandCoins,Sparkles} from 'lucide-react'
-import CarolinaDiagnosis from './components/CarolinaDiagnosis.jsx'
+import CarolinaLive from './components/CarolinaLive.jsx'
 import Hero3D from './components/Hero3D.jsx'
 import {offers,catalog,maintenance,launchBonus} from './offers.js'
 
@@ -11,7 +11,6 @@ const frictions=['Ventas que se pierden','Clientes que esperan','Procesos manual
 const capabilities=[['VENTAS','¿Se te escapan clientes porque nadie responde y hace seguimiento?','Un agente responde 24/7, califica oportunidades, agenda citas, retoma conversaciones frías y avisa cuándo debe entrar una persona.'],['ATENCIÓN Y POSTVENTA','¿Tus clientes esperan, repiten lo mismo o desaparecen después de comprar?','Atención por WhatsApp y redes, preguntas frecuentes, seguimiento postventa, devoluciones, cancelaciones y escalamiento humano.'],['ECOMMERCE','¿Tu tienda recibe visitas pero deja dinero sobre la mesa?','Recuperación de carritos abandonados, seguimiento de pedidos, cambios y devoluciones, venta cruzada y reactivación de clientes.'],['MARKETING Y REDES','¿Publicas y respondes sin convertir la atención en crecimiento?','Agentes que manejan comentarios y mensajes, detectan intención, derivan oportunidades y activan campañas de nurturing.'],['CRECIMIENTO','¿Inviertes en campañas sin saber qué pasa después del clic?','Funnels, Meta Ads, remarketing, recuperación de cancelaciones, retención, analítica y experimentos para aumentar conversiones.'],['OPERACIONES','¿Tu equipo copia, pega y persigue información todo el día?','Automatizaciones entre formularios, CRM, WhatsApp, email, agenda y reportes para que cada tarea avance sin depender del dueño.'],['FINANZAS Y CONTROL','¿Sabes de verdad cuánto ganas y dónde se te va la plata?','Tableros de rentabilidad real, alertas de fugas de dinero, conciliación de pedidos y pagos, y control de lo que hace cada área.'],['SISTEMA INTEGRAL','¿Tienes muchas herramientas pero ninguna trabaja como un sistema?','Coordinamos agentes de ventas, atención, operaciones, conocimiento y growth bajo reglas, permisos y supervisión humana.']]
 // [etapa, título, explicación, dónde empezar según el catálogo de src/offers.js]
 const stages=[['FRICCIÓN','Algo impide avanzar','Detectamos dónde se pierde tiempo, información o una oportunidad.','Diagnóstico estratégico · USD 490'],['CHATBOT','Responde y guía','Un chatbot ayuda con preguntas y recorridos definidos.','Incluido en el agente esencial'],['AUTOMATIZACIÓN','El flujo ejecuta','Conectamos pasos, herramientas y responsables con reglas claras.','Desde USD 3.800 con CRM y agenda'],['AGENTE IA','Entiende y actúa','Interpreta contexto, consulta conocimiento y actúa dentro de permisos.','Agente esencial · desde USD 2.200'],['TU AGENTE','Habla como tu empresa','Tiene personalidad, procesos, conocimiento y límites propios.','Desde USD 3.800 conectado a tu operación'],['MULTIAGENTE','Especialistas coordinados','Ventas, atención, operaciones, conocimiento y growth colaboran.','Desde USD 9.000'],['BUSINESS OS','La empresa funciona como sistema','Personas, datos, agentes y automatizaciones comparten dirección y control.','Según alcance, con diagnóstico previo']]
-const lauraAgents=[['Sales','VENTAS','Busca y sigue oportunidades hasta la cita.'],['CX','ATENCIÓN','Responde, hace seguimiento y cuida la postventa.'],['Operations','OPERACIONES','Conecta tareas para que el equipo avance.'],['Knowledge','CONOCIMIENTO','Encuentra la respuesta correcta para cada persona.'],['Growth','MARKETING','Activa campañas, retención y nuevas ventas.']]
 const demos=[
  {id:'cita',tab:'Clínica: consulta → cita',problem:'Una clínica estética recibe consultas por WhatsApp de noche y los fines de semana. Cuando responden el lunes, la persona ya reservó en otro lado.',
   chat:[['c','Hola, ¿cuánto cuesta la limpieza facial?'],['a','¡Hola! La limpieza profunda está en USD 85 e incluye extracción e hidratación. ¿Es para ti? ¿Tienes piel sensible o alguna condición que deba saber la especialista?'],['c','Sí, para mí. Piel mixta, nada especial.'],['a','Perfecto. Tengo disponible el jueves a las 10:00 o el sábado a las 11:30. ¿Cuál te queda mejor?'],['c','Sábado'],['a','Listo, quedaste el sábado a las 11:30. Te llega la confirmación y te recuerdo el viernes. ¿A nombre de quién la registro?']],
@@ -27,14 +26,15 @@ const process=[['Entender','Carolina conoce tu negocio y yo reviso contigo cómo
 const guarantees=[[KeyRound,'Tus cuentas y tus datos son tuyos','Todo queda a tu nombre. Si un día terminamos, te llevas el sistema.'],[UserRound,'Siempre hay una persona','Si el agente no sabe algo, pasa el caso a tu equipo con el contexto. No inventa respuestas.'],[LifeBuoy,'30 días de acompañamiento','Ajustes y soporte incluidos después del lanzamiento.'],[HandCoins,'50 % para empezar, 50 % al entregar','Pagas el resto cuando lo ves funcionando.']]
 const toCarolina=<a className="heroDirect" href="#carolina">Hablar con Carolina <ArrowUpRight size={15}/></a>
 
-function usePage(){const read=()=>window.location.hash==='#precios'?'precios':'home';const [page,setPage]=useState(read);useEffect(()=>{const on=()=>{setPage(read());if(window.location.hash==='#precios')window.scrollTo(0,0)};window.addEventListener('hashchange',on);return()=>window.removeEventListener('hashchange',on)},[]);return page}
+const PAGES={'#precios':'precios','#privacidad':'privacidad'}
+function usePage(){const read=()=>PAGES[window.location.hash]||'home';const [page,setPage]=useState(read);useEffect(()=>{const on=()=>{setPage(read());if(PAGES[window.location.hash])window.scrollTo(0,0)};window.addEventListener('hashchange',on);return()=>window.removeEventListener('hashchange',on)},[]);return page}
 
 export default function App(){
  const page=usePage()
  return <>
-  <header className="nav"><a className="wordmark" href="#inicio">CATALINA <span>JARAMILLO</span></a><nav><a href="#soluciones">Soluciones</a><a href="#sistema">Sistema</a><a href="#caso">Caso real</a><a href="#precios">Precios</a><a href="#catalina">Sobre mí</a></nav><a className="navTalk" href="#carolina">Hablar con Carolina <ArrowUpRight size={16}/></a></header>
-  <main>{page==='precios'?<Pricing/>:<Home/>}</main>
-  <footer><span>© 2026 CATALINA JARAMILLO · AGENTES DE IA PARA EMPRESAS</span><span>ATENCIÓN EN ESPAÑOL · EE. UU. Y LATINOAMÉRICA</span><a href="#carolina">HABLAR CON CAROLINA</a></footer>
+  <header className="nav"><a className="wordmark" href="#inicio">CATALINA <span>JARAMILLO</span></a><nav><a href="#soluciones">Soluciones</a><a href="#sistema">Sistema</a><a href="#caso">En vivo</a><a href="#precios">Precios</a><a href="#catalina">Sobre mí</a></nav><a className="navTalk" href="#carolina">Hablar con Carolina <ArrowUpRight size={16}/></a></header>
+  <main>{page==='precios'?<Pricing/>:page==='privacidad'?<Privacy/>:<Home/>}</main>
+  <footer><span>© 2026 CATALINA JARAMILLO · AGENTES DE IA PARA EMPRESAS</span><span>ATENCIÓN EN ESPAÑOL · EE. UU. Y LATINOAMÉRICA</span><a href="#privacidad">PRIVACIDAD</a><a href="#carolina">HABLAR CON CAROLINA</a></footer>
  </>
 }
 
@@ -54,7 +54,7 @@ function Home(){
     <div className="heroProof">{proof.map(([n,t])=><span key={n}><b>{n}</b>{t}</span>)}</div>
     <p className="heroMarket">Atención y reuniones en español · Trabajo remoto con empresas de EE. UU. y Latinoamérica</p>
    </div>
-   <div className="heroDiagnosis" id="carolina"><CarolinaDiagnosis/></div>
+   <div className="heroDiagnosis" id="carolina"><CarolinaLive/></div>
   </section>
 
   <section id="soluciones" className="offerSection section"><span className="label">01 / POR DÓNDE EMPEZAR</span><h2>Tres soluciones.<br/><em>Un problema real cada una.</em></h2>
@@ -70,11 +70,7 @@ function Home(){
   <SystemSection/>
 
   <section id="caso" className="caseSection section"><span className="label">04 / NO TE LO CUENTO: MÍRALO</span><h2>Esto ya funciona.<br/><em>Lo estás viendo.</em></h2>
-   <div className="caseGrid">
-    <div className="realCase"><span className="tag real">EN VIVO · AHORA MISMO</span><h3>Carolina, la asesora de esta página</h3><p>Es un agente de IA. Conversa, entiende tu negocio, te recomienda por dónde empezar, estima la inversión y le pasa tu caso a Catalina con todo el contexto. Lo que sientes al hablar con ella es lo que sentirán tus clientes.</p>{toCarolina}</div>
-    <div className="realCase"><span className="tag real">CASO REAL · EN OPERACIÓN</span><h3>LAURA · Sistema multiagente de comercio</h3><p>Arquitectura que diseñé y dirijo para una operación de belleza con sedes físicas, tienda online y más de 9.000 pedidos. Coordina agentes de ventas, atención, confirmación de pedidos, logística, postventa, fidelización e inteligencia comercial, con reglas de negocio, auditoría y supervisión humana.</p></div>
-   </div>
-   <LauraSystem/>
+   <div className="realCase solo"><span className="tag real">EN VIVO · AHORA MISMO</span><h3>Carolina, la asesora de esta página, es un agente de IA</h3><p>Revisa la web de tu empresa, entiende tu negocio, te muestra dónde se pierden dinero y clientes, estima la inversión con precios reales y, si hay encaje, te agenda con Catalina y le entrega tu caso completo. Lo que sientes al hablar con ella es lo que sentirán tus clientes con un agente diseñado para tu empresa.</p>{toCarolina}</div>
    <p className="demoIntro">Así se vería en tu negocio. <span className="tag sim">SIMULACIONES DE EJEMPLO</span></p>
    <div className="demoTabs" role="tablist">{demos.map(x=><button key={x.id} role="tab" aria-selected={demo===x.id} className={demo===x.id?'on':''} onClick={()=>setDemo(x.id)}>{x.tab}</button>)}</div>
    <div className="demoBox"><div className="demoChat"><p className="demoProblem"><b>El problema:</b> {d.problem}</p>{d.chat.map(([who,text],i)=><div key={i} className={`bubble ${who}`}>{text}</div>)}</div>
@@ -112,12 +108,18 @@ function SystemSection(){
  </section>
 }
 
-function LauraSystem(){
- const [agent,setAgent]=useState(lauraAgents[0][0]),a=lauraAgents.find(x=>x[0]===agent)
- return <div className="lauraBlock"><h3 className="lauraTitle">Un especialista ayuda. <em>Un sistema coordina.</em></h3><p className="lauraIntro">LAURA coordina varios asistentes para que la empresa no dependa de una sola persona. Todos siguen las mismas reglas y, cuando hace falta, pasan el caso al equipo humano.</p>
-  <div className="lauraInterface"><div className="lauraAgents">{lauraAgents.map(([id,label])=><button key={id} className={agent===id?'selected':''} onClick={()=>setAgent(id)}><span className="agentDot"/>{label}<ArrowUpRight size={16}/></button>)}</div>
-   <div className="lauraPanel"><span>LAURA / {a[1]}</span><div className="lauraOrb"><b>{a[0].slice(0,2).toUpperCase()}</b></div><h3>{a[2]}</h3><p>Recibe el contexto, sigue un proceso y resuelve la tarea; si necesita una decisión, la pasa a una persona.</p><div className="controlStrip">CONTROL · PERMISOS · TRAZABILIDAD · EQUIPO HUMANO</div></div></div>
- </div>
+function Privacy(){
+ return <section className="pricingPage section legal">
+  <a className="backLink" href="#inicio"><ArrowLeft size={15}/> Volver</a>
+  <span className="label">PRIVACIDAD</span><h2>Política de privacidad</h2>
+  <p className="pricingIntro">Última actualización: 30 de septiembre de 2026. Responsable: Catalina Jaramillo (soycatalinajaramillo.com). Contacto para cualquier solicitud sobre tus datos: clientes@soycatalinajaramillo.com.</p>
+  <h3>Qué datos recogemos</h3><p>Los que tú nos das al hablar con Carolina: nombre, empresa, email, WhatsApp (opcional), web o redes de tu empresa y lo que escribes en la conversación. Con tu autorización, Carolina revisa la información pública de la web o redes que indiques.</p>
+  <h3>Para qué los usamos</h3><p>Para asesorarte, estimar la inversión de lo que necesitas, preparar tu reunión con Catalina y responderte. No vendemos ni compartimos tus datos con terceros para publicidad.</p>
+  <h3>Quién procesa los datos</h3><p>La conversación se procesa con proveedores de infraestructura e inteligencia artificial que actúan por cuenta nuestra: Cloudflare (alojamiento y base de datos), OpenRouter y Google (modelo de lenguaje) y Resend (envío de correos).</p>
+  <h3>Cuánto tiempo los guardamos</h3><p>Las conversaciones se eliminan automáticamente a los 30 días. Si avanzamos a una propuesta, conservamos los datos de contacto y del proyecto mientras dure la relación comercial.</p>
+  <h3>Tus derechos</h3><p>Puedes pedir acceso, corrección o eliminación de tus datos, o retirar tu autorización, escribiendo a clientes@soycatalinajaramillo.com. Aplicamos la Ley 1581 de 2012 de Colombia y las normas de privacidad aplicables en Estados Unidos.</p>
+  <h3>Sobre Carolina</h3><p>Carolina es un agente de inteligencia artificial. Sus rangos de precio son orientativos: el alcance y el precio final los confirma Catalina.</p>
+ </section>
 }
 
 function Pricing(){

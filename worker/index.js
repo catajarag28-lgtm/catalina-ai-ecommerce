@@ -10,6 +10,14 @@ const now = () => Date.now()
 const API_PATHS = ['/health', '/session', '/chat', '/event', '/lead']
 const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 'diagnosis_started', 'diagnosis_completed', 'diagnosis_handoff', 'direct_contact']
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
+export function cleanProfile(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const p = {}
+  for (const key of ['name', 'company', 'email', 'phone', 'website', 'social']) if (typeof raw[key] === 'string' && raw[key].trim()) p[key] = raw[key].trim().slice(0, 200)
+  if (p.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(p.email)) delete p.email
+  return p.name && (p.email || p.phone) ? p : null
+}
+
 export function confirmationText(lead) {
   const first = (lead.name || '').split(' ')[0] || 'hola'
   return [
@@ -58,11 +66,13 @@ async function rateLimit(env, request, kind, max) {
   return row.count <= max
 }
 
-async function complete(env, messages, withTools = true, maxTokens = 1100, modelSlug = env.OPENROUTER_MODEL) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': (env.ALLOWED_ORIGIN || '').split(',')[0], 'X-Title': 'Carolina - Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens }), signal: AbortSignal.timeout(25000) })
+// Los modelos Gemini 3.x razonan antes de responder y ese razonamiento consume max_tokens:
+// se limita el esfuerzo, se excluye del resultado y se deja margen para que la respuesta no se corte.
+async function complete(env, messages, withTools = true, maxTokens = 3000, modelSlug = env.OPENROUTER_MODEL) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'HTTP-Referer': (env.ALLOWED_ORIGIN || '').split(',')[0], 'X-Title': 'Carolina - Catalina Jaramillo' }, body: JSON.stringify({ model: modelSlug || 'google/gemini-2.5-flash', messages, ...(withTools ? { tools, tool_choice: 'auto' } : {}), temperature: 0.45, max_tokens: maxTokens, reasoning: { effort: 'low', exclude: true } }), signal: AbortSignal.timeout(40000) })
   if (!response.ok) throw new Error(`model_${response.status}`)
   const data = await response.json()
-  return { message: data.choices?.[0]?.message, usage: data.usage }
+  return { message: data.choices?.[0]?.message, finish: data.choices?.[0]?.finish_reason, usage: data.usage }
 }
 
 async function runTool(env, conversationId, name, args, latestUser) {
@@ -127,7 +137,7 @@ async function chat(request, env) {
   if (!session) return json({ error: 'Sesión no encontrada.' }, 404)
   const previous = await env.DB.prepare('SELECT role,content FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 12').bind(body.conversationId).all()
   const lead = await env.DB.prepare('SELECT data FROM leads WHERE conversation_id=?').bind(body.conversationId).first()
-  const context = [{ role: 'system', content: `${constitution}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
+  const context = [{ role: 'system', content: `${constitution}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${env.BOOKING_URL || 'no disponible todavía'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
   let model
   try {
     model = await complete(env, context)
@@ -138,6 +148,12 @@ async function chat(request, env) {
         context.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 4500) })
       }
       model = await complete(env, context, round === 0)
+    }
+    // Si el modelo solo llamó herramientas, no redactó o dejó la respuesta a medias, se le pide la respuesta final sin herramientas.
+    const draftText = typeof model.message?.content === 'string' ? model.message.content.trim() : ''
+    if (!draftText || model.finish === 'length' || !/[.?!…:)»"]$/.test(draftText)) {
+      if (model.message?.tool_calls?.length) context.push({ role: 'assistant', content: 'Expediente actualizado.' })
+      model = await complete(env, [...context, { role: 'system', content: 'Responde ahora al prospecto en texto, siguiendo tu método y estilo. No uses herramientas.' }], false)
     }
   } catch (error) {
     console.error('carolina_chat_failure', error instanceof Error ? error.message : 'unknown')
@@ -176,6 +192,13 @@ export default {
         if (body.consent !== true) return json({ error: 'Se requiere consentimiento para guardar la conversación.' }, 400, cors)
         const id = crypto.randomUUID()
         await env.DB.prepare('INSERT INTO conversations(id,created_at,updated_at,consent) VALUES (?,?,?,1)').bind(id, now(), now()).run()
+        // Ficha previa (nombre, empresa, contacto, web/redes): el contacto queda guardado aunque abandone la conversación.
+        const profile = cleanProfile(body.profile)
+        if (profile) {
+          await env.DB.prepare('INSERT INTO leads(conversation_id,data,updated_at,status) VALUES (?,?,?,?)').bind(id, JSON.stringify(profile), now(), 'identified').run()
+          const mail = leadEmail({ source: 'chat', ...profile, business: profile.website || profile.social })
+          await notifyCatalina(env, `Nuevo contacto hablando con Carolina: ${profile.company || profile.name}`, mail.text.replace('Formulario de contacto', 'Ficha previa al chat con Carolina') + `\n\nTe aviso de nuevo si Carolina lo califica o agenda.\nConversación ID: ${id}`, profile.email)
+        }
         return json({ conversationId: id }, 201, cors)
       }
       if (url.pathname === '/chat' && request.method === 'POST') {

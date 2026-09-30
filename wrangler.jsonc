@@ -15,7 +15,7 @@
   ],
   "vars": {
     "ALLOWED_ORIGIN": "https://soycatalinajaramillo.com,https://www.soycatalinajaramillo.com,https://catajarag28-lgtm.github.io",
-    "OPENROUTER_MODEL": "google/gemini-3.1-flash-lite",
+    "OPENROUTER_MODEL": "google/gemini-3.8-flash",
     "OPENROUTER_EXTRACT_MODEL": "google/gemini-3.1-flash-lite",
     "CALENDAR_TIMEZONE": "America/Bogota",
     // Correos de Carolina a clientes vía Resend (secreto RESEND_API_KEY, dominio verificado en Resend).
