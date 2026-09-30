@@ -137,8 +137,9 @@ export async function researchBusiness(url) {
 
 // El correo debe estar publicado en la web del negocio; se prefiere el del propio dominio.
 export function pickBusinessEmail(emails, host) {
-  const own = emails.filter(e => e.split('@')[1].replace(/^www\./, '').endsWith(host))
+  const own = emails.filter(e => !/(%22|%3c|%3e|data-style|support-contact)/i.test(e) && e.split('@')[1].replace(/^www\./, '').endsWith(host))
   const preferred = own.find(e => /^(info|hola|hello|contacto|contact|citas|reservas|ventas|sales|admin|office|recepcion|front|booking|appointments)@/i.test(e)) || own[0]
   if (preferred) return preferred
   return emails.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
 }
+
