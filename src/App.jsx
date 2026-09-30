@@ -1,8 +1,9 @@
-import React,{useEffect,useState} from 'react'
+import React,{useEffect,useState,lazy,Suspense} from 'react'
 import {ArrowUpRight,ArrowLeft,Check,ShieldCheck,UserRound,KeyRound,LifeBuoy,HandCoins,Sparkles} from 'lucide-react'
 import CarolinaLive from './components/CarolinaLive.jsx'
 import Hero3D from './components/Hero3D.jsx'
 import {offers,catalog,maintenance,launchBonus} from './offers.js'
+const ProposalPage=lazy(()=>import('./components/ProposalPage.jsx'))
 
 // Regla de negocio: nadie llega a Catalina sin pasar por Carolina. Todos los CTA apuntan a #carolina.
 const base=import.meta.env.BASE_URL
@@ -31,10 +32,13 @@ function usePage(){const read=()=>PAGES[window.location.hash]||'home';const [pag
 
 export default function App(){
  const page=usePage()
+ // /propuesta/<sector>: propuesta web por sector, destino del correo con marca.
+ const proposalSlug=(window.location.pathname.match(/^\/propuesta\/([a-z-]+)/)||[])[1]
+ const to=hash=>proposalSlug?`/${hash}`:hash
  return <>
-  <header className="nav"><a className="wordmark" href="#inicio">CATALINA <span>JARAMILLO</span></a><nav><a href="#soluciones">Soluciones</a><a href="#sistema">Sistema</a><a href="#caso">En vivo</a><a href="#precios">Precios</a><a href="#catalina">Sobre mí</a></nav><a className="navTalk" href="#carolina">Hablar con Carolina <ArrowUpRight size={16}/></a></header>
-  <main>{page==='precios'?<Pricing/>:page==='privacidad'?<Privacy/>:<Home/>}</main>
-  <footer><span>© 2026 CATALINA JARAMILLO · AGENTES DE IA PARA EMPRESAS</span><span>ATENCIÓN EN ESPAÑOL · EE. UU. Y LATINOAMÉRICA</span><a href="#privacidad">PRIVACIDAD</a><a href="#carolina">HABLAR CON CAROLINA</a></footer>
+  <header className="nav"><a className="wordmark" href={to('#inicio')}>CATALINA <span>JARAMILLO</span></a><nav><a href={to('#soluciones')}>Soluciones</a><a href={to('#sistema')}>Sistema</a><a href={to('#caso')}>En vivo</a><a href={to('#precios')}>Precios</a><a href={to('#catalina')}>Sobre mí</a></nav><a className="navTalk" href={to('#carolina')}>Hablar con Carolina <ArrowUpRight size={16}/></a></header>
+  <main>{proposalSlug?<Suspense fallback={<div className="propLoading"/>}><ProposalPage slug={proposalSlug}/></Suspense>:page==='precios'?<Pricing/>:page==='privacidad'?<Privacy/>:<Home/>}</main>
+  <footer><span>© 2026 CATALINA JARAMILLO · AGENTES DE IA PARA EMPRESAS</span><span>ATENCIÓN EN ESPAÑOL · EE. UU. Y LATINOAMÉRICA</span><a href={to('#privacidad')}>PRIVACIDAD</a><a href={to('#carolina')}>HABLAR CON CAROLINA</a></footer>
  </>
 }
 
@@ -47,7 +51,7 @@ function Home(){
    <div className="heroContent">
     <p className="eyebrow"><span className="pulse"/> ESTRATEGIA · OPERACIÓN · INTELIGENCIA ARTIFICIAL</p>
     <h1>Descubre dónde tu empresa está perdiendo <em>dinero, tiempo</em> y clientes.</h1>
-    <p className="heroLead">Y qué sistema con inteligencia artificial lo resuelve: ventas, atención, operación, finanzas y control. <b>Carolina, mi agente de IA, lo analiza contigo en minutos</b> y te dice cuánto costaría.</p>
+    <p className="heroLead">Y qué sistema con inteligencia artificial lo resuelve: ventas, atención, operación, finanzas y control. <b>Carolina, mi agente de IA, te ayuda a identificar posibles pérdidas y oportunidades</b> y te da un rango de inversión.</p>
     <a className="heroMobileCta" href="#carolina">Empezar con Carolina <ArrowUpRight size={17}/></a>
     <p className="heroQuestion">¿Qué está frenando hoy a tu empresa?</p>
     <div className="frictionList">{frictions.map((x,i)=><span key={x}><small>0{i+1}</small>{x}</span>)}</div>

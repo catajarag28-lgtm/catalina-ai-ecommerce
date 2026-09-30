@@ -4,6 +4,7 @@ import { qualificationStatus } from './qualification.js'
 import { skillContext } from './skills.js'
 import { notifyCatalina, leadEmail } from './notify.js'
 import { handleInbound } from './inbox.js'
+import { renderProposalEmail } from './emailTemplates.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -179,6 +180,12 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin')
     const url = new URL(request.url)
+    // Vista del correo-propuesta con marca, para revisarlo, copiarlo o reenviarlo: /correo/<sector>?empresa=&nombre=
+    const mailView = url.pathname.match(/^\/correo\/([a-z-]+)$/)
+    if (mailView && request.method === 'GET') {
+      const mail = renderProposalEmail({ slug: mailView[1], company: url.searchParams.get('empresa') || '', contactName: url.searchParams.get('nombre') || '' })
+      return new Response(mail.html, { headers: { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex' } })
+    }
     if (env.ASSETS && request.method === 'GET' && !API_PATHS.includes(url.pathname)) return env.ASSETS.fetch(request)
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}

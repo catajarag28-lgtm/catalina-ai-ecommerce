@@ -31,8 +31,15 @@ export default function CarolinaLive(){
  useEffect(()=>{list.current?.scrollTo({top:list.current.scrollHeight,behavior:'smooth'})},[messages,busy,step])
  useEffect(()=>{try{if(session)localStorage.setItem(storageKey,JSON.stringify({id:session,messages:messages.slice(-40),savedAt:Date.now()}))}catch{}},[session,messages])
  useEffect(()=>{if(open)setTimeout(()=>field.current?.focus(),250)},[open,step,stage])
+ // Cualquier enlace "Hablar con Carolina" (#carolina) abre la conversación directamente, también al llegar desde otra página.
+ useEffect(()=>{
+  const onClick=e=>{const a=e.target.closest?.('a[href$="#carolina"]');if(a&&!a.closest('.carolinaCard'))setTimeout(begin,350)}
+  document.addEventListener('click',onClick)
+  if(window.location.hash==='#carolina')setTimeout(begin,500)
+  return()=>document.removeEventListener('click',onClick)
+ },[])
 
- function begin(){setOpen(true);track('diagnosis_started');if(!messages.length)setMessages([{role:'assistant',text:'Hola, soy Carolina, la asesora de IA de Catalina. En unos minutos te digo dónde tu empresa está perdiendo dinero o clientes, qué te conviene construir y cuánto costaría.'},{role:'assistant',text:STEPS[0].ask({})}])}
+ function begin(){setOpen(true);track('diagnosis_started');setMessages(m=>m.length?m:[{role:'assistant',text:'Hola, soy Carolina, la asesora de IA de Catalina. Te ayudo a identificar posibles pérdidas y oportunidades en tu empresa, qué te convendría construir y en qué rango de inversión estaríamos.'},{role:'assistant',text:STEPS[0].ask({})}])}
 
  async function ask(id,text){
   setMessages(m=>[...m,{role:'user',text}]);setBusy(true);setError('')
@@ -75,7 +82,7 @@ export default function CarolinaLive(){
 
  if(!open)return <div className="carolinaCard idle">
   <div className="carolinaHalo"><img src={avatar} alt="Carolina, agente de IA de Catalina"/><i/><i/></div>
-  <div className="idleText"><span className="liveDot"><i/>EN LÍNEA · AGENTE DE IA</span><b>Carolina</b><p>Te digo en minutos dónde tu empresa está perdiendo dinero y clientes, qué te conviene construir y cuánto costaría.</p></div>
+  <div className="idleText"><span className="liveDot"><i/>EN LÍNEA · AGENTE DE IA</span><b>Carolina</b><p>Te ayudo a identificar posibles pérdidas y oportunidades en tu empresa, qué te convendría construir y en qué rango de inversión estaríamos.</p></div>
   <button className="diagStart" onClick={begin}>Hablar con Carolina <ArrowUpRight size={18}/></button>
   <small className="idleNote">Asesora preliminar de Catalina Jaramillo · en español</small>
  </div>

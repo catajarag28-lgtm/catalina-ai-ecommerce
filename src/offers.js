@@ -36,7 +36,7 @@ export const maintenance = {
 
 export const offers = [
   { id: 'ventas', tag: 'VENTAS Y AGENDA', pain: 'Te escriben, nadie responde a tiempo y el cliente se enfría.',
-    delivers: ['Responde en segundos, 24/7', 'Califica y agenda la cita', 'Retoma a quien no contestó', 'Te pasa el caso cuando hace falta'], from: 'Diagnóstico desde USD 490 · implementación desde USD 2.200' },
+    delivers: ['Responde en segundos, 24/7', 'Califica y agenda la cita', 'Retoma a quien no contestó', 'Te pasa el caso cuando hace falta'], from: 'Diagnóstico USD 490 · agente desde USD 2.200 · con agenda y CRM desde USD 3.800' },
   { id: 'atencion', tag: 'ATENCIÓN Y POSTVENTA', pain: 'Las mismas preguntas todo el día y un equipo que no da abasto.',
     delivers: ['Responde con tu información real', 'Sigue pedidos y solicitudes', 'Gestiona cambios y devoluciones', 'Escala a una persona con el contexto'], from: 'Diagnóstico desde USD 490 · implementación desde USD 2.200' },
   { id: 'operacion', tag: 'E-COMMERCE Y OPERACIÓN', pain: 'Tu tienda, WhatsApp y hojas de cálculo no se hablan entre sí.',
