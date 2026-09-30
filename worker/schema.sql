@@ -42,3 +42,5 @@ ALTER TABLE prospect_candidates ADD COLUMN meta TEXT;
 CREATE INDEX IF NOT EXISTS idx_candidates_priority ON prospect_candidates(status,score);
 CREATE TABLE IF NOT EXISTS intent_leads (url TEXT PRIMARY KEY, platform TEXT, who TEXT, need TEXT NOT NULL, fit TEXT, reply TEXT NOT NULL, query TEXT, found_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'new');
 CREATE INDEX IF NOT EXISTS idx_intent_found ON intent_leads(found_at);
+CREATE TABLE IF NOT EXISTS meeting_notes (id TEXT PRIMARY KEY, outreach_id TEXT, company TEXT, source TEXT, analysis TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS catalina_playbook (id INTEGER PRIMARY KEY AUTOINCREMENT, lesson TEXT NOT NULL UNIQUE, source_meeting TEXT, created_at INTEGER NOT NULL);

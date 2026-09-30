@@ -42,6 +42,7 @@ export async function angleStats(env, now = Date.now()) {
       MAX(CASE WHEN e.type='page.viewed' THEN 1 ELSE 0 END) AS visited,
       MAX(CASE WHEN e.type='cta.clicked' THEN 1 ELSE 0 END) AS cta,
       MAX(CASE WHEN e.type IN ('demo.used','booking.opened') THEN 1 ELSE 0 END) AS demo,
+      MAX(CASE WHEN e.type='meeting.held' THEN 1 ELSE 0 END) AS held,
       MAX(CASE WHEN e.type='email.delivered' THEN 1 ELSE 0 END) AS delivered,
       (SELECT COUNT(*) FROM emails m WHERE m.direction='in' AND m.thread_key=lower(o.email) AND m.category IN ('prospect','meeting','question','needs_catalina')) AS positive,
       (SELECT COUNT(*) FROM meetings mt WHERE lower(mt.email)=lower(o.email)) AS meeting
@@ -51,6 +52,7 @@ export async function angleStats(env, now = Date.now()) {
   const byAngle = {}
   for (const r of rows.results || []) {
     r.replied = r.status === 'replied' ? 1 : 0
+    if (r.held) r.meeting = 1
     const a = byAngle[r.angle] ||= { angle: r.angle, n: 0, score: 0, opened: 0, engaged: 0, replied: 0, subjects: [] }
     const s = engagementScore(r)
     a.n++; a.score += s; a.opened += r.opened; a.engaged += (r.cta || r.demo || r.visited || r.clicked || r.replied) ? 1 : 0; a.replied += r.replied; a.positive = (a.positive || 0) + (r.positive ? 1 : 0)

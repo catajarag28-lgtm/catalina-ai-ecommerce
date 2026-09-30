@@ -22,5 +22,5 @@ export function schedulingUrl(env={}) {
 export function meetingNextStep(env={}) {
  const url=schedulingUrl(env)
  return url?`Puedes elegir tu horario con Catalina aquí: ${url}
-Al confirmarlo, Google te enviará a tu correo la invitación con el enlace de la videollamada.\nLa reunión es en español. Si necesitas otro idioma, acordemos primero comunicación escrita con traducción.`:'Para coordinar tu reunión en español, indícanos dos horarios y tu zona horaria. La reserva quedará pendiente hasta que recibas una confirmación; todavía no hay una cita agendada.'
+Al confirmarlo, Google te enviará a tu correo la invitación con el enlace de la videollamada. Para tomar notas precisas, la reunión puede grabarse; si prefieres que no se grabe, solo avísanos.\nLa reunión es en español. Si necesitas otro idioma, acordemos primero comunicación escrita con traducción.`:'Para coordinar tu reunión en español, indícanos dos horarios y tu zona horaria. La reserva quedará pendiente hasta que recibas una confirmación; todavía no hay una cita agendada.'
 }

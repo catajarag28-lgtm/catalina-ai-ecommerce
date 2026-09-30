@@ -12,6 +12,7 @@ import { qualificationStatus } from './core/qualification.js'
 import { skillContext } from './skills/chatSkills.js'
 import { notifyCatalina, leadEmail } from './core/notify.js'
 import { handleInbound } from './core/inbox.js'
+import { isMeetingMail, handleMeetingMail, learnedPlaybook } from './core/meetings.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -151,7 +152,8 @@ async function chat(request, env) {
   if (!session) return json({ error: 'Sesión no encontrada.' }, 404)
   const previous = await env.DB.prepare('SELECT role,content FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 12').bind(body.conversationId).all()
   const lead = await env.DB.prepare('SELECT data FROM leads WHERE conversation_id=?').bind(body.conversationId).first()
-  const context = [{ role: 'system', content: `${constitution}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${schedulingUrl(env) ? schedulingUrl(env) + ' (página oficial de reservas de Google Calendar de Catalina: el cliente elige horario y Google le envía a su correo la invitación con enlace de Meet y recordatorios; tú no confirmas la cita, la confirma Google)' : 'no disponible todavía: pide dos horarios con zona horaria y di que quedan pendientes de confirmación'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
+  const playbook = await learnedPlaybook(env).catch(() => '')
+  const context = [{ role: 'system', content: `${constitution}\n\n${playbook}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${schedulingUrl(env) ? schedulingUrl(env) + ' (página oficial de reservas de Google Calendar de Catalina: el cliente elige horario y Google le envía a su correo la invitación con enlace de Meet y recordatorios; tú no confirmas la cita, la confirma Google)' : 'no disponible todavía: pide dos horarios con zona horaria y di que quedan pendientes de confirmación'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
   let model
   try {
     model = await complete(env, context)
@@ -314,6 +316,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
   },
   // Correos que llegan a clientes@ (regla de Email Routing → este Worker).
   async email(message, env) {
+    if (isMeetingMail(message.to)) { try { console.log('meeting', JSON.stringify(await handleMeetingMail(message, env))) } catch (e) { console.error('meeting_failure', e?.message) } return }
     try { console.log('inbox', JSON.stringify(await handleInbound(message, env))) }
     catch (e) { console.error('inbox_failure', e?.message) }
   },

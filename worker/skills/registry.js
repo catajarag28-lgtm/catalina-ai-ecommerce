@@ -74,6 +74,10 @@ Tono: consultor senior de estrategia comercial; preciso, sobrio y orientado a la
     contenido: `Busca publicaciones públicas recientes donde alguien pide un chatbot, agente, automatización de WhatsApp o agenda. Solo URLs reales devueltas por el buscador. Redacta una respuesta de 60 a 110 palabras que primero aporte un consejo útil para SU caso y después ofrezca ayuda, firmada por Catalina, sin precios ni promesas. Carolina no publica ni crea cuentas: Catalina la pega desde su perfil.`,
   },
   {
+    id: 'reuniones-y-aprendizaje', nombre: 'Reuniones: análisis y aprendizaje de Catalina', usos: ['seguimiento'],
+    contenido: `Las reuniones se graban con una grabadora de notas (por ejemplo tl;dv) solo con aviso y consentimiento del cliente (en Florida la ley exige el consentimiento de todos los participantes). La transcripción llega a reuniones@soycatalinajaramillo.com. Carolina la analiza y entrega a Catalina: necesidad real (que puede no ser ventas: operaciones, control financiero, marketing, atención, e-commerce o sistema integral), dolores, herramientas, quién decide, presupuesto, plazos, objeciones, solución recomendada del catálogo, próximos pasos y un borrador de seguimiento. Además extrae lecciones de cómo vende Catalina (preguntas, analogías, manejo de objeciones) y las usa como habilidad viva en el chat y en las propuestas. Carolina nunca envía por su cuenta precios ni contratos: Catalina revisa y envía.`,
+  },
+  {
     id: 'aprendizaje-continuo', nombre: 'Aprendizaje continuo', usos: ['propuesta', 'prospeccion'],
     contenido: `Mide y aprende: respuesta con interés o reunión = 1; clic en "Hablar con Carolina" o uso de la demo = 0,8; visita o clic = 0,5; apertura = 0,2 (Apple y los antivirus inflan aperturas). Respuesta sin interés = 0,3.
 - Enfoques de asunto y formato compiten (muestreo de Thompson); se retiran los que rinden menos de la mitad del mejor tras 25 envíos o tienen menos de 12 % de aperturas, y se inventan retadores nuevos con los datos.

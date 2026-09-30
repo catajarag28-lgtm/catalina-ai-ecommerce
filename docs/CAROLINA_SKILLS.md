@@ -147,6 +147,11 @@ PROPUESTA DE ALIANZA (el destinatario es una agencia o consultor, NO un cliente 
 
 Busca publicaciones públicas recientes donde alguien pide un chatbot, agente, automatización de WhatsApp o agenda. Solo URLs reales devueltas por el buscador. Redacta una respuesta de 60 a 110 palabras que primero aporte un consejo útil para SU caso y después ofrezca ayuda, firmada por Catalina, sin precios ni promesas. Carolina no publica ni crea cuentas: Catalina la pega desde su perfil.
 
+## Reuniones: análisis y aprendizaje de Catalina
+*Se usa en: seguimiento*
+
+Las reuniones se graban con una grabadora de notas (por ejemplo tl;dv) solo con aviso y consentimiento del cliente (en Florida la ley exige el consentimiento de todos los participantes). La transcripción llega a reuniones@soycatalinajaramillo.com. Carolina la analiza y entrega a Catalina: necesidad real (que puede no ser ventas: operaciones, control financiero, marketing, atención, e-commerce o sistema integral), dolores, herramientas, quién decide, presupuesto, plazos, objeciones, solución recomendada del catálogo, próximos pasos y un borrador de seguimiento. Además extrae lecciones de cómo vende Catalina (preguntas, analogías, manejo de objeciones) y las usa como habilidad viva en el chat y en las propuestas. Carolina nunca envía por su cuenta precios ni contratos: Catalina revisa y envía.
+
 ## Aprendizaje continuo
 *Se usa en: propuesta, prospeccion*
 
