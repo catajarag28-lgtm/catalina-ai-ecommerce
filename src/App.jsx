@@ -32,7 +32,7 @@ function usePage(){const read=()=>PAGES[window.location.hash]||'home';const [pag
 
 export default function App(){
  const page=usePage()
- // /propuesta/<sector>: propuesta web por sector, destino del correo con marca.
+ // /sectores/<sector>: propuesta web por sector, destino del correo con marca.
  const proposalSlug=(window.location.pathname.match(/^\/propuesta\/([a-z-]+)/)||[])[1]
  const to=hash=>proposalSlug?`/${hash}`:hash
  return <>
@@ -138,3 +138,4 @@ function Pricing(){
   <div className="pricingCta"><a className="button dark" href="#carolina">Calcular el precio para mi negocio con Carolina <ArrowUpRight size={17}/></a></div>
  </section>
 }
+

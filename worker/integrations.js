@@ -67,6 +67,7 @@ export async function researchWebsite(url) {
     if (!res.ok || (res.headers.get('content-type') || '').indexOf('text/html') < 0) return { ok: false, reason: 'site_unavailable' }
     const html = (await res.text()).slice(0, 60000)
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3500)
-    return { ok: true, source: target.origin, publicText: text }
+    const publicEmails = [...new Set((html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []).map(e => e.toLowerCase()))]
+    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks: [...new Set([...html.matchAll(/href=["'](https:\/\/[^"'<>]+)["']/gi)].map(m => m[1].replace(/&amp;/g,'&')).filter(u => {try{return !/facebook|instagram|linkedin|twitter|youtube|workana|upwork/i.test(new URL(u).hostname)}catch{return false}}))].slice(0,30) }
   } catch { return { ok: false, reason: 'site_unavailable' } }
 }

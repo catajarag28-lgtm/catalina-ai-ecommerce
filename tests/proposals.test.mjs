@@ -12,11 +12,13 @@ test('proposal email escapes input and links to the personalized web proposal', 
   const mail = renderProposalEmail({ slug: 'spa', company: 'Aura <Spa> & Co', contactName: 'Ana María' })
   assert.match(mail.html, /Aura &lt;Spa&gt; &amp; Co/)
   assert.doesNotMatch(mail.html, /<Spa>/)
-  assert.match(mail.url, /\/propuesta\/spa\?empresa=Aura%20%3CSpa%3E%20%26%20Co$/)
+  assert.match(mail.url, /\/sectores\/spa\?empresa=Aura%20%3CSpa%3E%20%26%20Co$/)
   assert.match(mail.html, /Hola Ana,/)
   assert.doesNotMatch(mail.html, /garantiz|duplic/i)
 })
 
 test('unknown sector falls back to a valid proposal', () => {
-  assert.match(renderProposalEmail({ slug: 'nope' }).url, /\/propuesta\/spa$/)
+  assert.match(renderProposalEmail({ slug: 'nope' }).url, /\/sectores\/spa$/)
 })
+
+

@@ -268,3 +268,9 @@ footer{display:flex;justify-content:space-between;gap:20px;padding:26px 6vw;back
 @media(max-width:900px){.propPlan,.propPrices{grid-template-columns:1fr}}
 @media(max-width:700px){.propStep{grid-template-columns:1fr;gap:6px}.propHero{min-height:auto}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.reveal{opacity:1;transform:none}}
+/* Ficha previa de Carolina */
+.intakeForm{overflow:auto;padding:22px;flex:1;min-height:0;color:#e8dfd2}
+.intakeForm h3{margin:0 0 8px;font-size:1.2rem}.intakeForm>p{font-size:.88rem;line-height:1.5;color:#c2b6a4;margin:0 0 18px}
+.intakeGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.intakeGrid label{display:grid;gap:6px;font-size:.8rem;color:#d9c8b0}.intakeGrid input{width:100%;box-sizing:border-box;background:#28241d;border:1px solid #766349;border-radius:10px;color:#fff;padding:11px;font:inherit;font-size:16px}.intakeGrid input:focus{outline:2px solid #d7bd95;outline-offset:2px}
+.intakeForm .privacy{margin:18px 0;align-items:start}.intakeForm .diagStart{width:100%}
+@media(max-width:700px){.intakeGrid{grid-template-columns:1fr}.intakeForm{padding:18px}}

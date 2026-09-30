@@ -1,3 +1,4 @@
+import { salesStrategy, meetingNextStep } from './salesStrategy.js'
 // Buzón clientes@: Carolina lee cada correo entrante, responde a prospectos en el mismo hilo
 // y avisa a Catalina. Siempre se reenvía una copia íntegra a Catalina antes de cualquier otra cosa.
 import PostalMime from 'postal-mime'
@@ -44,7 +45,7 @@ async function decide(env, history, incoming) {
     method: 'POST',
     headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'X-Title': 'Carolina - Inbox' },
     body: JSON.stringify({ model: env.OPENROUTER_MODEL || 'google/gemini-3.1-flash-lite', temperature: 0.35, max_tokens: 900, messages: [
-      { role: 'system', content: `${constitution}\n\n${knowledge}\n\n${instructions}` },
+      { role: 'system', content: `${salesStrategy}\n\n${constitution}\n\n${knowledge}\n\n${instructions}` },
       { role: 'user', content: `Historial reciente con este remitente:\n${history || '(primer contacto)'}\n\nCORREO NUEVO\nDe: ${incoming.from}\nAsunto: ${incoming.subject}\n\n${incoming.text.slice(0, 6000)}` },
     ] }),
     signal: AbortSignal.timeout(25000),
@@ -95,6 +96,8 @@ export async function handleInbound(message, env) {
     await notifyCatalina(env, `Correo de ${from} sin respuesta automática`, `Carolina no pudo procesarlo (${e?.message}). Asunto: ${subject}\n\n${text.slice(0, 3000)}`)
     return { handled: false, reason: 'model_error' }
   }
+
+  if(decision.category==='meeting')decision.reply=meetingNextStep(env)+'\n\nCarolina\nAgente de IA · Catalina Jaramillo'
 
   let sent = null
   if (decision.reply) {

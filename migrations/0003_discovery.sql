@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS discovery_state (source_url TEXT PRIMARY KEY, next_index INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);

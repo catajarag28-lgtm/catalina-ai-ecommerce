@@ -33,7 +33,7 @@ export async function notifyCatalina(env, subject, text, replyTo) {
   }
 }
 
-const labels = { name: 'Nombre', company: 'Empresa', email: 'Email', phone: 'Teléfono / WhatsApp', business: 'Negocio', goal: 'Quiere mejorar', problem: 'Problema', tools: 'Herramientas', volume: 'Volumen mensual', timing: 'Cuándo empezar', budget: 'Presupuesto', recommendation: 'Recomendación de Carolina', note: 'Nota' }
+const labels = { name: 'Nombre', company: 'Empresa', email: 'Email', phone: 'Teléfono / WhatsApp', website: 'Web', social: 'Redes sociales', country: 'País', business: 'Negocio', goal: 'Quiere mejorar', problem: 'Problema', tools: 'Herramientas', volume: 'Volumen mensual', timing: 'Cuándo empezar', budget: 'Presupuesto', recommendation: 'Recomendación de Carolina', note: 'Nota' }
 
 export function leadEmail(lead) {
   const lines = Object.entries(labels).filter(([key]) => lead[key]).map(([key, label]) => `${label}: ${Array.isArray(lead[key]) ? lead[key].join(', ') : lead[key]}`)

@@ -10,7 +10,7 @@ const usd = n => 'USD ' + n.toLocaleString('es-CO')
 export function renderProposalEmail({ slug, company = '', contactName = '', note = '' } = {}) {
   const p = findProposal(slug) || proposals[0]
   const tier = catalog.find(c => c.id === p.tier)
-  const url = `${SITE}/propuesta/${p.slug}${company ? `?empresa=${encodeURIComponent(company)}` : ''}`
+  const url = `${SITE}/sectores/${p.slug}${company ? `?empresa=${encodeURIComponent(company)}` : ''}`
   const hello = contactName ? `Hola ${esc(contactName.split(' ')[0])},` : 'Hola,'
   const subject = company ? `${company}: ${p.hook}` : p.hook
   const bullets = p.agent.slice(0, 4).map(a => `<tr><td style="padding:6px 0;vertical-align:top;width:22px;color:#c8aa7c;font-size:15px;">&#10003;</td><td style="padding:6px 0;color:#3f3931;font-size:15px;line-height:1.5;">${esc(a)}</td></tr>`).join('')
@@ -59,3 +59,4 @@ export function renderProposalEmail({ slug, company = '', contactName = '', note
   const text = `${hello}\n\n${p.pain}\n\n${note ? note + '\n\n' : ''}Lo que un agente de IA diseñado para tu negocio haría:\n- ${p.agent.slice(0, 4).join('\n- ')}\n\nEmpezamos con un diagnóstico estratégico de USD 490 (se descuenta si implementas) o con ${tier.name.toLowerCase()}, desde ${usd(tier.fromUSD)}.\n\nPropuesta completa: ${url}\n\nCatalina Jaramillo\nsoycatalinajaramillo.com`
   return { subject, html, text, url }
 }
+
