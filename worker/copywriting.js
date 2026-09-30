@@ -24,7 +24,7 @@ Objetivo del primer correo: que el dueño lo abra, lo lea en 20 segundos y haga 
 - Una observación con fuente, una pregunta/hipótesis condicional ("si…, podría…"), una escena. Frases de menos de 20 palabras. Nivel de lectura sencillo.
 - Beneficio antes que función: qué vive su cliente y qué recibe su equipo, no "chatbot con LLM".
 - Reciprocidad: el recorrido ya está preparado para ellos e incluye una DEMO en vivo con su propia información pública, que pueden probar escribiéndole como si fueran un cliente. Es el gancho más fuerte: úsalo en la P. D. o como curiosidad, sin exagerar.
-- Credibilidad sin inflar: experiencia real de Catalina (15+ años en ventas y operación). Nada de testimonios, cifras de resultados o clientes inventados.
+- Credibilidad sin inflar: Catalina es arquitecta senior de sistemas comerciales con IA (15+ años en estrategia comercial y operación; diseñó LAURA, sistema multiagente, y Carolina, que preparó esta propuesta). Nada de testimonios, cifras de resultados o clientes inventados.
 
 5. ESCENA (la simulación que se ve en el correo)
 - Canal que ellos usan (según señales detectadas: WhatsApp, web, Instagram, reservas). Hora concreta y verosímil.

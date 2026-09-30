@@ -7,7 +7,7 @@ const e = escapeHtml
 const SITE = 'https://soycatalinajaramillo.com/'
 
 function validate(company, proposal, proposalUrl) {
-  const offer = catalog.find(o => ['esencial', 'ventas', 'ecommerce'].includes(o.id) && o.id === proposal.offer)
+  const offer = catalog.find(o => ['esencial', 'ventas', 'ecommerce', 'multiagente', 'acompanamiento'].includes(o.id) && o.id === proposal.offer)
   if (!offer || !proposal.observation || !proposal.hypothesis || !proposal.solution) throw new Error('invalid_proposal')
   if (!String(proposalUrl).startsWith(SITE)) throw new Error('invalid_proposal_url')
   return offer
@@ -51,7 +51,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
       '<p style="margin:0 0 16px">', e(proposal.hypothesis), '</p>',
       scene ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid #c6a26b;margin:0 0 16px"><tr><td style="padding:4px 0 4px 14px;color:#3c352c"><em>«' + e(scene.customer) + '»</em><br><span style="color:#7a5a30">&#8594; ' + e(scene.agent) + '</span><br><span style="font-size:13px;color:#81786b">Su equipo recibe: ' + e(scene.handoff) + '</span></td></tr></table>' : '<p style="margin:0 0 16px">' + e(proposal.example || '') + '</p>',
       '<p style="margin:0 0 16px">Preparé el recorrido completo para ', e(company), ' (2 minutos), con una demo que puede probar como si fuera su cliente: <a href="', e(proposalUrl), '" style="color:#7a5a30;font-weight:bold">verlo aquí</a>. Si le hace sentido, respóndame y lo conversamos.</p>',
-      '<p style="margin:0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">15+ años en ventas y operación · soycatalinajaramillo.com</span></p>', ps,
+      '<p style="margin:0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e IA · 15+ años · soycatalinajaramillo.com</span></p>', ps,
       '<p style="margin:26px 0 0;font:11px/1.5 Arial,sans-serif;color:#9a9186">', footer(opts.postal), '</p>',
       '</td></tr></table></td></tr></table></body></html>'].join('')
   }
@@ -75,7 +75,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
     scene ? '' : '<p style="margin:0 0 20px;font-size:17px;color:#2f2921">' + e(proposal.example || '') + '</p>',
     cta('Ver el recorrido de ' + company),
     '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Incluye una demo que puede probar escribiéndole como si fuera su cliente. Son 2 minutos; si no le interesa, basta con ignorar este correo.</p>',
-    '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">15+ años en ventas y operación</span></p>', ps,
+    '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e inteligencia artificial · 15+ años</span></p>', ps,
     '</td></tr>',
     '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr>',
     '</table></td></tr></table></body></html>'].join('')
@@ -137,6 +137,10 @@ h2{font:500 clamp(30px,4vw,46px)/1.1 'Cormorant Garamond',Georgia,serif;margin:1
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{background:transparent;border:1px solid #5b4b34;color:var(--gold2);border-radius:999px;padding:8px 12px;font:13px Manrope;cursor:pointer}
 .after{display:none;margin-top:14px;padding:16px;border-radius:16px;background:#2a2119;border:1px solid #5b4b34;color:var(--gold2);font-size:14px}.after a{color:var(--ivory);font-weight:700}
 @media(max-width:820px){.exec,.demo{grid-template-columns:1fr}.log{height:300px}}
+.timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}.timeline div{padding:18px 0 0;border-top:1px solid var(--gold)}.timeline b{display:block;font:500 26px 'Cormorant Garamond',serif;color:var(--gold2)}.timeline span{font-size:14px;color:#cbbfa9}
+.caps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}.caps div{padding:18px;border:1px solid var(--line);border-radius:14px;background:#17130f}.caps b{display:block;color:var(--ivory);font-size:15px;margin-bottom:6px}.caps span{font-size:13px;color:#b3a58f}
+.dark .card{background:#1c1813;border-color:var(--line);color:#cbbfa9}.dark .card b{color:var(--gold2);letter-spacing:.08em;font-size:13px}
+@media(max-width:820px){.timeline,.caps{grid-template-columns:1fr 1fr}}
 .cta{text-align:center;padding:90px 0}.btn{display:inline-block;padding:18px 30px;border-radius:999px;background:var(--gold);color:#1d1914;font-weight:700;text-decoration:none;box-shadow:0 12px 40px rgba(198,162,107,.35);transition:transform .2s}.btn:hover{transform:translateY(-2px)}
 .ghost{display:inline-block;margin-top:16px;color:var(--gold2);font-size:14px}
 footer{padding:28px 0 50px;font-size:12px;color:#8d7f6b;border-top:1px solid #2a231c}
@@ -162,7 +166,14 @@ ${demo ? `<section id="demo"><div class="wrap demo"><div><div class="eyebrow">Pr
 <section class="paper"><div class="wrap"><div class="eyebrow">Cómo lo exploraríamos</div><h2>Con su equipo al mando, paso a paso</h2><p style="max-width:70ch">${e(proposal.solution)}</p>
 <div class="steps">${phases.map(([t, d]) => `<div class="s"><b>${t}</b><span>${d}</span></div>`).join('')}</div>
 <p class="note">Siempre con supervisión humana: el agente no reemplaza a su equipo, le entrega contexto. Cualquier conexión con agenda, CRM o tienda se valida antes con ustedes. El alcance final se define tras conversar.</p></div></section>
-<section><div class="wrap who"><div class="mono">CJ</div><div><div class="eyebrow">Quién está detrás</div><h2 style="margin-bottom:10px">Catalina Jaramillo</h2><p style="color:#cbbfa9;max-width:64ch;margin:0">Más de 15 años dirigiendo ventas y operación en su propia empresa de estética: más de 7.500 clientas atendidas en sede y más de 9.000 pedidos en su tienda en línea. Hoy diseña agentes que atienden como lo haría un buen asesor: con el tono de la marca, información aprobada y paso a una persona cuando hace falta. Reuniones en español.</p></div></div></section>
+<section><div class="wrap"><div class="eyebrow">Quién diseña su sistema</div><h2>Estrategia comercial, operación e inteligencia artificial</h2>
+<div class="who"><div class="mono">CJ</div><p style="color:#cbbfa9;max-width:72ch;margin:0">Catalina Jaramillo diseña cómo debe vender, atender y operar una empresa, y dirige la construcción del sistema que lo hace realidad. Habla el idioma del dueño del negocio y el de la tecnología.</p></div>
+<div class="timeline">${[['2009', 'Directora comercial y de marketing de Biboban, empresa textil colombiana.'], ['2013', 'Consultora de empresas y expertos en servicio, equipos de ventas, cierre por WhatsApp, retención y lanzamientos (incluidos un referente de neuroventas en México y una marca de muebles en Ecuador).'], ['2018', 'Funda Professional Glam: tres sedes físicas en Colombia, empresa en Florida y tienda online con más de COP 1.000 millones en ventas en Shopify.*'], ['Hoy', 'Diseña sistemas de IA para empresas de EE. UU. y Latinoamérica, desde un agente puntual hasta la operación completa.']].map(([y, t]) => `<div><b>${y}</b><span>${t}</span></div>`).join('')}</div>
+<p class="eyebrow" style="margin-top:44px">Lo que diseñamos</p>
+<div class="caps">${[['Ventas', 'Respuesta 24/7, calificación, agenda y seguimiento de oportunidades.'], ['Atención y postventa', 'WhatsApp, redes y web; devoluciones, cancelaciones y escalamiento humano.'], ['E-commerce', 'Carritos abandonados, estado de pedidos, venta cruzada y recompra.'], ['Marketing y redes', 'Comentarios y mensajes que se convierten en oportunidades y nurturing.'], ['Crecimiento', 'Funnels, Meta Ads, remarketing, retención y analítica.'], ['Operaciones', 'Flujos automatizados entre formularios, CRM, WhatsApp, correo, agenda y reportes.'], ['Finanzas y control', 'Tableros de rentabilidad real, alertas de fugas y conciliación de pedidos y pagos.'], ['Sistema integral', 'Agentes coordinados bajo reglas, permisos y supervisión humana: la empresa como sistema.']].map(([t, d]) => `<div><b>${t}</b><span>${d}</span></div>`).join('')}</div>
+<p class="eyebrow" style="margin-top:44px">Sistemas en producción</p>
+<div class="two dark"><div class="card"><b>LAURA · SISTEMA MULTIAGENTE</b><p>Coordina ventas, atención, pedidos, postventa e inteligencia comercial en Professional Glam, con supervisión humana.</p></div><div class="card"><b>CAROLINA · AGENTE DE DESARROLLO COMERCIAL</b><p>Esta propuesta la preparó Carolina: encontró su negocio, estudió su web, diagnosticó oportunidades y la escribió para ${e(company)}. Así trabaja un sistema bien diseñado.</p></div></div>
+<p class="cap" style="margin-top:14px">* Resultados comerciales de Professional Glam (sedes físicas y Shopify), no atribuidos a la IA. Reuniones en español.</p></div></section>
 <section class="cta"><div class="wrap"><div class="eyebrow">Siguiente paso</div><h2 style="margin:12px auto 18px">¿Le gustaría ver cómo funcionaría con los casos reales de ${e(company)}?</h2>
 <p style="color:#cbbfa9;max-width:58ch;margin:0 auto 30px">Carolina le hace unas preguntas rápidas sobre su proceso. Si hay encaje, coordina una conversación de 20–30 minutos con Catalina. Sin compromiso.</p>
 <a class="btn" href="${talk}">Hablar con Carolina ahora</a><br><a class="ghost" href="${e(mail)}">o responder por correo</a></div></section>

@@ -9,7 +9,7 @@ import { notifyCatalina } from './notify.js'
 
 export { brandedProposal, escapeHtml }
 const SITE = 'https://soycatalinajaramillo.com'
-const offers = catalog.filter(o => ['esencial', 'ventas', 'ecommerce'].includes(o.id))
+const offers = catalog.filter(o => ['esencial', 'ventas', 'ecommerce', 'multiagente', 'acompanamiento'].includes(o.id))
 
 // Horario hábil del destinatario según su mercado (lun-vie, 8:00-17:00 locales).
 const zones = { 'EE. UU.': 'America/New_York', 'Puerto Rico': 'America/Puerto_Rico', 'México': 'America/Mexico_City', 'España': 'Europe/Madrid', 'Panamá': 'America/Panama', 'Colombia': 'America/Bogota', 'Rep. Dominicana': 'America/Santo_Domingo', 'Costa Rica': 'America/Costa_Rica', 'Chile': 'America/Santiago' }
@@ -45,11 +45,11 @@ async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model 
 
 const SPEC = `Devuelve SOLO JSON con esta forma:
 {"diagnosis":{"services":["servicios/productos reales que publican"],"channels":["cómo reciben clientes según la web y las señales"],"opportunities":[{"area":"atención|reservas|seguimiento|recompra|ventas","hypothesis":"condicional","value":"qué ganaría su cliente y su equipo"}],"fit":"alto|medio|bajo","why":"por qué este negocio podría invertir en esto o no (sin suponer presupuesto por país)"},
-"offer":"esencial|ventas|ecommerce",
+"offer":"esencial|ventas|ecommerce|multiagente|acompanamiento",
 "subject":"...","preview":"...","hook":"...","subhook":"1 frase","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
 "scene":{"channel":"WhatsApp|Web|Instagram|Reservas","time":"ej. Domingo · 9:40 p. m.","customer":"pregunta real de un cliente de este negocio, máx. 25 palabras","agent":"respuesta SOLO con datos públicos de su web, máx. 45 palabras; en salud/estética nunca número de sesiones, resultados, indicaciones ni idoneidad: solo logística (horarios, ubicación, cómo reservar, evaluación) y paso al equipo","handoff":"qué recibe su equipo, máx. 18 palabras"},
 "moments":[{"title":"Antes","text":"..."},{"title":"Durante","text":"..."},{"title":"Después","text":"..."}],
-"solution":"cómo lo exploraríamos, 2-3 frases, con supervisión humana","ps":"P. D. breve con bucle de curiosidad",
+"solution":"cómo lo exploraríamos, 2-3 frases, con supervisión humana. Elige la solución adecuada de TODO el rango según el diagnóstico (agente de atención/ventas, automatización de flujos, integración con CRM/agenda/tienda, tablero de control, sistema multiagente), no siempre un chatbot","ps":"P. D. breve con bucle de curiosidad",
 "executive":{"headline":"titular ejecutivo de 6-10 palabras","situation":"2 frases: cómo funciona hoy su captación/atención según la web","opportunity":"2 frases, condicional","approach":"2 frases: qué haríamos, por fases y con su equipo","measures":["3 indicadores concretos a medir, sin cifras prometidas, ej. tiempo de primera respuesta fuera de horario"]},
 "demoGreeting":"saludo del asistente demo con el nombre del negocio, máx. 20 palabras","demoPrompts":["3 preguntas cortas que haría un cliente real, sobre servicios publicados"]}
 Tono de consultor senior de estrategia comercial: preciso, sobrio, orientado a decisión. Nada de entusiasmo vacío.
@@ -89,7 +89,7 @@ async function prepare(env, row, research, angle) {
   if (![p.subject, p.hook, p.observation, p.hypothesis, p.solution].every(v => typeof v === 'string' && v.trim().length >= 12)) throw new Error('copy_incomplete')
   const remaining = lintCopy(p, row.company)
   if (remaining.length) throw new Error('copy_rejected: ' + remaining.join('; '))
-  p.offer = /(?:esencial|ventas|ecommerce)/i.exec(String(p.offer || ''))?.[0].toLowerCase() || 'esencial'
+  p.offer = /(?:multiagente|acompanamiento|esencial|ventas|ecommerce)/i.exec(String(p.offer || ''))?.[0].toLowerCase() || 'esencial'
   p.format = angle.format
   return p
 }
