@@ -169,7 +169,7 @@ export default {
         return json({ ok: true }, 200, cors)
       }
       if (url.pathname === '/lead' && request.method === 'POST') {
-        if (!(await rateLimit(env, request, 'lead', 8))) return json({ error: 'Has enviado varios formularios. Escríbenos a hola@soycatalinajaramillo.com.' }, 429, cors)
+        if (!(await rateLimit(env, request, 'lead', 8))) return json({ error: 'Has enviado varios formularios. Inténtalo de nuevo en una hora.' }, 429, cors)
         const raw = await request.text()
         if (raw.length > 8000) return json({ error: 'Datos demasiado largos.' }, 413, cors)
         const lead = cleanLead(safeJson(raw))

@@ -1,13 +1,6 @@
 // Catálogo comercial único: lo usan la página, /precios, el diagnóstico guiado y el Worker de Carolina.
 // Cambiar un precio aquí lo cambia en todas partes.
 
-export const CONTACT = {
-  // Número en formato internacional sin "+" ni espacios, p. ej. '573001234567'. Vacío = los botones usan email.
-  whatsapp: '',
-  email: 'hola@soycatalinajaramillo.com',
-  bookingUrl: '',
-}
-
 export const launchBonus = 'Primeros 10 clientes: primer mes de mantenimiento incluido y diagnóstico sin costo al contratar la implementación.'
 
 export const catalog = [
@@ -87,23 +80,4 @@ export function recommend(a) {
     diagnosisFirst,
     next: diagnosisFirst ? `Si prefieres ir paso a paso, el diagnóstico estratégico (USD 490) te deja un plan escrito y se descuenta si contratas.` : 'El siguiente paso es una conversación de 30 minutos con Catalina para validar herramientas y alcance.',
   }
-}
-
-export function summaryText(a, r) {
-  return [
-    'Hola Catalina, hice el diagnóstico con Carolina en tu página.',
-    `Negocio: ${a.business}`,
-    `Quiero mejorar: ${a.goal}`,
-    `Uso hoy: ${(a.tools || []).join(', ') || 'no indiqué'}`,
-    `Volumen: ${a.volume} al mes`,
-    `Empezar: ${a.timing}`,
-    a.note ? `Detalle: ${a.note}` : null,
-    `Recomendación: ${r.name} (${r.range})`,
-    'Me gustaría agendar una conversación.',
-  ].filter(Boolean).join('\n')
-}
-
-export function contactLink(text, subject = 'Quiero hablar contigo') {
-  if (CONTACT.whatsapp) return { href: `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(text)}`, channel: 'WhatsApp' }
-  return { href: `mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, channel: 'correo' }
 }
