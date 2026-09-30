@@ -54,7 +54,8 @@ const SPEC = `Devuelve SOLO JSON con esta forma:
 "executive":{"headline":"titular ejecutivo de 6-10 palabras","situation":"2 frases: cómo funciona hoy su captación/atención según la web","opportunity":"2 frases, condicional","approach":"2 frases: qué haríamos, por fases y con su equipo","measures":["3 indicadores concretos a medir, sin cifras prometidas, ej. tiempo de primera respuesta fuera de horario"]},
 "demoGreeting":"saludo del asistente demo con el nombre del negocio, máx. 20 palabras","demoPrompts":["3 preguntas cortas que haría un cliente real, sobre servicios publicados"]}
 Tono de consultor senior de estrategia comercial: preciso, sobrio, orientado a decisión. Nada de entusiasmo vacío.
-fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene demanda visible o nada del catálogo encaja.`
+fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene demanda visible o nada del catálogo encaja.
+Antes de redactar, construye un diagnóstico con tres hechos concretos de su web, el recorrido visible de captación, atención, reserva, venta o postventa, las automatizaciones que sí aparecen y una oportunidad que no aparece resuelta públicamente. Puedes decir «no encontré una señal pública de…», nunca afirmar «no tiene» solo por ausencia. Después recomienda una sola automatización prioritaria y explica el beneficio para sus clientes y su equipo. El asunto debe unir el hecho observado con esa oportunidad; no uses una hora, un día, un nombre de servicio aislado ni una pregunta genérica.`
 
 async function prepare(env, row, research, angle) {
   const learning = await learningExamples(env).catch(() => ({ good: [], bad: [] }))
@@ -246,4 +247,5 @@ export async function runHotFollowup(env, now = Date.now()) {
   await notifyCatalina(env, `Carolina invitó a ${row.company} a reunirse contigo`, `Señal: ${signal === 'demo' ? 'probó la demo' : signal === 'cta' ? 'pidió hablar con Carolina' : 'vio su propuesta'}.\nCarolina les escribió en el mismo hilo con el enlace para agendar. Si agendan, te llega la cita.\n\nTeléfono publicado (solo si quieres llamar tú): ${phones || 'no publicado'}\nPropuesta: ${SITE}/propuesta/${row.id}`).catch(() => {})
   return { sent: true, company: row.company, signal }
 }
+
 
