@@ -35,6 +35,7 @@
     "FREELANCER_DAILY_BID_LIMIT": "8",
     "MARKETPLACE_MIN_USD": "750",
     "UPWORK_SUBMIT_PROPOSAL_ENABLED": "",
+    "UPWORK_ADAPTER_READY": "",
     "GOOGLE_BOOKING_URL": "https://calendar.google.com/calendar/appointments/schedules/AcZssZ28En8b9c0EF2eETvQZOqyzsM1NcZSjhcwn-Zs12LMk7scnE1Mzf5ofci45A9K6AdG4yNo7gZOq?gv=true",
     "SENDER_POSTAL_ADDRESS": "Catalina Jaramillo · 14818 SW 180th Terrace, Miami, FL 33187, USA"
   },
