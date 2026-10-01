@@ -135,7 +135,7 @@ function Pricing(){
   <div className="priceTable">{catalog.map(c=><article key={c.id}><div><h3>{c.name}</h3><p>{c.gets}</p>{c.note&&<p className="priceNote">{c.note}</p>}<p className="priceEx">No incluye: {c.excludes}</p></div><b>{c.price}</b></article>)}</div>
   <div className="priceExtras"><div><h3>Mantenimiento mensual</h3><p><b>USD {maintenance.esencial}/mes</b> Revenue Agent Sprint · <b>USD {maintenance.avanzado}/mes</b> ventas, e-commerce o automatizaciones dentro del alcance contratado.</p><p>{maintenance.includes}</p><p className="priceEx">{maintenance.excludes}</p></div>
    <div><h3>Qué necesito de ti</h3><p>Acceso a tus herramientas (WhatsApp Business, tienda, agenda o CRM), tus preguntas frecuentes, precios y políticas, y una persona de tu equipo para validar las pruebas.</p><h3>Cómo sabemos que funciona</h3><p>Antes de lanzar, acordamos casos de prueba reales. El agente se entrega cuando los resuelve bien.</p></div></div>
-  <div className="pricingCta"><a className="button dark" href="#carolina">Calcular el precio para mi negocio con Carolina <ArrowUpRight size={17}/></a></div>
+  <div className="pricingCta"><a className="button dark" href="#carolina">Calcular el precio para mi negocio con Carolina <ArrowUpRight size={17}/></a><a className="profilePortfolio" href="https://wa.me/17869299442?text=Hola%20Catalina%2C%20quiero%20hablar%20sobre%20un%20sistema%20de%20IA%20para%20mi%20empresa." target="_blank" rel="noreferrer">Escribir a Catalina por WhatsApp <ArrowUpRight size={15}/></a></div>
  </section>
 }
 
