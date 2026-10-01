@@ -24,7 +24,9 @@ const safe=v=>String(v??'').trim()
 const num=v=>Number.isFinite(Number(v))?Number(v):null
 
 export function freelancerReady(env={}) {
-  return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' && !!env.FREELANCER_OAUTH_TOKEN
+  return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' &&
+    env.FREELANCER_BID_SCOPE_VERIFIED==='true' &&
+    !!env.FREELANCER_OAUTH_TOKEN
 }
 export function freelancerBidAllowance(env={},hasSubmitted=false) {
   if(env.FREELANCER_FIRST_BID_VERIFIED!=='true') return hasSubmitted ? 0 : 1
@@ -190,6 +192,8 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     upwork:{ready:upworkReady(env),submitted:0,reason:upworkReady(env)?'ready':'official_api_adapter_or_submit_permission_missing'},
     workana:{ready:false,submitted:0,reason:'no_official_submission_api; automated robots and off-platform contact are not used'},
   }
+  if(!env.FREELANCER_OAUTH_TOKEN) { out.freelancer.reason='oauth_token_missing'; return out }
+  if(env.FREELANCER_BID_SCOPE_VERIFIED!=='true') { out.freelancer.reason='bid_management_scope_not_verified'; return out }
   if(!freelancerReady(env)||!env.OPENROUTER_API_KEY) return out
 
   const firstSubmission=await env.DB.prepare("SELECT 1 FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' LIMIT 1").first()
@@ -260,5 +264,10 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
 export async function marketplaceSnapshot(env) {
   await ensureTable(env)
   const rows=await env.DB.prepare("SELECT platform,status,COUNT(*) n FROM marketplace_submissions GROUP BY platform,status").all()
-  return {freelancerReady:freelancerReady(env),upworkReady:upworkReady(env),stats:rows.results||[]}
+  return {
+    freelancerReady:freelancerReady(env),
+    freelancerBidScopeVerified:env.FREELANCER_BID_SCOPE_VERIFIED==='true',
+    upworkReady:upworkReady(env),
+    stats:rows.results||[]
+  }
 }
