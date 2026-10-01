@@ -303,3 +303,18 @@ export async function runHotFollowup(env, now = Date.now()) {
 
 
 
+
+export async function recoverCopyRejected(env, now = Date.now()) {
+  const rows = (await env.DB.prepare("SELECT id FROM outreach WHERE status='review' AND error LIKE 'copy_rejected%' AND (suppressed IS NULL OR suppressed=0) ORDER BY updated_at LIMIT 30").all().catch(() => ({ results: [] }))).results || []
+  let recovered = 0
+  for (const row of rows) {
+    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events WHERE outreach_id=? AND type='copy.retry'").bind(row.id).first().catch(() => ({ n: 0 }))
+    if (Number(n?.n || 0) >= 2) continue
+    const c = await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE id=? AND status='review'").bind(now, row.id).run()
+    if (c.meta.changes) {
+      recovered++
+      await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'copy.retry',?)").bind(`copy-retry-${row.id}-${Number(n?.n || 0) + 1}`, row.id, now).run()
+    }
+  }
+  return { recovered }
+}

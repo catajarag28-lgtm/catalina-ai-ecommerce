@@ -70,7 +70,7 @@ Regla de selección: genera varias oportunidades internamente, puntúalas por do
 
 RECORRIDO QUE CAROLINA DEBE ANALIZAR:
 1) Entrada del lead: web, formularios, portales, Meta Ads, Instagram, WhatsApp, QR/open house u otras fuentes publicadas.
-2) Calificación: comprar o arrendar; rango de presupuesto; zonas; tipo de propiedad; habitaciones/características; fecha objetivo; forma de pago o preaprobación solo como dato declarado, nunca asesoría financiera.
+2) Calificación: comprar o arrendar (arrendamientos); rango de presupuesto; zonas; tipo de propiedad; habitaciones/características; fecha objetivo; forma de pago o preaprobación solo como dato declarado, nunca asesoría financiera.
 3) Matching: recomendar SOLO propiedades provenientes del inventario real/aprobado del cliente. Nunca inventar disponibilidad, precio, metraje o características.
 4) Experiencia visual: si el cliente dispone de fotos, fichas, tours o videos aprobados, el agente puede compartirlos y preguntar cuáles 2–3 inmuebles desea conocer.
 5) Agenda: conectar calendario del agente/equipo, proponer horarios reales, reservar visitas, confirmar, recordar, reprogramar y recuperar no-shows según reglas acordadas.
@@ -145,4 +145,5 @@ export function skillsMarkdown() {
   return ['# Habilidades de Carolina', '', 'Generado desde `worker/skills/registry.js`. No editar a mano.', '',
     ...carolinaSkills.flatMap(s => [`## ${s.nombre}`, `*Se usa en: ${s.usos.join(', ')}*`, '', s.contenido, ''])].join('\n')
 }
+
 
