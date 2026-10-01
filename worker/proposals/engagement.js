@@ -87,36 +87,79 @@ export async function checkOutreachHealth(env, now=Date.now()) {
 
 export async function sendDailyOutreachReport(env, now=Date.now()) {
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now).map(part=>[part.type,part.value]))
-  if (Number(parts.hour)!==18 || new Intl.DateTimeFormat('en-US',{timeZone:'America/Bogota',weekday:'short'}).format(now)!=='Mon') return {due:false}
+  if (Number(parts.hour)!==18) return {due:false}
   const day=parts.year+'-'+parts.month+'-'+parts.day
-  const sent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=?").bind(now-7*86400000).first()
-  if (!(sent?.n||0)) return {due:false}
-  const result=await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('report-'+day,'system','report.sent',now).run()
+  const start=new Date(day+'T00:00:00-05:00').getTime()
+  const result=await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('daily-report-'+day,'system','report.sent',now).run()
   if (!result.meta.changes) return {due:false}
-  const stats=await outreachSnapshot(env,now-7*86400000)
+
+  const stats=await outreachSnapshot(env,start)
   const tracked=!!(await webhookSecret(env))
-  const cta=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='cta.clicked' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(now-7*86400000).first()
-  const angles=(await env.DB.prepare("SELECT id,name,status FROM outreach_angles ORDER BY status,created_at").all()).results||[]
+  const cta=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='cta.clicked' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
+  const chats=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='chat.started' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
+  const bookings=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='booking.opened' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
   const control=await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
-  const byAngle=await env.DB.prepare("SELECT angle,COUNT(*) AS n,SUM(CASE WHEN status='replied' THEN 1 ELSE 0 END) AS replies FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=? GROUP BY angle").bind(now-7*86400000).all()
+
+  const sentRows=(await env.DB.prepare("SELECT id,company,email,subject,status,sent_at FROM outreach WHERE sent_at>=? AND id NOT LIKE 'test-%' ORDER BY sent_at DESC LIMIT 40").bind(start).all()).results||[]
+  const proposals=sentRows.map((x,i)=>[
+    `${i+1}. ${x.company}`,
+    `   Estado: ${x.status}`,
+    `   Email: ${x.email}`,
+    `   Asunto: ${x.subject}`,
+    `   Propuesta: https://soycatalinajaramillo.com/propuesta/${x.id}`,
+  ].join('\n'))
+
+  let intent=[]
+  try { intent=(await env.DB.prepare("SELECT platform,who,need,fit,status,url,reply FROM intent_leads WHERE found_at>=? ORDER BY found_at DESC LIMIT 30").bind(start).all()).results||[] } catch {}
+  let market=[]
+  try { market=(await env.DB.prepare("SELECT platform,title,status,amount,currency,url,proposal,provider_id,error FROM marketplace_submissions WHERE created_at>=? ORDER BY created_at DESC LIMIT 30").bind(start).all()).results||[] } catch {}
+
+  const marketplaceLines=market.length?market.map((x,i)=>[
+    `${i+1}. ${String(x.platform||'').toUpperCase()} · ${x.title||''}`,
+    `   Estado REAL: ${x.status}${x.provider_id?' · ID confirmado: '+x.provider_id:''}`,
+    x.amount?`   Oferta: ${x.currency||''} ${x.amount}`:null,
+    x.url?`   Enlace: ${x.url}`:null,
+    x.proposal?`   Texto enviado/borrador: ${String(x.proposal).slice(0,1200)}`:null,
+    x.error?`   Nota: ${String(x.error).slice(0,300)}`:null,
+  ].filter(Boolean).join('\n')):['Ninguna postulación de marketplace registrada hoy.']
+
+  const intentLines=intent.length?intent.map((x,i)=>[
+    `${i+1}. ${String(x.platform||'').toUpperCase()} · ${x.fit||''} · estado ${x.status||'new'}`,
+    `   Quién: ${x.who||'s/d'}`,
+    `   Busca: ${x.need||''}`,
+    `   Enlace: ${x.url||''}`,
+    `   Borrador: ${String(x.reply||'').slice(0,900)}`,
+  ].join('\n')):['Ninguna oportunidad por intención encontrada hoy.']
+
   const lines=[
-    'Semana hasta '+day,
-    'Enviados: '+stats.sent,
-    'Entregados confirmados: '+stats.delivered,
+    'CAROLINA · REPORTE DIARIO DE ADQUISICIÓN · '+day,
+    '',
+    'EMAIL OUTBOUND',
+    'Propuestas nuevas enviadas: '+stats.sent,
+    'Entregadas confirmadas: '+stats.delivered,
     'Aperturas registradas: '+(tracked?stats.opened:'sin webhook verificado'),
     'Clics registrados: '+(tracked?stats.clicked:'sin webhook verificado'),
     'Visitas a propuesta: '+stats.visited,
-    'Quieren hablar con Carolina (clic en el botón): '+(cta?.n||0),
-    'Respuestas: '+stats.replied,
+    'Clic en Hablar con Carolina: '+(cta?.n||0),
+    'Conversaciones iniciadas con Carolina: '+(chats?.n||0),
+    'Agenda abierta: '+(bookings?.n||0),
+    'Respuestas por email: '+stats.replied,
     'Rebotes: '+stats.bounced+' · Quejas: '+stats.complained,
-    'Estado: '+(control?.paused?'PAUSADO · '+control.reason:(env.OUTREACH_ENABLED==='true'?'activo':'envíos desactivados')),
-    'Asuntos por enfoque: '+(byAngle.results||[]).map(x=>x.angle+': '+x.n+' enviados, '+x.replies+' respuestas').join('; '),
-    'Enfoques activos: '+angles.filter(a=>a.status==='active').map(a=>a.name).join(', '),
+    'Estado outreach: '+(control?.paused?'PAUSADO · '+control.reason:(env.OUTREACH_ENABLED==='true'?'ACTIVO':'DESACTIVADO')),
     '',
-    'Apertura significa descarga de imagen, no lectura. Visita y clic pueden incluir escáneres. Evalúa principalmente respuestas y reuniones verificadas.'
+    'PROPUESTAS ENVIADAS HOY',
+    ...(proposals.length?proposals:['Ninguna propuesta nueva enviada hoy.']),
+    '',
+    'MARKETPLACES · POSTULACIONES REALES',
+    ...marketplaceLines,
+    '',
+    'OPORTUNIDADES ENCONTRADAS · TODAVÍA NO EQUIVALEN A POSTULACIÓN',
+    ...intentLines,
+    '',
+    'Regla: found/new = solo encontrada; submitted + provider_id = realmente enviada por API; replied = respuesta recibida.',
   ]
-  await notifyCatalina(env,'Informe semanal de Carolina · '+day,lines.join('\n'))
-  return {sent:true}
+  await notifyCatalina(env,'Carolina · reporte diario de adquisición · '+day,lines.join('\n'))
+  return {sent:true,emailSent:stats.sent,marketplace:market.length,intent:intent.length}
 }
 
 // Crea (una sola vez) el webhook de Resend desde el servidor y guarda la clave de firma en D1:
