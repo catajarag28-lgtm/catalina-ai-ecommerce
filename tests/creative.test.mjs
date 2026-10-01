@@ -158,3 +158,31 @@ test('Scenes adapt to the solution: workflow and dashboard render without chat d
   assert.ok(lintCopy({ ...board, scene: { ...board.scene, tiles: ['Ventas 45%', 'x', 'y'] } }).some(x => x.includes('cifras')))
 })
 
+
+
+test('Copy length no longer rejects a researched email merely for exceeding 110 words', () => {
+  const filler = Array(55).fill('contexto').join(' ')
+  const issues = lintCopy({ ...good, ps: filler }, 'Ava')
+  assert.ok(!issues.some(x => x.includes('110 palabras')))
+  assert.ok(!issues.some(x => x.includes('180 palabras')))
+})
+
+test('Personalized proposal renders a phased sector roadmap', () => {
+  const proposal = { ...good, roadmap: [
+    { level: 'Base', title: 'Calificación inicial', items: ['WhatsApp', 'Calificación', 'Handoff'] },
+    { level: 'Crecimiento', title: 'CRM y visitas', items: ['Inventario', 'Agenda', 'Seguimiento'] },
+    { level: 'Sistema integral', title: 'Operación comercial', items: ['Routing', 'Dashboard', 'Alertas'] },
+  ] }
+  const page = renderProposalPage({ id: 'abcdefghijklmnopqrstu', company: 'Inmobiliaria Demo', proposal, subject: 's', nonce: 'n', demo: false })
+  assert.ok(page.includes('De un piloto útil a un sistema completo'))
+  assert.ok(page.includes('Calificación inicial') && page.includes('CRM y visitas') && page.includes('Operación comercial'))
+})
+
+test('Carolina includes a real-estate sector playbook and prioritized real-estate segments', () => {
+  assert.ok(skill('playbook-inmobiliario').includes('inventario real'))
+  assert.ok(skill('playbook-inmobiliario').includes('agenda'))
+  assert.ok(skill('playbook-inmobiliario').includes('arrendamientos'))
+  for (const id of ['miami-realestate','tx-realestate','pr-realestate','pa-realestate','mx-realestate','do-realestate']) {
+    assert.ok(segments.some(s => s.id === id), id)
+  }
+})
