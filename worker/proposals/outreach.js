@@ -45,7 +45,7 @@ async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model 
 }
 
 const SPEC = `Devuelve SOLO JSON con esta forma:
-{"diagnosis":{"services":["servicios/productos reales que publican"],"channels":["cómo reciben clientes según la web y las señales"],"opportunities":[{"area":"atención|reservas|seguimiento|recompra|ventas","hypothesis":"condicional","value":"qué ganaría su cliente y su equipo"}],"fit":"alto|medio|bajo","why":"por qué este negocio podría invertir en esto o no (sin suponer presupuesto por país)"},
+{"diagnosis":{"services":["servicios/productos reales que publican"],"channels":["cómo reciben clientes según la web y las señales"],"opportunities":[{"area":"atención|reservas|seguimiento|recompra|ventas|ecommerce|marketing|operaciones|control","moneyMoment":"momento comercial concreto donde ocurre","hypothesis":"condicional","value":"qué ganaría su cliente y su equipo","recommendedCapability":"agente|automatización|software|integración|shopify|meta-leads|crm|dashboard|multiagente"}],"fit":"alto|medio|bajo","why":"por qué este negocio podría invertir en esto o no (sin suponer presupuesto por país)"},
 "offer":"esencial|ventas|ecommerce|multiagente|acompanamiento",
 "subject":"...","preview":"...","hook":"...","subhook":"1 frase","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
 "scene": ELIGE el tipo según la solución priorizada. Conversación (atención/ventas): {"type":"chat","channel":"WhatsApp|Web|Instagram|Reservas","time":"ej. Domingo · 9:40 p. m.","customer":"pregunta real de un cliente de este negocio, máx. 25 palabras","agent":"respuesta SOLO con datos públicos de su web, máx. 45 palabras; en salud/estética nunca número de sesiones, resultados, indicaciones ni idoneidad: solo logística (horarios, ubicación, cómo reservar, evaluación) y paso al equipo","handoff":"qué recibe su equipo, máx. 18 palabras"}. Flujo automatizado (operaciones, seguimiento, postventa, reportes): {"type":"flujo","title":"nombre del flujo","steps":[{"when":"disparador o momento","what":"qué pasa, máx. 16 palabras"}] (3-5 pasos con SUS herramientas y procesos publicados)}. Tablero (finanzas, control, dirección, varias sedes): {"type":"tablero","title":"","tiles":["3-4 indicadores con nombre, SIN cifras"],"alert":"ejemplo de alerta útil, sin cifras"},
@@ -70,7 +70,7 @@ async function prepare(env, row, research, angle) {
     SPEC].filter(Boolean).join('\n\n')
   const user = JSON.stringify({ company: row.company, website: row.website, pages: research.pages, signals: research.signals, publicText: research.publicText, dossier: row.dossier, catalogo: offers.map(o => ({ id: o.id, name: o.name, gets: o.gets, excludes: o.excludes })) })
   let p = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }])
-  // Autocrítica: un director creativo puntúa; si algo baja de 7, Carolina reescribe una vez.
+  // Autocrítica adversarial: Carolina solo publica copy sobresaliente; 7/10 ya no es suficiente.
   let critiqueError = null
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500 }).catch(e => { critiqueError = e.message; return null })
@@ -83,8 +83,20 @@ async function prepare(env, row, research, angle) {
   p.critique = critique?.scores || null
   p.critiqueIssues = critique?.issues || []
   if (critiqueError) p.critiqueError = critiqueError
+  // Quality gate final: aunque el modelo haya reescrito, no enviamos una pieza mediocre.
+  // Credibilidad debe ser casi perfecta; especificidad/claridad/CTA >=9; curiosidad/deseo >=8.
+  if (p.critique) {
+    const s = p.critique
+    if ((s.especificidad || 0) < 9 || (s.claridad || 0) < 9 || (s.credibilidad || 0) < 9 || (s.cta || 0) < 9 || (s.curiosidad || 0) < 8 || (s.deseo || 0) < 8) {
+      throw new Error('low_fit: copy no supera quality gate comercial')
+    }
+  } else if (!critiqueError) {
+    throw new Error('low_fit: autocrítica comercial ausente')
+  }
   if (p.diagnosis?.fit !== 'alto') throw new Error('low_fit: el encaje no es suficientemente claro para correo frío')
   if (!Array.isArray(p.diagnosis?.opportunities) || p.diagnosis.opportunities.length !== 1) throw new Error('low_fit: debe existir una sola oportunidad prioritaria')
+  const opp = p.diagnosis.opportunities[0]
+  if (!opp?.moneyMoment || String(opp.moneyMoment).trim().length < 12 || !opp?.recommendedCapability) throw new Error('low_fit: falta money moment o capacidad recomendada')
   const ex = p.executive || {}
   if (![ex.situation, ex.opportunity, ex.approach].every(v => typeof v === 'string' && v.trim().length >= 20) || !Array.isArray(ex.measures) || ex.measures.length < 2) throw new Error('low_fit: diagnóstico ejecutivo incompleto')
   if (!evidenceFound(research.publicText, p.evidence)) {
