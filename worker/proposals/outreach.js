@@ -140,6 +140,9 @@ function internalBrief(row, research, proposal, angle, sendId) {
   const offer = catalog.find(o => o.id === proposal.offer)
   const d = proposal.diagnosis || {}
   return [
+    '⚠ CONTROL INTERNO DE CAROLINA — ESTE NO ES EL EMAIL QUE RECIBIÓ EL PROSPECTO.',
+    'El prospecto recibió el HTML visual de la propuesta. Este mensaje solo resume diagnóstico, evidencia y trazabilidad para Catalina.',
+    '',
     row.kind === 'partner' ? '🤝 PROPUESTA DE ALIANZA (agencia/consultor): la comisión la defines tú en la reunión.' : '',
     `Empresa: ${row.company}`, proposal.contactName ? `Decisor público: ${proposal.contactName}${proposal.contactRole ? ' · ' + proposal.contactRole : ''}` : 'Decisor público: no identificado en la web', `Contacto verificado: ${row.email} (publicado en ${row.source_url})`, `Teléfono/WhatsApp publicado: ${(research.publicPhones || []).join(' · ') || 'no publicado'}`, `Web: ${row.website}`, `Mercado: ${regionOf(row) || 's/d'}`, '',
     `ASUNTO: ${proposal.subject}`, `Vista previa: ${proposal.preview}`, `Enfoque: ${angle.name} (${angle.format})`, proposal.critique ? `Autocrítica: ${Object.entries(proposal.critique).map(([k, v]) => k + ' ' + v).join(' · ')}` : '', '',
@@ -212,10 +215,10 @@ export async function runOutreach(env, now = Date.now()) {
     if (!response.ok || !result.id) throw new Error('send_not_confirmed')
     await env.DB.prepare("UPDATE outreach SET status='sent',provider_id=?,sent_at=?,updated_at=? WHERE id=?").bind(result.id, Date.now(), Date.now(), row.id).run()
     await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(row.email, 'out', 'clientes@soycatalinajaramillo.com', row.email, subject, html, result.id, 'outreach', Date.now()).run()
-    await notifyCatalina(env, `Propuesta enviada: ${row.company} · «${subject}»`, internalBrief(row, research, proposal, angle, result.id)).catch(() => {})
+    await notifyCatalina(env, `CONTROL INTERNO · propuesta enviada a ${row.company} · «${subject}»`, internalBrief(row, research, proposal, angle, result.id)).catch(() => {})
     // La copia usa otro ID de Resend: sus rebotes no alteran el estado del prospecto.
     if (env.CATALINA_EMAIL) {
-      const copy = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `outreach-copy-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.CATALINA_EMAIL], subject: `Copia de propuesta a ${row.company}: ${subject}`.slice(0, 200), html, text }), signal: AbortSignal.timeout(12000) }).catch(() => null)
+      const copy = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `outreach-copy-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.CATALINA_EMAIL], subject: `COPIA EXACTA · así la recibió ${row.company}: ${subject}`.slice(0, 200), html, text }), signal: AbortSignal.timeout(12000) }).catch(() => null)
       if (!copy?.ok) console.error('outreach_copy_failure', row.id)
     }
     return { sent: true, angle: angle.id, followup: followed?.sent || false, followupStage: followed?.stage || null }
