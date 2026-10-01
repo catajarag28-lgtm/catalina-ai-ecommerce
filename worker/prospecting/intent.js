@@ -17,7 +17,7 @@ export const intentQueries = [
   'site:upwork.com/jobs "AI automation" CRM sales customer service',
   'site:upwork.com/jobs "AI agent" WhatsApp Shopify appointment booking',
   'site:upwork.com/jobs "workflow automation" n8n Make Zapier CRM',
-  'site:workana.com automatización WhatsApp inteligencia artificial ventas',
+  'site:upwork.com/jobs "WhatsApp automation" CRM appointment setter AI',
   'site:freelancer.com AI automation CRM chatbot WhatsApp project',
 ]
 
@@ -61,7 +61,7 @@ export async function runIntentScan(env, now = Date.now()) {
   if (!fresh.length) return { due: true, found: 0 }
   fresh.sort((a, b) => (a.fit === 'alto' ? 0 : 1) - (b.fit === 'alto' ? 0 : 1))
   await notifyCatalina(env, `🎯 ${fresh.length} personas pidiendo lo que vendes`, [
-    'Carolina encontró publicaciones públicas donde alguien ya pide automatización, agentes, CRM, Shopify o software con IA. Upwork/Workana/Freelancer se preparan como propuesta, pero el envío se hace desde tu cuenta mientras no exista API oficial autorizada.',
+    'Carolina encontró demanda pública de automatización, agentes, CRM, Shopify o software con IA. Freelancer se postula automáticamente cuando el OAuth oficial está conectado. Upwork se automatizará solo con API oficial y permiso Submit Proposal. Workana no se automatiza ni se saca a WhatsApp porque sus reglas lo prohíben.',
     'Abre el enlace, lee la publicación y pega la respuesta sugerida desde tu cuenta (ajústala si quieres). Carolina no publica por ti porque las plataformas lo prohíben.', '',
     ...fresh.map((p, i) => `${i + 1}. [${p.fit === 'alto' ? '🔥 alto' : 'medio'}] ${p.platform || ''} ${p.date ? '· ' + p.date : ''}\n   Quién: ${p.who || 's/d'}\n   Qué pide: ${p.need}\n   Enlace: ${p.url}\n   Respuesta sugerida:\n   ${String(p.reply).replace(/\n/g, '\n   ')}\n`),
   ].join('\n')).catch(() => {})
