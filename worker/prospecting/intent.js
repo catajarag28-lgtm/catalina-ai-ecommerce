@@ -1,6 +1,6 @@
-// Prospección por intención: publicaciones públicas donde alguien YA pide lo que Catalina ofrece
-// (foros, Reddit, grupos públicos, proyectos en Workana/Freelancer). Carolina solo lee resultados de búsqueda
-// y redacta la respuesta; no publica ni inicia sesión en plataformas (lo hace Catalina desde su cuenta).
+// Prospección por intención: publicaciones públicas donde alguien YA pide lo que Catalina ofrece.
+// Este módulo descubre y redacta. El ejecutor oficial de marketplaces vive en marketplaces.js:
+// Freelancer puede postular por API con OAuth; Upwork solo con API/permiso validados; Workana no se automatiza por bot.
 import { notifyCatalina } from '../core/notify.js'
 
 export const intentQueries = [
