@@ -47,7 +47,7 @@ async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model 
 const SPEC = `Devuelve SOLO JSON con esta forma:
 {"diagnosis":{"services":["servicios/productos reales que publican"],"channels":["cómo reciben clientes según la web y las señales"],"opportunities":[{"area":"atención|reservas|seguimiento|recompra|ventas|ecommerce|marketing|operaciones|control","moneyMoment":"momento comercial concreto donde ocurre","hypothesis":"condicional","value":"qué ganaría su cliente y su equipo","recommendedCapability":"agente|automatización|software|integración|shopify|meta-leads|crm|dashboard|multiagente"}],"fit":"alto|medio|bajo","why":"por qué este negocio podría invertir en esto o no (sin suponer presupuesto por país)"},
 "offer":"esencial|ventas|ecommerce|operaciones|software|multiagente|acompanamiento",
-"subject":"...","preview":"...","hook":"...","subhook":"1 frase","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
+"subject":"...","preview":"...","hook":"...","subhook":"1 frase","offerPitch":"UNA frase explícita de 15-35 palabras: qué queremos desarrollar/implementar/conectar para ESTE negocio y qué parte del proceso resolvería, sin precio ni promesa","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
 "scene": ELIGE el tipo según la solución priorizada. Conversación (atención/ventas): {"type":"chat","channel":"WhatsApp|Web|Instagram|Reservas","time":"ej. Domingo · 9:40 p. m.","customer":"pregunta real de un cliente de este negocio, máx. 25 palabras","agent":"respuesta SOLO con datos públicos de su web, máx. 45 palabras; en salud/estética nunca número de sesiones, resultados, indicaciones ni idoneidad: solo logística (horarios, ubicación, cómo reservar, evaluación) y paso al equipo","handoff":"qué recibe su equipo, máx. 18 palabras"}. Flujo automatizado (operaciones, seguimiento, postventa, reportes): {"type":"flujo","title":"nombre del flujo","steps":[{"when":"disparador o momento","what":"qué pasa, máx. 16 palabras"}] (3-5 pasos con SUS herramientas y procesos publicados)}. Tablero (finanzas, control, dirección, varias sedes): {"type":"tablero","title":"","tiles":["3-4 indicadores con nombre, SIN cifras"],"alert":"ejemplo de alerta útil, sin cifras"},
 "moments":[{"title":"Antes","text":"..."},{"title":"Durante","text":"..."},{"title":"Después","text":"..."}],
 "solution":"cómo lo exploraríamos, 2-3 frases, con supervisión humana. Elige la solución adecuada de TODO el rango según el diagnóstico (agente de atención/ventas, automatización de flujos, integración con CRM/agenda/tienda, tablero de control, sistema multiagente), no siempre un chatbot","ps":"P. D. breve con bucle de curiosidad",
@@ -72,7 +72,7 @@ async function prepare(env, row, research, angle) {
   let p = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }])
   // Autocrítica adversarial: Carolina solo publica copy sobresaliente; 7/10 ya no es suficiente.
   let critiqueError = null
-  const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
+  const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500 }).catch(e => { critiqueError = e.message; return null })
   const lint = lintCopy(p, row.company)
   if (critique?.rewrite || lint.length) {
@@ -81,7 +81,7 @@ async function prepare(env, row, research, angle) {
     if (rewritten) p = rewritten
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
-  const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
+  const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => critique)
   p.critique = finalCritique?.scores || null
   p.critiqueIssues = finalCritique?.issues || []
@@ -90,7 +90,7 @@ async function prepare(env, row, research, angle) {
   // Credibilidad debe ser casi perfecta; especificidad/claridad/CTA >=9; curiosidad/deseo >=8.
   if (p.critique) {
     const s = p.critique
-    if ((s.especificidad || 0) < 9 || (s.claridad || 0) < 9 || (s.credibilidad || 0) < 9 || (s.cta || 0) < 9 || (s.curiosidad || 0) < 8 || (s.deseo || 0) < 8) {
+    if ((s.especificidad || 0) < 9 || (s.claridad || 0) < 9 || (s.caso_comercial || 0) < 9 || (s.credibilidad || 0) < 9 || (s.cta || 0) < 9 || (s.curiosidad || 0) < 8 || (s.deseo || 0) < 8) {
       throw new Error('low_fit: copy no supera quality gate comercial')
     }
   } else if (!critiqueError) {
@@ -107,7 +107,7 @@ async function prepare(env, row, research, angle) {
     if (!evidenceFound(research.publicText, fix.evidence)) throw new Error('unverified_observation: «' + String(p.evidence || '').slice(0, 120) + '» / reparación: «' + String(fix.evidence || '').slice(0, 120) + '»')
     p.evidence = fix.evidence
   }
-  if (![p.subject, p.hook, p.observation, p.hypothesis, p.solution].every(v => typeof v === 'string' && v.trim().length >= 12)) throw new Error('copy_incomplete')
+  if (![p.subject, p.hook, p.offerPitch, p.observation, p.hypothesis, p.solution].every(v => typeof v === 'string' && v.trim().length >= 12)) throw new Error('copy_incomplete')
   const remaining = lintCopy(p, row.company)
   if (remaining.length) throw new Error('copy_rejected: ' + remaining.join('; '))
   p.offer = /(?:multiagente|acompanamiento|operaciones|software|esencial|ventas|ecommerce)/i.exec(String(p.offer || ''))?.[0].toLowerCase() || 'esencial'
