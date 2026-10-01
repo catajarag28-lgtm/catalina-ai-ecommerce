@@ -6,10 +6,11 @@ import { renderProposalPage } from '../worker/proposals/proposalPage.js'
 const company = 'Lumière Med Spa (ejemplo)'
 const p = {
   offer: 'esencial', format: 'visual',
-  subject: 'Domingo, 9:40 p. m.: alguien pregunta por su HydraFacial',
-  preview: 'Preparé cómo podría continuar esa conversación con lo que ya publican en su web.',
-  hook: 'Domingo, 9:40 p. m. Una novia pregunta por su HydraFacial antes de la boda.',
-  subhook: 'Así podría continuar esa conversación mientras su equipo descansa.',
+  subject: 'Un agente de IA para atender y agendar por WhatsApp',
+  preview: 'Catalina propone un agente de IA para responder consultas y preparar reservas con información aprobada.',
+  hook: 'Le propongo un agente de IA para atender y agendar por WhatsApp',
+  subhook: 'Una propuesta concreta para Lumière Med Spa, basada en sus servicios publicados.',
+  offerPitch: 'Diseñar e implementar un agente de IA para WhatsApp que responda consultas sobre servicios publicados, recoja los datos necesarios para reservar y entregue cada caso a su equipo.',
   observation: 'Su web muestra HydraFacial y depilación láser en Brickell, con reservas en línea y atención en español.',
   sourceUrl: 'https://ejemplo.com/servicios',
   hypothesis: 'Si parte de las consultas llega por WhatsApp fuera de horario, una primera respuesta con su información podría dejar la cita lista para confirmar el lunes.',
