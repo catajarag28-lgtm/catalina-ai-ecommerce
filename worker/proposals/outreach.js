@@ -137,11 +137,11 @@ export async function runOutreach(env, now = Date.now()) {
   if (control?.paused) return { reason: 'paused', detail: control.reason }
   const cap = await currentDailyCap(env)
   // Las muestras internas (id test-*) no consumen el cupo diario de prospectos.
-  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND status IN ('researching','sending','sent','uncertain','replied') AND ((sent_at IS NOT NULL AND sent_at>?) OR (sent_at IS NULL AND updated_at>?))").bind(now - 86400000, now - 86400000).first()
+  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND sent_at>?").bind(now - 86400000).first()
   const followups = await env.DB.prepare("SELECT COUNT(*) n FROM outreach_events WHERE type IN ('followup.sent','hot.followup') AND occurred_at>?").bind(now - 86400000).first()
-  if ((count?.n || 0) + (followups?.n || 0) >= cap) return { reason: 'daily_cap', cap }
+  if ((count?.n || 0) >= cap) return { reason: 'daily_cap', cap, newProposals: count?.n || 0, followups: followups?.n || 0 }
+  // Los seguimientos NO consumen el objetivo de 30 propuestas nuevas. Pueden salir en el mismo ciclo.
   const followed = await runFollowup(env, now).catch(e => ({ sent: false, reason: e.message }))
-  if (followed?.sent) return { followup: true }
   const testTo = (env.OUTREACH_TEST_TO || '').toLowerCase()
   // En modo prueba solo se admite el buzón de prueba (o sus variantes usuario+etiqueta@dominio).
   const plus = testTo ? testTo.replace('@', '+%@') : ''
@@ -149,7 +149,7 @@ export async function runOutreach(env, now = Date.now()) {
   // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
   for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
   const row = rows.find(r => (testTo || r.kind === 'inbound' || !blockedRegions.has(regionOf(r))) && (testTo || r.kind === 'inbound' || inBusinessHours(regionOf(r), now)))
-  if (!row) return { reason: rows.length ? 'outside_business_hours' : 'empty_queue' }
+  if (!row) return followed?.sent ? { followup: true, stage: followed.stage } : { reason: rows.length ? 'outside_business_hours' : 'empty_queue' }
   if (row.kind !== 'inbound' && !env.SENDER_POSTAL_ADDRESS && !testTo) return { reason: 'postal_address_missing' }
   // Sin eventos firmados de Resend no se detectarían quejas ni rebotes a tiempo: no se escribe a prospectos nuevos.
   if (row.kind !== 'inbound' && !testTo && !(await webhookSecret(env))) return { reason: 'metrics_missing' }
@@ -185,7 +185,7 @@ export async function runOutreach(env, now = Date.now()) {
     await env.DB.prepare("UPDATE outreach SET status='sent',provider_id=?,sent_at=?,updated_at=? WHERE id=?").bind(result.id, Date.now(), Date.now(), row.id).run()
     await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(row.email, 'out', 'clientes@soycatalinajaramillo.com', row.email, subject, html, result.id, 'outreach', Date.now()).run()
     await notifyCatalina(env, `Propuesta enviada: ${row.company} · «${subject}»`, internalBrief(row, research, proposal, angle, result.id)).catch(() => {})
-    return { sent: true, angle: angle.id }
+    return { sent: true, angle: angle.id, followup: followed?.sent || false, followupStage: followed?.stage || null }
   } catch (error) {
     const skip = /^low_fit/.test(error.message)
     await env.DB.prepare(`UPDATE outreach SET status=CASE WHEN status='sending' THEN 'uncertain' ELSE '${skip ? 'skipped' : 'review'}' END,error=?,updated_at=? WHERE id=?`).bind(error.message.slice(0, 400), Date.now(), row.id).run()
@@ -221,7 +221,10 @@ export async function runFollowup(env, now = Date.now()) {
 
   const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `followup-${stage}-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [row.email], reply_to: 'clientes@soycatalinajaramillo.com', subject: 'Re: ' + row.subject, text, headers: { 'List-Unsubscribe': '<mailto:clientes@soycatalinajaramillo.com?subject=BAJA>' } }), signal: AbortSignal.timeout(12000) }).catch(() => null)
   const out = await res?.json().catch(() => ({}))
-  if (!res?.ok || !out?.id) return { sent: false, reason: 'followup_not_confirmed' }
+  if (!res?.ok || !out?.id) {
+    await env.DB.prepare("DELETE FROM outreach_events WHERE event_id=? AND type='followup.claimed'").bind(`followup-claim-${stage}-${row.id}`).run().catch(() => {})
+    return { sent: false, reason: 'followup_not_confirmed' }
+  }
   await env.DB.prepare('UPDATE outreach SET followup_at=? WHERE id=?').bind(now, row.id).run()
   await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(row.email, 'out', 'clientes@soycatalinajaramillo.com', row.email, 'Re: ' + row.subject, text, out.id, stage === 1 ? 'outreach_followup_1' : 'outreach_followup_2', Date.now()).run()
   await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'followup.sent',?)").bind(`followup-${stage}-${row.id}`, row.id, now).run()
