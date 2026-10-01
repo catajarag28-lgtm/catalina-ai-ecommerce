@@ -63,7 +63,38 @@ Mapa de oportunidades por sector:
 - Cualquier negocio: leer señales de WhatsApp, formularios, agenda, CRM, tienda, correo, hojas de cálculo, comentarios, reseñas, sedes y políticas. La presencia de una herramienta muestra un punto de integración; su ausencia solo permite una hipótesis, nunca una afirmación.
 
 Regla de selección: genera varias oportunidades internamente, puntúalas por dolor visible, frecuencia probable, cercanía al dinero o al tiempo del equipo, facilidad de explicar con evidencia y encaje con el catálogo. Elige una sola para el primer contacto. La propuesta debe responder: qué está pasando hoy, qué viviría distinto el cliente, qué recibiría el equipo y por qué conviene explorar esto antes que otras mejoras. Si no puedes responder las cuatro con hechos e hipótesis separadas, no envíes.`
-  },  { id: 'copywriting-email', nombre: 'Copywriting de correo B2B (asunto, hook, escena, CTA)', usos: ['propuesta', 'seguimiento'], contenido: copywritingSkill },
+  },
+  {
+    id: 'playbook-inmobiliario', nombre: 'Playbook sectorial: inmobiliarias y desarrolladoras', usos: ['propuesta', 'prospeccion', 'chat'],
+    contenido: `Cuando el negocio es una inmobiliaria, broker, equipo de agentes o desarrolladora, no vendas "un chatbot". Diseña un SISTEMA COMERCIAL INMOBILIARIO modular.
+
+RECORRIDO QUE CAROLINA DEBE ANALIZAR:
+1) Entrada del lead: web, formularios, portales, Meta Ads, Instagram, WhatsApp, QR/open house u otras fuentes publicadas.
+2) Calificación: comprar o arrendar; rango de presupuesto; zonas; tipo de propiedad; habitaciones/características; fecha objetivo; forma de pago o preaprobación solo como dato declarado, nunca asesoría financiera.
+3) Matching: recomendar SOLO propiedades provenientes del inventario real/aprobado del cliente. Nunca inventar disponibilidad, precio, metraje o características.
+4) Experiencia visual: si el cliente dispone de fotos, fichas, tours o videos aprobados, el agente puede compartirlos y preguntar cuáles 2–3 inmuebles desea conocer.
+5) Agenda: conectar calendario del agente/equipo, proponer horarios reales, reservar visitas, confirmar, recordar, reprogramar y recuperar no-shows según reglas acordadas.
+6) Handoff: entregar al asesor el contexto completo del lead, propiedades vistas, preferencias, objeciones, presupuesto declarado y siguiente acción.
+7) Seguimiento: después de cada visita pedir feedback, comparar opciones, continuar búsqueda, reactivar leads dormidos y mantener nurturing según consentimiento.
+8) Arrendamientos: recordatorios de vencimiento/renovación, documentos, citas, mantenimiento y pagos próximos SOLO basados en datos del sistema; no interpretar contratos ni dar consejo legal.
+9) Dirección comercial: tablero por fuente, tiempo de primera respuesta, leads atendidos, calificados, visitas programadas/realizadas, seguimiento pendiente y cierres registrados en CRM. Por asesor puede mostrar carga, velocidad de respuesta, seguimientos, visitas y cierres registrados; no inventar rendimiento.
+10) Operación: reglas de distribución de leads por zona, idioma, propiedad, disponibilidad o carga; alertas al gerente cuando un lead caliente queda sin atender.
+
+ESCALERA DE SOLUCIÓN:
+- BASE / piloto: agente de WhatsApp o web + FAQs aprobadas + calificación + handoff + una integración útil.
+- CRECIMIENTO: inventario/CRM + matching real + agenda + recordatorios + seguimiento + routing a asesores.
+- SISTEMA INTEGRAL: multicanal + inventario + media/tours + CRM + agenda + nurturing + ciclo de arrendamiento + dashboards + alertas + múltiples agentes/sedes.
+
+CÓMO VENDERLO:
+- El primer contacto elige UN money moment demostrable (por ejemplo lead que llega sin contexto, elección de propiedades o visita que requiere coordinación).
+- La página puede mostrar que el sistema escala por fases, pero no abrumes el email con 15 funciones.
+- Si la web publica propiedades, usa ejemplos reales de su inventario; si no, habla condicionalmente de conectar su inventario.
+- Si publica videos/tours, puedes proponer que el agente los muestre; si no, no afirmar que existen.
+- Métricas sugeridas siempre sin prometer cifras: tiempo de primera respuesta, porcentaje de leads con datos mínimos, visitas programadas, show rate, seguimiento cumplido, origen de leads y cierres registrados.
+- Nunca dar asesoría legal, hipotecaria o financiera, ni decidir elegibilidad del comprador/arrendatario.
+`,
+  },
+  { id: 'copywriting-email', nombre: 'Copywriting de correo B2B (asunto, hook, escena, CTA)', usos: ['propuesta', 'seguimiento'], contenido: copywritingSkill },
   {
     id: 'propuesta-senior', nombre: 'Propuesta de alto impacto (nivel empresarial senior)', usos: ['propuesta'],
     contenido: proposalPlaybook + `
@@ -88,7 +119,7 @@ Tono: consultor senior de estrategia comercial; preciso, sobrio y orientado a la
   { id: 'aliados', nombre: 'Alianzas con agencias y consultores', usos: ['propuesta', 'prospeccion', 'chat'], contenido: partnerPlaybook },
   {
     id: 'intencion-en-foros', nombre: 'Personas que ya piden el servicio (foros y proyectos)', usos: ['prospeccion'],
-    contenido: `Busca publicaciones públicas recientes donde alguien pide un chatbot, agente, automatización de WhatsApp o agenda. Solo URLs reales devueltas por el buscador. Redacta una respuesta de 60 a 110 palabras que primero aporte un consejo útil para SU caso y después ofrezca ayuda, firmada por Catalina, sin precios ni promesas. Carolina no publica ni crea cuentas: Catalina la pega desde su perfil.`,
+    contenido: `Busca publicaciones públicas recientes donde alguien YA pide agentes, automatización, WhatsApp, CRM, Shopify, n8n, integraciones o software. Solo URLs reales devueltas por el buscador. La respuesta debe ser una POSTULACIÓN comercial específica: decir que Catalina puede encargarse, demostrar comprensión, proponer enfoque y entregables y cerrar con una pregunta útil. No regalar una consultoría para que contraten a otro proveedor. En marketplaces solo cuenta como enviada cuando la plataforma confirma el envío; respeta sus reglas de contacto. Fuera de marketplaces, si puede verificarse la empresa, su web oficial y un email empresarial público, conviértela en outreach directo.`,
   },
   {
     id: 'reuniones-y-aprendizaje', nombre: 'Reuniones: análisis y aprendizaje de Catalina', usos: ['seguimiento'],
