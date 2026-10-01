@@ -6,6 +6,7 @@ export const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => 
 const e = escapeHtml
 const SITE = 'https://soycatalinajaramillo.com/'
 const PORTFOLIO = 'https://portfolio-nine-lovat-18.vercel.app/'
+const WHATSAPP = 'https://wa.me/17869299442'
 
 function validate(company, proposal, proposalUrl) {
   const offer = catalog.find(o => ['esencial', 'ventas', 'ecommerce', 'operaciones', 'software', 'multiagente', 'acompanamiento'].includes(o.id) && o.id === proposal.offer)
@@ -209,7 +210,7 @@ ${demo && (!scene || sceneType(scene) === 'chat') ? `<section id="demo"><div cla
 <p class="cap" style="margin-top:14px">* Resultados comerciales de Professional Glam (sedes físicas y Shopify), no atribuidos a la IA. Reuniones en español.</p></div></section>
 <section class="cta"><div class="wrap"><div class="eyebrow">Siguiente paso</div><h2 style="margin:12px auto 18px">¿Le gustaría ver cómo funcionaría con los casos reales de ${e(company)}?</h2>
 <p style="color:#cbbfa9;max-width:58ch;margin:0 auto 30px">Carolina le hace unas preguntas rápidas sobre su proceso. Si hay encaje, coordina una conversación de 20–30 minutos con Catalina. Sin compromiso.</p>
-<a class="btn" href="${talk}">Hablar con Carolina sobre esta propuesta</a>${bookingUrl ? `<br><a class="ghost" style="font-size:16px;font-weight:600" href="/propuesta/${encodeURIComponent(id)}/agendar">o agendar directamente 30 minutos con Catalina →</a>` : ''}<br><a class="ghost" href="${PORTFOLIO}" rel="noopener">ver portafolio y proyectos →</a><br><a class="ghost" href="${SITE}">ver perfil de Catalina →</a><br><a class="ghost" href="${e(mail)}">o responder por correo</a></div></section>
+<a class="btn" href="${talk}">Hablar con Carolina sobre esta propuesta</a>${bookingUrl ? `<br><a class="ghost" style="font-size:16px;font-weight:600" href="/propuesta/${encodeURIComponent(id)}/agendar">o agendar directamente 30 minutos con Catalina →</a>` : ''}<br><a class="ghost" style="font-size:16px;font-weight:600" href="${WHATSAPP}?text=${encodeURIComponent('Hola Catalina, vi la propuesta para '+company+' y quiero conversar sobre ella.')}" rel="noopener">o escribir a Catalina por WhatsApp →</a><br><a class="ghost" href="${PORTFOLIO}" rel="noopener">ver portafolio y proyectos →</a><br><a class="ghost" href="${SITE}">ver perfil de Catalina →</a><br><a class="ghost" href="${e(mail)}">o responder por correo</a></div></section>
 <footer><div class="wrap">Idea preliminar, no es una cotización ni una oferta vinculante. Preparada por Catalina Jaramillo con apoyo de Carolina, su asistente digital, a partir de información pública. Si prefiere no recibir más mensajes, responda BAJA al correo. · <a href="${SITE}">soycatalinajaramillo.com</a></div></footer>
 ${demo && (!scene || sceneType(scene) === 'chat') ? `<script nonce="${e(nonce)}">(()=>{const log=document.getElementById('log'),form=document.getElementById('ask'),q=document.getElementById('q'),after=document.getElementById('after'),msgs=[];let busy=false;
 const add=(role,text)=>{const d=document.createElement('div');d.className='b '+(role==='user'?'c':'a');d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d};
