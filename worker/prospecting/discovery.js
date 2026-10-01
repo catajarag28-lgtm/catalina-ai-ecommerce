@@ -24,6 +24,7 @@ export const segments = [
   { id: 'usa-services', weight: 2, region: 'EE. UU.', sector: 'servicios', q: 'agencia de seguros, contabilidad o impuestos hispana en Houston, Dallas, Los Ángeles o Nueva York con citas' },
   { id: 'usa-ecommerce', weight: 2, region: 'EE. UU.', sector: 'ecommerce', q: 'marca latina de cosmética, moda o alimentos en Estados Unidos con tienda online propia' },
   { id: 'tx-ca-medspa', weight: 2, region: 'EE. UU.', sector: 'spa', q: 'med spa latino en Houston, San Antonio, Los Ángeles o San Diego con servicios en español' },
+  { id: 'tx-high-ticket', weight: 3, region: 'EE. UU.', sector: 'servicios', q: 'negocio hispano de ticket alto en Houston, Dallas, Austin o San Antonio: clínica dental, med spa, inmigración, bienes raíces, roofing, HVAC o servicios profesionales con consultas o citas' },
   { id: 'pr-services', weight: 1, region: 'Puerto Rico', sector: 'spa', q: 'clínica estética, spa o dentista en San Juan Puerto Rico con reservas en línea' },
   { id: 'pa-services', weight: 1, region: 'Panamá', sector: 'servicios', q: 'clínica estética, inmobiliaria o dentista en Ciudad de Panamá con clientes internacionales' },
   { id: 'mx-clinicas', weight: 2, region: 'México', sector: 'spa', q: 'clínica de medicina estética o dermatología con varias sucursales en Ciudad de México, Monterrey o Guadalajara' },
@@ -51,6 +52,7 @@ export const placesQueries = {
   'usa-legal': ['abogado de inmigración Miami', 'abogado de inmigración Houston', 'abogado de inmigración Los Angeles', 'abogado de inmigración Dallas'],
   'usa-services': ['seguros hispanos Houston', 'contador hispano Miami', 'preparación de impuestos hispano Dallas', 'agencia de seguros latina Los Angeles'],
   'tx-ca-medspa': ['med spa Houston', 'med spa San Antonio', 'med spa latino Los Angeles', 'med spa San Diego'],
+  'tx-high-ticket': ['dentista hispano Houston', 'med spa Dallas', 'abogado inmigración Houston', 'realtor hispano Dallas', 'roofing hispano Houston', 'HVAC hispano San Antonio', 'servicios profesionales hispanos Austin'],
   'usa-ny-chi': ['med spa Queens NY', 'dentista hispano Chicago', 'med spa Nueva Jersey', 'clínica estética Bronx'],
   'fl-orlando-tampa': ['inmobiliaria Orlando hispana', 'med spa Orlando', 'med spa Tampa', 'realtor hispano Kissimmee'],
   'pr-services': ['med spa San Juan Puerto Rico', 'dentista San Juan Puerto Rico', 'spa Guaynabo'],
@@ -66,7 +68,7 @@ export const placesQueries = {
   'aliados-crm': ['consultor GoHighLevel Miami', 'automatización de marketing Miami'],
   'aliados-mx': ['agencia de marketing digital CDMX clínicas', 'agencia de marketing Monterrey'],
 }
-export const osmAreas = { 'miami-medspa': 'Miami-Dade County', 'miami-realestate': 'Miami-Dade County', 'fl-dental': 'Miami-Dade County', 'fl-orlando-tampa': 'Orange County', 'tx-ca-medspa': 'Harris County', 'usa-legal': 'Harris County', 'usa-services': 'Miami-Dade County' }
+export const osmAreas = { 'miami-medspa': 'Miami-Dade County', 'miami-realestate': 'Miami-Dade County', 'fl-dental': 'Miami-Dade County', 'fl-orlando-tampa': 'Orange County', 'tx-ca-medspa': 'Harris County', 'tx-high-ticket': 'Harris County', 'usa-legal': 'Harris County', 'usa-services': 'Miami-Dade County' }
 
 // Aprendizaje de dónde buscar: los segmentos cuyos negocios muestran interés (demo, clic, visita, respuesta)
 // reciben más búsquedas; los que no, menos. Solo se ajusta con 15+ envíos en 30 días (factor entre 0,3 y 3).
