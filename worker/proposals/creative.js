@@ -6,16 +6,16 @@ import { skill } from '../skills/registry.js'
 import { outreachDailyLimit } from '../skills/salesStrategy.js'
 
 export const seedAngles = [
-  { id: 'pregunta-momento', name: 'Pregunta sobre el momento decisivo', format: 'visual',
-    brief: 'ASUNTO: pregunta de 5-9 palabras sobre el momento comercial decisivo, nombrando un servicio, producto o lugar real de su web (ej. «¿Qué sabe su equipo antes del primer HydraFacial?»). HOOK: visualiza ese momento. ESCENA: llega la consulta y el equipo recibe contexto.' },
-  { id: 'escena-hora', name: 'Escena con hora concreta', format: 'visual',
-    brief: 'ASUNTO: nombra un momento específico del recorrido y un servicio real, sin usar una hora o día como truco (ej. «Después de preguntar por el head spa»). Intriga por el siguiente paso. HOOK: visualiza ese momento. ESCENA: esa misma consulta respondida solo con información pública.' },
-  { id: 'hecho-para-ustedes', name: 'Algo ya preparado para ustedes', format: 'visual',
-    brief: 'ASUNTO: anuncia con sobriedad que ya hay algo preparado para ellos (ej. «Así respondería Ava a una novia que pregunta por su head spa»). Reciprocidad: el recorrido está hecho, solo tienen que mirarlo. HOOK: «Esto es lo que vería su cliente».' },
-  { id: 'carta-directa', name: 'Carta personal breve', format: 'carta',
-    brief: 'Formato carta personal, sin estética de boletín. ASUNTO: 4-9 palabras específicas sobre un servicio y su oportunidad (ej. «masajes: qué pasa fuera de horario»). Nunca empieces con «pregunta», «duda», «consulta» o «reservas». Cuerpo: observación concreta, una pregunta, escena de dos líneas, enlace al recorrido. Máx. 110 palabras.' },
-  { id: 'voz-del-cliente', name: 'La pregunta de su cliente', format: 'carta',
-    brief: 'ASUNTO: una pregunta típica sobre un servicio real, entre comillas, que revele el siguiente paso comercial (ej. «“¿Puedo reservar mi limpieza facial?”»). Cuerpo: qué recibe hoy su equipo cuando llega esa pregunta (como hipótesis) y cómo podría verse con un agente supervisado. Aclara que es un ejemplo.' },
+  { id: 'pregunta-momento', name: 'Momento decisivo + propuesta concreta', format: 'visual',
+    brief: 'ASUNTO: servicio real + siguiente paso comercial (ej. «HydraFacial: qué pasa antes de confirmar»). HOOK: explica qué podría cambiar operacionalmente, no narres una hora. offerPitch: di exactamente qué proponemos construir para ese negocio. ESCENA: demuestra esa propuesta con un caso concreto.' },
+  { id: 'escena-hora', name: 'Transformación demostrada con una escena', format: 'visual',
+    brief: 'ASUNTO: servicio o paso real + cambio propuesto (ej. «Head spa: una consulta lista para confirmar»). HOOK: explica el beneficio operacional. offerPitch: propuesta explícita de agente/automatización/integración. La hora o el día solo viven dentro de la escena visual.' },
+  { id: 'hecho-para-ustedes', name: 'Propuesta ya preparada para ustedes', format: 'visual',
+    brief: 'ASUNTO: anuncia que existe una propuesta concreta preparada para ellos sin usar lenguaje masivo. HOOK: el cambio comercial/operacional. offerPitch: qué queremos implementar exactamente. Reciprocidad: la demostración ya está construida con información pública del negocio.' },
+  { id: 'carta-directa', name: 'Carta personal con oferta explícita', format: 'carta',
+    brief: 'Formato carta personal. Catalina se presenta en una frase y dice «quiero proponerle algo concreto». offerPitch obligatorio: qué sistema/agente/automatización se implementaría. Luego hecho observado, hipótesis, microescena y CTA a Carolina. Máx. 110 palabras comerciales.' },
+  { id: 'voz-del-cliente', name: 'Pregunta del cliente + solución propuesta', format: 'carta',
+    brief: 'ASUNTO: pregunta típica sobre un servicio real conectada al siguiente paso. offerPitch: propuesta explícita para resolver ese punto con agente/automatización/integración. La pregunta del cliente demuestra el caso; nunca sustituye la explicación de lo que vendemos.' },
 ]
 
 export async function ensureSeedAngles(env) {
