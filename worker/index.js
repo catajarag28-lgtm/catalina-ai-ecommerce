@@ -1,6 +1,6 @@
 import { discoverProspects, findCandidates, verifyCandidate, segments } from './prospecting/discovery.js'
 import { runOutreach, queueQualifiedLeads, runHotFollowup } from './proposals/outreach.js'
-import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, setupResendWebhook } from './proposals/engagement.js'
+import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, sendDailyContactList, setupResendWebhook } from './proposals/engagement.js'
 import { renderProposalPage } from './proposals/proposalPage.js'
 import { handleDemo } from './proposals/demo.js'
 import { runIntentScan, searchIntent, intentQueries } from './prospecting/intent.js'
@@ -342,6 +342,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('angles', () => evolveAngles(env))
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))
+    await step('contactList', () => sendDailyContactList(env))
     await step('hot', () => runHotFollowup(env))
     // Discover first so candidates found in this invocation can be sent immediately.
     await step('discovery', () => discoverProspects(env))
