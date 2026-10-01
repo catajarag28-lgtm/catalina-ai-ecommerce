@@ -10,7 +10,7 @@ import { notifyCatalina } from '../core/notify.js'
 
 export { brandedProposal, escapeHtml }
 const SITE = 'https://soycatalinajaramillo.com'
-const offers = catalog.filter(o => ['esencial', 'ventas', 'ecommerce', 'multiagente', 'acompanamiento'].includes(o.id))
+const offers = catalog.filter(o => ['esencial', 'ventas', 'ecommerce', 'operaciones', 'software', 'multiagente', 'acompanamiento'].includes(o.id))
 
 // Horario hábil del destinatario según su mercado (lun-vie, 8:00-17:00 locales).
 const zones = { 'EE. UU.': 'America/New_York', 'Puerto Rico': 'America/Puerto_Rico', 'México': 'America/Mexico_City', 'España': 'Europe/Madrid', 'Panamá': 'America/Panama', 'Colombia': 'America/Bogota', 'Rep. Dominicana': 'America/Santo_Domingo', 'Costa Rica': 'America/Costa_Rica', 'Chile': 'America/Santiago' }
@@ -46,7 +46,7 @@ async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model 
 
 const SPEC = `Devuelve SOLO JSON con esta forma:
 {"diagnosis":{"services":["servicios/productos reales que publican"],"channels":["cómo reciben clientes según la web y las señales"],"opportunities":[{"area":"atención|reservas|seguimiento|recompra|ventas|ecommerce|marketing|operaciones|control","moneyMoment":"momento comercial concreto donde ocurre","hypothesis":"condicional","value":"qué ganaría su cliente y su equipo","recommendedCapability":"agente|automatización|software|integración|shopify|meta-leads|crm|dashboard|multiagente"}],"fit":"alto|medio|bajo","why":"por qué este negocio podría invertir en esto o no (sin suponer presupuesto por país)"},
-"offer":"esencial|ventas|ecommerce|multiagente|acompanamiento",
+"offer":"esencial|ventas|ecommerce|operaciones|software|multiagente|acompanamiento",
 "subject":"...","preview":"...","hook":"...","subhook":"1 frase","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
 "scene": ELIGE el tipo según la solución priorizada. Conversación (atención/ventas): {"type":"chat","channel":"WhatsApp|Web|Instagram|Reservas","time":"ej. Domingo · 9:40 p. m.","customer":"pregunta real de un cliente de este negocio, máx. 25 palabras","agent":"respuesta SOLO con datos públicos de su web, máx. 45 palabras; en salud/estética nunca número de sesiones, resultados, indicaciones ni idoneidad: solo logística (horarios, ubicación, cómo reservar, evaluación) y paso al equipo","handoff":"qué recibe su equipo, máx. 18 palabras"}. Flujo automatizado (operaciones, seguimiento, postventa, reportes): {"type":"flujo","title":"nombre del flujo","steps":[{"when":"disparador o momento","what":"qué pasa, máx. 16 palabras"}] (3-5 pasos con SUS herramientas y procesos publicados)}. Tablero (finanzas, control, dirección, varias sedes): {"type":"tablero","title":"","tiles":["3-4 indicadores con nombre, SIN cifras"],"alert":"ejemplo de alerta útil, sin cifras"},
 "moments":[{"title":"Antes","text":"..."},{"title":"Durante","text":"..."},{"title":"Después","text":"..."}],
@@ -110,7 +110,7 @@ async function prepare(env, row, research, angle) {
   if (![p.subject, p.hook, p.observation, p.hypothesis, p.solution].every(v => typeof v === 'string' && v.trim().length >= 12)) throw new Error('copy_incomplete')
   const remaining = lintCopy(p, row.company)
   if (remaining.length) throw new Error('copy_rejected: ' + remaining.join('; '))
-  p.offer = /(?:multiagente|acompanamiento|esencial|ventas|ecommerce)/i.exec(String(p.offer || ''))?.[0].toLowerCase() || 'esencial'
+  p.offer = /(?:multiagente|acompanamiento|operaciones|software|esencial|ventas|ecommerce)/i.exec(String(p.offer || ''))?.[0].toLowerCase() || 'esencial'
   p.format = angle.format
   return p
 }
