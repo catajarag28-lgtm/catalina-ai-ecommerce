@@ -43,7 +43,7 @@ export function confirmationText(lead) {
     lead.recommendation ? `· Recomendación inicial: ${lead.recommendation}` : null,
     lead.problem ? `· Lo que nos contaste: ${lead.problem}` : null,
     '',
-    'Catalina revisa personalmente cada caso y te escribe en menos de 24 horas hábiles para agendar una reunión de 30 minutos, en español, por videollamada. Ahí valida tus herramientas y te presenta una propuesta con alcance y precio final.',
+    'Puedes escribir directamente a Catalina por WhatsApp al +1 786 929 9442 (solo WhatsApp, no llamadas). Si luego coordinan una reunión, solo se considera confirmada cuando Google Calendar envía la invitación con fecha y hora.',
     '',
     'Si quieres añadir algo antes de la reunión, responde a este correo.',
     '',
@@ -155,7 +155,8 @@ async function chat(request, env) {
   const previous = await env.DB.prepare('SELECT role,content FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 12').bind(body.conversationId).all()
   const lead = await env.DB.prepare('SELECT data FROM leads WHERE conversation_id=?').bind(body.conversationId).first()
   const playbook = await learnedPlaybook(env).catch(() => '')
-  const context = [{ role: 'system', content: `${constitution}\n\n${playbook}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nENLACE_DE_AGENDA: ${schedulingUrl(env) ? schedulingUrl(env) + ' (página oficial de reservas de Google Calendar de Catalina: el cliente elige horario y Google le envía a su correo la invitación con enlace de Meet y recordatorios; tú no confirmas la cita, la confirma Google)' : 'no disponible todavía: pide dos horarios con zona horaria y di que quedan pendientes de confirmación'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
+  const context = [{ role: 'system', content: `${constitution}\n\n${playbook}\n\n${skillContext([...(previous.results || []).map(m => m.content), content].join(' '))}\n\n${knowledge}\n\nResumen anterior: ${session.summary || 'Sin resumen.'}\nExpediente actual: ${(lead?.data || '{}').slice(0, 3500)}\nFecha actual: ${new Date().toISOString()}. Zona horaria de Catalina: America/Bogota.\nWHATSAPP_DE_CATALINA: https://wa.me/${String(env.CATALINA_WHATSAPP||'+17869299442').replace(/\D/g,'')} · número +1 786 929 9442 · SOLO WhatsApp, no llamadas.
+ENLACE_DE_AGENDA: ${schedulingUrl(env) ? schedulingUrl(env) + ' (página oficial de reservas de Google Calendar de Catalina. Abrirla NO es una cita. Solo di «cita confirmada» si la herramienta book_meeting devuelve ok=true con calendarEventId, o si Google creó un evento real.)' : 'no disponible todavía: cualquier reunión queda pendiente hasta confirmación real'}` }, ...previous.results.reverse().map(m => ({ role: m.role, content: m.content })), { role: 'user', content }]
   let model
   try {
     model = await complete(env, context)
@@ -235,7 +236,7 @@ export default {
       const row=await env.DB.prepare("SELECT company FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(bookRoute[1]).first()
       if(row&&!/bot|crawler|spider|preview|scanner|headless/i.test(request.headers.get('user-agent')||'')){
         const r=await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'booking.opened',?)").bind('book-'+bookRoute[1],bookRoute[1],Date.now()).run().catch(()=>({meta:{changes:0}}))
-        if(r.meta.changes&&!bookRoute[1].startsWith('test-'))await notifyCatalina(env,`📅 ${row.company} abrió tu agenda`,`Abrieron la página de reservas desde su propuesta. Si eligen horario, Google te enviará la cita a tu calendario.
+        if(r.meta.changes&&!bookRoute[1].startsWith('test-'))await notifyCatalina(env,`📅 ${row.company} abrió la página de agenda · NO es una cita`,`Abrieron la página de reservas desde su propuesta. Esto NO significa que haya una reunión agendada. Solo cuenta como cita cuando Google crea un evento real y envía la invitación con fecha/hora.
 
 Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()=>{})
       }
