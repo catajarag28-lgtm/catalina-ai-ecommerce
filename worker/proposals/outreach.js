@@ -77,11 +77,14 @@ async function prepare(env, row, research, angle) {
   const lint = lintCopy(p, row.company)
   if (critique?.rewrite || lint.length) {
     const issues = [...(critique?.issues || []), ...lint]
-    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Hazlo más específico y deseable para ESTE negocio, sin inventar nada.' }]).catch(() => null)
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Hazlo más específico y deseable para ESTE negocio, sin inventar nada. El correo debe ser breve; la profundidad vive en la página.' }]).catch(() => null)
     if (rewritten) p = rewritten
   }
-  p.critique = critique?.scores || null
-  p.critiqueIssues = critique?.issues || []
+  // Vuelve a juzgar la versión FINAL, no el borrador anterior.
+  const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
+  const finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => critique)
+  p.critique = finalCritique?.scores || null
+  p.critiqueIssues = finalCritique?.issues || []
   if (critiqueError) p.critiqueError = critiqueError
   // Quality gate final: aunque el modelo haya reescrito, no enviamos una pieza mediocre.
   // Credibilidad debe ser casi perfecta; especificidad/claridad/CTA >=9; curiosidad/deseo >=8.
