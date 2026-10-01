@@ -30,18 +30,23 @@ export function evidenceFound(text, evidence) {
 }
 
 async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model } = {}) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: model || env.OPENROUTER_MODEL || env.OPENROUTER_EXTRACT_MODEL, temperature, max_tokens, response_format: { type: 'json_object' }, messages }),
-    signal: AbortSignal.timeout(40000),
-  })
-  if (!res.ok) throw new Error('research_model_failed')
-  const out = await res.json()
-  if (out.choices?.[0]?.finish_reason === 'length') throw new Error('model_output_truncated')
-  const raw = String(out.choices?.[0]?.message?.content || '')
-  const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
-  if (a < 0 || b <= a) throw new Error('model_output_not_json')
-  return JSON.parse(raw.slice(a, b + 1))
+  let lastError = 'research_model_failed'
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const retryMessages = attempt ? [...messages, { role: 'user', content: 'La respuesta anterior no pudo procesarse. Devuelve ÚNICAMENTE un objeto JSON válido, completo, sin markdown ni texto antes o después.' }] : messages
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: model || env.OPENROUTER_MODEL || env.OPENROUTER_EXTRACT_MODEL, temperature: attempt ? 0 : temperature, max_tokens: attempt ? Math.min(max_tokens + 1200, 6500) : max_tokens, response_format: { type: 'json_object' }, messages: retryMessages }),
+      signal: AbortSignal.timeout(40000),
+    }).catch(() => null)
+    if (!res?.ok) { lastError = 'research_model_failed'; continue }
+    const out = await res.json().catch(() => ({}))
+    if (out.choices?.[0]?.finish_reason === 'length') { lastError = 'model_output_truncated'; continue }
+    const raw = String(out.choices?.[0]?.message?.content || '')
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
+    if (a < 0 || b <= a) { lastError = 'model_output_not_json'; continue }
+    try { return JSON.parse(raw.slice(a, b + 1)) } catch { lastError = 'model_output_invalid_json' }
+  }
+  throw new Error(lastError)
 }
 
 const SPEC = `Devuelve SOLO JSON con esta forma:
@@ -87,17 +92,28 @@ async function prepare(env, row, research, angle) {
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
   const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-  const finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => critique)
+  let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => critique)
+  const qualityPass = q => {
+    const s = q?.scores
+    return !!s && (s.especificidad || 0) >= 9 && (s.claridad || 0) >= 9 && (s.caso_comercial || 0) >= 9 && (s.credibilidad || 0) >= 9 && (s.cta || 0) >= 9 && (s.curiosidad || 0) >= 8 && (s.deseo || 0) >= 8
+  }
+  // Un copy con buen negocio detrás no se descarta por una primera crítica: se repara hasta dos veces.
+  for (let qualityAttempt = 0; qualityAttempt < 2 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
+    const scoreText = Object.entries(finalCritique.scores || {}).map(([k,v]) => k + '=' + v).join(', ')
+    const issues = [...(finalCritique.issues || []), 'scores actuales: ' + scoreText]
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Mejora la propuesta para superar el quality gate SIN inventar hechos ni cambiar la evidencia. Corrige específicamente: ' + issues.join('; ') + '. Mantén una sola oportunidad comercial y un CTA claro.' }], { temperature: 0.25, max_tokens: 4500 }).catch(() => null)
+    if (!rewritten) break
+    p = rewritten
+    const qLint = lintCopy(p, row.company)
+    if (qLint.length) continue
+    const qDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
+    finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: qDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => finalCritique)
+  }
   p.critique = finalCritique?.scores || null
   p.critiqueIssues = finalCritique?.issues || []
   if (critiqueError) p.critiqueError = critiqueError
-  // Quality gate final: aunque el modelo haya reescrito, no enviamos una pieza mediocre.
-  // Credibilidad debe ser casi perfecta; especificidad/claridad/CTA >=9; curiosidad/deseo >=8.
   if (p.critique) {
-    const s = p.critique
-    if ((s.especificidad || 0) < 9 || (s.claridad || 0) < 9 || (s.caso_comercial || 0) < 9 || (s.credibilidad || 0) < 9 || (s.cta || 0) < 9 || (s.curiosidad || 0) < 8 || (s.deseo || 0) < 8) {
-      throw new Error('low_fit: copy no supera quality gate comercial')
-    }
+    if (!qualityPass(finalCritique)) throw new Error('low_fit: copy no supera quality gate comercial tras reparación')
   } else if (!critiqueError) {
     throw new Error('low_fit: autocrítica comercial ausente')
   }

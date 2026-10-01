@@ -4,10 +4,16 @@ const FL_BASE='https://www.freelancer.com'
 const FL_QUERIES=[
   'AI automation',
   'AI agent',
+  'AI WhatsApp chatbot',
   'WhatsApp automation',
   'CRM automation',
+  'lead qualification AI',
+  'appointment booking automation',
+  'real estate automation',
   'Shopify automation',
-  'n8n automation',
+  'Shopify customer service AI',
+  'n8n OpenAI automation',
+  'n8n WhatsApp',
   'Make.com automation',
   'OpenAI integration',
   'sales automation',
@@ -105,6 +111,19 @@ async function searchFreelancer(env,query) {
   return (Array.isArray(raw)?raw:[]).map(normalizeProject).filter(p=>p.id&&p.title&&p.description)
 }
 
+function freelancerRelevance(p) {
+  const text=[p.title,p.description,...(p.jobs||[])].join(' ').toLowerCase()
+  const patterns=[
+    /\bn8n\b/, /whatsapp/, /ai agent|agente de ia|agente ia/, /automation|automatiz/,
+    /crm/, /shopify|e-?commerce/, /openai|gpt|llm/, /lead qualif|calific.*lead/,
+    /appointment|booking|agenda|cita/, /real estate|realtor|inmobili/,
+    /customer service|atenci[oó]n al cliente/, /sales automation|automatiz.*venta/
+  ]
+  const hits=patterns.reduce((n,re)=>n+(re.test(text)?1:0),0)
+  const budget=(p.budgetMax||0)
+  return hits*1000 + Math.min(budget,10000)/10
+}
+
 async function judgeFreelancer(env,p) {
   const budgetText=[p.currency,p.budgetMin!=null?p.budgetMin:'',p.budgetMax!=null?'– '+p.budgetMax:''].filter(x=>x!=='').join(' ')
   const system=`Eres Carolina, directora de desarrollo comercial de Catalina Jaramillo. Evalúas proyectos REALES de Freelancer.com para decidir si Catalina debe postularse.
@@ -184,11 +203,11 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   if(!bidderId){out.freelancer.reason='oauth_invalid_or_self_lookup_failed';return out}
 
   const rotation=Math.floor(now/(15*60*1000))%FL_QUERIES.length
-  const queries=[FL_QUERIES[rotation],FL_QUERIES[(rotation+3)%FL_QUERIES.length]]
+  const queries=[FL_QUERIES[rotation],FL_QUERIES[(rotation+3)%FL_QUERIES.length],FL_QUERIES[(rotation+7)%FL_QUERIES.length],FL_QUERIES[(rotation+11)%FL_QUERIES.length]]
   const seen=new Set()
   const candidates=[]
   for(const q of queries) for(const p of await searchFreelancer(env,q)) if(!seen.has(p.id)){seen.add(p.id);candidates.push(p)}
-  candidates.sort((a,b)=>(b.budgetMax||0)-(a.budgetMax||0))
+  candidates.sort((a,b)=>freelancerRelevance(b)-freelancerRelevance(a))
 
   for(const p of candidates.slice(0,12)) {
     if((count?.n||0)+out.freelancer.submitted>=limit) break
