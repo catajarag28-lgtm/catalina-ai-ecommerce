@@ -139,43 +139,76 @@ export async function setupResendWebhook(env, endpoint='https://soycatalinajaram
   return {ok:true,webhookId:created.id,removed}
 }
 
-// Lista diaria de contacto directo (lun-vie, 8 a. m. Bogotá): negocios que ya recibieron propuesta, ordenados por interés,
-// con su teléfono/WhatsApp publicado y un enlace wa.me con el mensaje listo. Catalina revisa y envía cada uno personalmente.
-export function whatsappMessage(row) {
+// Dream Accounts diarios: Carolina elige hasta 10 cuentas que ya recibieron una propuesta,
+// prepara contacto multicanal y, para las 5 primeras, un guion de video personalizado.
+// Los DMs fríos y WhatsApp se dejan listos para revisión/envío humano; no se automatizan contra reglas de plataforma.
+export function whatsappMessage(row, d={}) {
   const link = 'https://soycatalinajaramillo.com/propuesta/' + row.id
-  return `Hola, equipo de ${row.company}. Soy Catalina Jaramillo. Les escribí por correo con una idea para su atención por WhatsApp y les preparé una demo con sus propios servicios, que pueden probar aquí: ${link}\n¿Les parece si lo conversamos 15 minutos esta semana?`
+  const who = d.contactName ? d.contactName.split(/\s+/)[0] : 'equipo de ' + row.company
+  const idea = d.hypothesis || d.observation || 'preparé una idea específica después de revisar su negocio'
+  return `Hola ${who}. Soy Catalina Jaramillo. Les envié una propuesta porque ${idea.charAt(0).toLowerCase()+idea.slice(1)}. Preparé una demostración específica para ${row.company}: ${link}\nSi esto sí ocurre en su operación, con gusto lo conversamos 15 minutos.`
 }
+export function instagramDmDraft(row, d={}) {
+  const who = d.contactName ? d.contactName.split(/\s+/)[0] : ''
+  const opening = who ? `Hola ${who},` : `Hola, equipo de ${row.company},`
+  const observed = String(d.observation || '').replace(/\s+/g,' ').trim()
+  return [opening, observed ? `vi que ${observed.charAt(0).toLowerCase()+observed.slice(1)}` : 'estuve revisando su negocio y preparé algo específico para ustedes.', 'Me quedó una pregunta sobre un punto del recorrido de sus clientes y armé una simulación para mostrar cómo podría resolverse.', '¿Te la puedo compartir?'].join(' ')
+}
+export function videoScript(row, d={}) {
+  const observed = String(d.observation || 'revisé cómo funciona hoy una parte de su recorrido comercial').replace(/\s+/g,' ').trim()
+  const hypothesis = String(d.hypothesis || 'hay un punto que podría ganar continuidad sin cargar más al equipo').replace(/\s+/g,' ').trim()
+  const link = 'https://soycatalinajaramillo.com/propuesta/' + row.id
+  return `Hola, soy Catalina. Estuve revisando ${row.company}. ${observed} Me quedó esta pregunta: ${hypothesis} Por eso preparé una demostración usando únicamente información pública de su negocio para que puedan ver la idea antes de hablar conmigo. No es una presentación genérica. Pueden verla aquí: ${link}. Si la situación sí ocurre en su operación, Carolina les ayuda a validar en pocos minutos si vale la pena implementarlo.`
+}
+
 export async function sendDailyContactList(env, now = Date.now()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', weekday: 'short', hour: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(p => [p.type, p.value]))
   if (['Sat', 'Sun'].includes(parts.weekday) || Number(parts.hour) !== 8) return { due: false }
   const day = parts.year + '-' + parts.month + '-' + parts.day
-  const rows = (await env.DB.prepare(`SELECT o.id,o.company,o.subject,o.research,o.dossier,o.sent_at,
-      MAX(CASE WHEN e.type IN ('demo.used','cta.clicked','chat.started') THEN 3 WHEN e.type IN ('page.viewed','email.clicked') THEN 2 WHEN e.type='email.opened' THEN 1 ELSE 0 END) AS heat
+  const rows = (await env.DB.prepare(`SELECT o.id,o.company,o.email,o.website,o.subject,o.research,o.dossier,o.sent_at,
+      MAX(CASE WHEN e.type IN ('demo.used','cta.clicked','chat.started','booking.opened') THEN 4 WHEN e.type IN ('page.viewed','email.clicked') THEN 3 WHEN e.type='email.opened' THEN 1 ELSE 0 END) AS heat
     FROM outreach o LEFT JOIN outreach_events e ON e.outreach_id=o.id
-    WHERE o.status='sent' AND o.id NOT LIKE 'test-%' AND o.sent_at>? GROUP BY o.id ORDER BY heat DESC, o.sent_at DESC LIMIT 40`).bind(now - 10 * 86400000).all()).results || []
+    WHERE o.status='sent' AND o.id NOT LIKE 'test-%' AND o.sent_at>? GROUP BY o.id ORDER BY heat DESC, o.sent_at DESC LIMIT 50`).bind(now - 10 * 86400000).all()).results || []
   const list = []
   for (const r of rows) {
     let d = {}; try { d = JSON.parse(r.research || '{}') } catch {}
-    const phone = (d.phones || [])[0]
-    if (!phone) continue
     const contacted = await env.DB.prepare("SELECT 1 FROM outreach_events WHERE outreach_id=? AND type='contact.listed'").bind(r.id).first()
-    if (contacted && r.heat < 3) continue
-    list.push({ ...r, phone })
-    if (list.length >= 15) break
+    if (contacted && Number(r.heat||0) < 3) continue
+    const socials = Array.isArray(d.socialLinks) ? d.socialLinks : []
+    const instagram = socials.find(x => /instagram\.com/i.test(x)) || ''
+    const linkedin = socials.find(x => /linkedin\.com/i.test(x)) || ''
+    const phone = (d.phones || [])[0] || ''
+    list.push({ ...r, d, phone, instagram, linkedin })
+    if (list.length >= 10) break
   }
   if (!list.length) return { due: true, sent: false }
   const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('contactlist-' + day, 'system', 'contactlist.sent', now).run()
   if (!mark.meta.changes) return { due: false }
-  const heatLabel = ['recibió el correo', 'abrió el correo', 'vio su propuesta', '🔥 probó la demo o pidió hablar']
+
+  const heatLabel = ['propuesta enviada', 'abrió el correo', 'interacción leve', 'vio/clic en propuesta', '🔥 pidió hablar, probó demo o abrió agenda']
   const lines = list.map((r, i) => {
-    const wa = 'https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(whatsappMessage(r))
-    return `${i + 1}. ${r.company} — ${heatLabel[r.heat]}\n   Teléfono: ${r.phone}\n   Abrir WhatsApp con el mensaje listo: ${wa}\n   Su propuesta: https://soycatalinajaramillo.com/propuesta/${r.id}`
+    const wa = r.phone ? 'https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(whatsappMessage(r,r.d)) : ''
+    const dm = instagramDmDraft(r,r.d)
+    const video = i < 5 ? videoScript(r,r.d) : ''
+    return [
+      `${i + 1}. ${r.company} — ${heatLabel[Math.min(4,Number(r.heat||0))]}`,
+      r.d.contactName ? `   Decisor público: ${r.d.contactName}${r.d.contactRole ? ' · '+r.d.contactRole : ''}` : '   Decisor público: no identificado',
+      `   Email: ${r.email}`,
+      r.phone ? `   Teléfono/WhatsApp: ${r.phone}` : null,
+      r.instagram ? `   Instagram: ${r.instagram}` : null,
+      r.linkedin ? `   LinkedIn: ${r.linkedin}` : null,
+      wa ? `   WhatsApp listo: ${wa}` : null,
+      `   Propuesta: https://soycatalinajaramillo.com/propuesta/${r.id}`,
+      `   DM sugerido: ${dm}`,
+      video ? `   VIDEO 45–60 s (top 5): ${video}` : null,
+    ].filter(Boolean).join('\n')
   })
-  for (const r of list) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'contact.listed',?)").bind('listed-' + r.id, r.id, now).run()
-  await notifyCatalina(env, `Tu lista de contacto directo de hoy · ${list.length} negocios`, [
-    'Negocios que ya recibieron su propuesta de Carolina, ordenados de más a menos interés. Escríbeles tú, uno por uno, desde tu WhatsApp: el enlace abre el chat con el mensaje listo para que lo revises y envíes.',
-    'Prioriza los 🔥. Si alguien responde, pásalo al chat de Carolina o agenda directamente.', '', ...lines, '',
-    'Consejo: un mensaje personal por negocio, nunca en masa. Si alguien dice que no, respeta y no insistas.'
-  ].join('\n'))
-  return { due: true, sent: true, count: list.length }
+
+  for (const r of list) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'contact.listed',?)").bind('listed-' + r.id, r.id, now).run()
+  await notifyCatalina(env, `🔥 Dream Accounts de hoy · ${list.length} cuentas`, [
+    'Carolina priorizó estas cuentas para contacto humano multicanal. Ya recibieron una propuesta investigada.',
+    'Top 5: graba/envía el video solo si el negocio realmente merece el esfuerzo. Instagram/LinkedIn/WhatsApp: usa el borrador uno a uno; nunca envío masivo.',
+    'Si responden por Instagram y la API oficial está conectada, Carolina puede continuar automáticamente después de que ellos hayan iniciado/resuelto la conversación.', '', ...lines,
+  ].join('\n')).catch(() => {})
+  return { due: true, sent: true, count: list.length, videos: Math.min(5,list.length) }
 }
