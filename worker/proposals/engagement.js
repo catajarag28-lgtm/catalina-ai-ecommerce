@@ -98,6 +98,7 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
   const cta=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='cta.clicked' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
   const chats=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='chat.started' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
   const bookings=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='booking.opened' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
+  const meetings=await env.DB.prepare("SELECT COUNT(*) AS n FROM meetings WHERE created_at>=?").bind(start).first().catch(()=>({n:0}))
   const control=await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
 
   const sentRows=(await env.DB.prepare("SELECT id,company,email,subject,status,sent_at FROM outreach WHERE sent_at>=? AND id NOT LIKE 'test-%' ORDER BY sent_at DESC LIMIT 40").bind(start).all()).results||[]
@@ -142,7 +143,8 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     'Visitas a propuesta: '+stats.visited,
     'Clic en Hablar con Carolina: '+(cta?.n||0),
     'Conversaciones iniciadas con Carolina: '+(chats?.n||0),
-    'Agenda abierta: '+(bookings?.n||0),
+    'Abrieron página de agenda (NO es cita): '+(bookings?.n||0),
+    'Citas reales confirmadas en calendario: '+(meetings?.n||0),
     'Respuestas por email: '+stats.replied,
     'Rebotes: '+stats.bounced+' · Quejas: '+stats.complained,
     'Estado outreach: '+(control?.paused?'PAUSADO · '+control.reason:(env.OUTREACH_ENABLED==='true'?'ACTIVO':'DESACTIVADO')),
