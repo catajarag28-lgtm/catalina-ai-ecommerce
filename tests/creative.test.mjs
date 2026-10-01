@@ -9,7 +9,8 @@ import { excludedHosts, segments } from '../worker/prospecting/discovery.js'
 
 const good = {
   offer: 'esencial', subject: '¿Qué ve una novia antes de reservar su head spa?', preview: 'Preparé cómo podría sentirse esa primera consulta en Ava, con lo que ya publican en su web.',
-  hook: 'Domingo, 9:40 p. m. Una novia pregunta por su head spa.', subhook: 'Así podría continuar esa conversación.',
+  hook: 'Que una consulta de head spa llegue al equipo lista para confirmar.', subhook: 'La escena muestra cómo podría verse ese primer contacto fuera de horario.',
+  offerPitch: 'Desarrollar para Ava un agente personalizado que atienda consultas iniciales, recoja contexto y entregue al equipo cada solicitud lista para continuar.',
   observation: 'Ava ofrece head spa y reserva por Booksy.', evidence: 'head spa', hypothesis: 'Si muchas consultas llegan por WhatsApp fuera de horario, podría ayudar una primera respuesta con contexto.',
   scene: { channel: 'WhatsApp', time: 'Domingo · 9:40 p. m.', customer: '¿Tienen head spa para una novia el sábado?', agent: 'Sí, ofrecemos head spa. Puede reservar en Booksy o le paso con el equipo.', handoff: 'nombre, fecha deseada y servicio' },
   moments: [{ title: 'Antes', text: 'a' }, { title: 'Durante', text: 'b' }, { title: 'Después', text: 'c' }],
@@ -20,6 +21,9 @@ test('Visual and letter emails render the scene, one CTA and no price', () => {
   for (const format of ['visual', 'carta']) {
     const html = brandedProposal('Ava <Spa>', { ...good, format }, 'https://soycatalinajaramillo.com/propuesta/abc', null, { postal: '123 Calle, Miami FL' })
     assert.ok(html.includes('Tienen head spa'))
+    assert.ok(html.includes('Soy Catalina Jaramillo'))
+    assert.ok(html.includes('quiero proponerle algo concreto'))
+    assert.ok(html.includes('Hablar con Carolina sobre esta propuesta'))
     assert.ok(html.includes('BAJA') && html.includes('123 Calle'))
     assert.ok(!/USD|\$\d|3\.800|2\.200/.test(html))
     assert.ok(!html.includes('Ava <Spa>'))
@@ -40,6 +44,8 @@ test('Copy linter blocks weak, deceptive or priced copy', () => {
   assert.ok(lintCopy({ ...good, hook: 'Ustedes pierden ventas cada noche' }).some(x => x.includes('carencia')))
   assert.ok(lintCopy({ ...good, ps: 'Desde USD 2.200' }).some(x => x.includes('precio')))
   assert.ok(lintCopy({ ...good, scene: null }).some(x => x.includes('escena')))
+  assert.ok(lintCopy({ ...good, offerPitch: '' }).some(x => x.includes('oferta explícita')))
+  assert.ok(lintCopy({ ...good, hook: 'Domingo, 9:40 p. m. Una novia pregunta por su head spa.' }).some(x => x.includes('titular narrativo')))
 })
 
 test('Angle selection favours what earns interest but keeps exploring', () => {
