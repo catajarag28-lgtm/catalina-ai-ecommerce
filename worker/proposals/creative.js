@@ -9,7 +9,7 @@ export const seedAngles = [
   { id: 'pregunta-momento', name: 'Pregunta sobre el momento decisivo', format: 'visual',
     brief: 'ASUNTO: pregunta de 5-9 palabras sobre el momento comercial decisivo, nombrando un servicio, producto o lugar real de su web (ej. «¿Qué sabe su equipo antes del primer HydraFacial?»). HOOK: visualiza ese momento. ESCENA: llega la consulta y el equipo recibe contexto.' },
   { id: 'escena-hora', name: 'Escena con hora concreta', format: 'visual',
-    brief: 'ASUNTO: escena concreta con hora o día y un servicio real (ej. «Domingo, 9:40 p. m.: alguien pregunta por el head spa»). Intriga por lo que pasa después. HOOK: continúa la escena. ESCENA: esa misma consulta respondida solo con información pública.' },
+    brief: 'ASUNTO: nombra un momento específico del recorrido y un servicio real, sin usar una hora o día como truco (ej. «Después de preguntar por el head spa»). Intriga por el siguiente paso. HOOK: visualiza ese momento. ESCENA: esa misma consulta respondida solo con información pública.' },
   { id: 'hecho-para-ustedes', name: 'Algo ya preparado para ustedes', format: 'visual',
     brief: 'ASUNTO: anuncia con sobriedad que ya hay algo preparado para ellos (ej. «Así respondería Ava a una novia que pregunta por su head spa»). Reciprocidad: el recorrido está hecho, solo tienen que mirarlo. HOOK: «Esto es lo que vería su cliente».' },
   { id: 'carta-directa', name: 'Carta personal breve', format: 'carta',
@@ -176,8 +176,10 @@ export async function adjustDailyCap(env, now = Date.now()) {
 }
 
 export async function currentDailyCap(env) {
+  const ceiling = outreachDailyLimit(env)
+  if (env.OUTREACH_FIXED_DAILY_CAP === 'true') return ceiling
   const control = await env.DB.prepare('SELECT daily_cap FROM outreach_control WHERE id=1').first().catch(() => null)
-  return Math.min(outreachDailyLimit(env), control?.daily_cap || 5)
+  return Math.min(ceiling, control?.daily_cap || 5)
 }
 
 export async function webhookSecret(env) {
