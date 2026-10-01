@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { freelancerReady, upworkReady } from '../worker/prospecting/marketplaces.js'
+import { freelancerReady, freelancerBidAllowance, upworkReady } from '../worker/prospecting/marketplaces.js'
 
 test('Freelancer autosubmit requires explicit enablement and OAuth token',()=>{
   assert.equal(freelancerReady({}),false)
@@ -13,4 +13,11 @@ test('Upwork autosubmit remains off until token and Submit Proposal permission a
   assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token'}),false)
   assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true'}),false)
   assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true',UPWORK_ADAPTER_READY:'true'}),true)
+})
+
+test('Freelancer sends only one bid until its result is verified',()=>{
+  const env={FREELANCER_DAILY_BID_LIMIT:'8'}
+  assert.equal(freelancerBidAllowance(env,false),1)
+  assert.equal(freelancerBidAllowance(env,true),0)
+  assert.equal(freelancerBidAllowance({...env,FREELANCER_FIRST_BID_VERIFIED:'true'},true),8)
 })

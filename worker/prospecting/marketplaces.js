@@ -20,6 +20,10 @@ const num=v=>Number.isFinite(Number(v))?Number(v):null
 export function freelancerReady(env={}) {
   return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' && !!env.FREELANCER_OAUTH_TOKEN
 }
+export function freelancerBidAllowance(env={},hasSubmitted=false) {
+  if(env.FREELANCER_FIRST_BID_VERIFIED!=='true') return hasSubmitted ? 0 : 1
+  return Math.max(1,Math.min(15,Number(env.FREELANCER_DAILY_BID_LIMIT||8)))
+}
 export function upworkReady(env={}) {
   // La API de Upwork sí permite enviar propuestas, pero Carolina solo se marca lista
   // cuando el adaptador y el permiso Submit Proposal estén efectivamente validados.
@@ -161,7 +165,9 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   }
   if(!freelancerReady(env)||!env.OPENROUTER_API_KEY) return out
 
-  const limit=Math.max(1,Math.min(15,Number(env.FREELANCER_DAILY_BID_LIMIT||8)))
+  const firstSubmission=await env.DB.prepare("SELECT 1 FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' LIMIT 1").first()
+  const limit=freelancerBidAllowance(env,!!firstSubmission)
+  if(!limit){out.freelancer.reason='first_bid_pending_verification';return out}
   const since=Date.parse(bogotaDay(now)+'T00:00:00-05:00')
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' AND created_at>=?").bind(since).first()
   if((count?.n||0)>=limit){out.freelancer.reason='daily_cap';return out}
