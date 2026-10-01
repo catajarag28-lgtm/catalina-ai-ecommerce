@@ -62,6 +62,13 @@ export async function sendThreadedEmail(env, { to, subject, text, inReplyTo, ref
 const privateHost = host => !/^[a-z\d.-]+\.[a-z]{2,}$/i.test(host) || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(host)
 const socialHosts = /facebook|instagram|linkedin|twitter|x\.com|youtube|tiktok|workana|upwork|pinterest|wa\.me|whatsapp/i
 const junkEmail = /\.(png|jpe?g|gif|webp|svg|css|js)$|@(example|sentry|wixpress|domain|email|yourdomain|sentry-next)\.|^(u00|noreply|no-reply)/i
+export const validPublicEmail = value => {
+  const e=String(value||'').trim().toLowerCase()
+  if(!/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,24}$/i.test(e)) return false
+  const domain=e.split('@')[1]||''
+  if(!domain || domain.includes('..') || /(?:https?|www)$/i.test(domain) || /(?:https?|www)[.:/]/i.test(domain)) return false
+  return !junkEmail.test(e)
+}
 
 // Lee una página pública siguiendo hasta 3 redirecciones https, sin salir a hosts privados.
 export async function researchWebsite(url) {
@@ -77,7 +84,9 @@ export async function researchWebsite(url) {
     if (!res.ok || (res.headers.get('content-type') || '').indexOf('text/html') < 0) return { ok: false, reason: 'site_unavailable' }
     const html = (await res.text()).slice(0, 250000)
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 3500)
-    const publicEmails = [...new Set((html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []).map(e => e.toLowerCase()).filter(e => !junkEmail.test(e)))]
+    const mailtoEmails=[...html.matchAll(/href=["']mailto:([^"'?\s<>]+)/gi)].map(m=>m[1])
+    const textEmails=html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}/g) || []
+    const publicEmails = [...new Set([...mailtoEmails,...textEmails].map(e => e.toLowerCase()).filter(validPublicEmail))]
     const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
     const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
     const socialLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 20)
@@ -139,9 +148,10 @@ export async function researchBusiness(url) {
 
 // El correo debe estar publicado en la web del negocio; se prefiere el del propio dominio.
 export function pickBusinessEmail(emails, host) {
-  const own = emails.filter(e => !/(%22|%3c|%3e|data-style|support-contact)/i.test(e) && e.split('@')[1].replace(/^www\./, '').endsWith(host))
+  const clean=(emails||[]).filter(validPublicEmail)
+  const own = clean.filter(e => !/(%22|%3c|%3e|data-style|support-contact)/i.test(e) && e.split('@')[1].replace(/^www\./, '').endsWith(host))
   const preferred = own.find(e => /^(info|hola|hello|contacto|contact|citas|reservas|ventas|sales|admin|office|recepcion|front|booking|appointments)@/i.test(e)) || own[0]
   if (preferred) return preferred
-  return emails.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
+  return clean.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
 }
 
