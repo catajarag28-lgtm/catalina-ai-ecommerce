@@ -50,16 +50,19 @@ const SPEC = `Devuelve SOLO JSON con esta forma:
 "subject":"...","preview":"...","hook":"...","subhook":"1 frase","offerPitch":"UNA frase explícita de 15-35 palabras: qué queremos desarrollar/implementar/conectar para ESTE negocio y qué parte del proceso resolvería, sin precio ni promesa","observation":"dato concreto de su web","evidence":"cita LITERAL copiada del texto público que respalda observation","hypothesis":"pregunta o hipótesis condicional",
 "scene": ELIGE el tipo según la solución priorizada. Conversación (atención/ventas): {"type":"chat","channel":"WhatsApp|Web|Instagram|Reservas","time":"ej. Domingo · 9:40 p. m.","customer":"pregunta real de un cliente de este negocio, máx. 25 palabras","agent":"respuesta SOLO con datos públicos de su web, máx. 45 palabras; en salud/estética nunca número de sesiones, resultados, indicaciones ni idoneidad: solo logística (horarios, ubicación, cómo reservar, evaluación) y paso al equipo","handoff":"qué recibe su equipo, máx. 18 palabras"}. Flujo automatizado (operaciones, seguimiento, postventa, reportes): {"type":"flujo","title":"nombre del flujo","steps":[{"when":"disparador o momento","what":"qué pasa, máx. 16 palabras"}] (3-5 pasos con SUS herramientas y procesos publicados)}. Tablero (finanzas, control, dirección, varias sedes): {"type":"tablero","title":"","tiles":["3-4 indicadores con nombre, SIN cifras"],"alert":"ejemplo de alerta útil, sin cifras"},
 "moments":[{"title":"Antes","text":"..."},{"title":"Durante","text":"..."},{"title":"Después","text":"..."}],
-"solution":"cómo lo exploraríamos, 2-3 frases, con supervisión humana. Elige la solución adecuada de TODO el rango según el diagnóstico (agente de atención/ventas, automatización de flujos, integración con CRM/agenda/tienda, tablero de control, sistema multiagente), no siempre un chatbot","ps":"P. D. breve con bucle de curiosidad",
+"solution":"cómo lo exploraríamos, 2-3 frases, con supervisión humana. Elige la solución adecuada de TODO el rango según el diagnóstico (agente de atención/ventas, automatización de flujos, integración con CRM/agenda/tienda, tablero de control, sistema multiagente), no siempre un chatbot",
+"roadmap":[{"level":"Base","title":"nombre concreto","items":["2-4 capacidades"]},{"level":"Crecimiento","title":"nombre concreto","items":["2-4 capacidades"]},{"level":"Sistema integral","title":"nombre concreto","items":["2-4 capacidades"]}],
+"ps":"P. D. breve con bucle de curiosidad",
 "executive":{"headline":"titular ejecutivo de 6-10 palabras","situation":"2 frases: cómo funciona hoy su captación/atención según la web","opportunity":"2 frases, condicional","approach":"2 frases: qué haríamos, por fases y con su equipo","measures":["3 indicadores concretos a medir, sin cifras prometidas, ej. tiempo de primera respuesta fuera de horario"]},
 "demoGreeting":"saludo del asistente demo con el nombre del negocio, máx. 20 palabras","demoPrompts":["3 preguntas cortas que haría un cliente real, sobre servicios publicados"]}
 Tono de consultor senior de estrategia comercial: preciso, sobrio, orientado a decisión. Nada de entusiasmo vacío.
+ROADMAP: úsalo para mostrar cómo la solución podría crecer por fases, especialmente en inmobiliarias y operaciones complejas. El primer email sigue teniendo UNA sola prioridad; el roadmap vive en la propuesta profunda. No inventes herramientas ni funciones que el negocio no podría validar.
 fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene demanda visible o nada del catálogo encaja. Para correo frío solo se envía cuando fit=alto: fit=medio queda fuera hasta encontrar una señal mejor.\nAntes de redactar, construye un diagnóstico con tres hechos concretos de su web, el recorrido visible de captación, atención, reserva, venta o postventa, las automatizaciones que sí aparecen y una oportunidad que no aparece resuelta públicamente. Puedes decir «no encontré una señal pública de…», nunca afirmar «no tiene» solo por ausencia. Elige EXACTAMENTE una fricción prioritaria y una solución del catálogo que la atienda. La propuesta debe permitir que el dueño diga «eso es lo que nos está pasando» y explicar qué cambiaría para su cliente y su equipo. Si no puedes construir esa conexión con evidencia, devuelve fit=bajo. El asunto y el hook deben unir el hecho observado con esa oportunidad; no uses una hora, un día, un nombre de servicio aislado ni una pregunta genérica. No redactes por volumen ni para ver qué pesca. Ejemplo de razonamiento válido: si una clínica veterinaria publica servicios y canales de contacto, pero no encontramos una señal pública de atención automatizada, plantea «¿Sabías que podrías tener orientación y agenda 24/7 para que una consulta llegue al equipo con especie, motivo y urgencia?». Para un centro médico, limita la propuesta a orientación administrativa sobre servicios publicados, requisitos, horarios, ubicación, preparación no clínica y agenda; nunca diagnóstico, indicaciones, idoneidad médica ni promesas de salud. En cualquier sector, el agente debe filtrar la intención y pasar al personal a las personas con una necesidad concreta y posibilidad real de avanzar, sin fingir que reemplaza al profesional.`
 
 async function prepare(env, row, research, angle) {
   const learning = await learningExamples(env).catch(() => ({ good: [], bad: [] }))
   const playbook = await learnedPlaybook(env, 15).catch(() => '')
-  const system = [salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'mapa-de-oportunidades', 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
+  const system = [salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'mapa-de-oportunidades', ...(String(row.segment||'').includes('realestate') || String(row.dossier||'').includes('inmobiliaria') ? ['playbook-inmobiliario'] : []), 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
     `ENFOQUE ASIGNADO (${angle.id}, formato ${angle.format}): ${angle.brief}\nLos ejemplos entre « » son ilustrativos: NUNCA los copies ni los parafrasees de cerca; crea asunto y hook desde los datos de ESTE negocio.`,
     playbook,
     learning.good.length ? 'Asuntos que SÍ generaron interés (aprende el patrón, no los copies): ' + learning.good.join(' | ') : '',
@@ -74,15 +77,13 @@ async function prepare(env, row, research, angle) {
   let critiqueError = null
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500 }).catch(e => { critiqueError = e.message; return null })
-  // Reparación limitada: problemas de estilo y longitud se corrigen solos.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const currentLint = lintCopy(p, row.company)
-    const needsRewrite = attempt === 0 ? !!critique?.rewrite || currentLint.length > 0 : currentLint.length > 0
-    if (!needsRewrite) break
-    const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...currentLint]
-    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Conserva hechos, evidence, offerPitch y diagnóstico. Reduce redundancias y deja idealmente 90–160 palabras comerciales. No inventes nada.' }]).catch(() => null)
+  let lint = lintCopy(p, row.company)
+  for (let attempt = 0; attempt < 3 && (attempt === 0 ? (critique?.rewrite || lint.length) : lint.length); attempt++) {
+    const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...lint]
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Conserva hechos y evidencia. Hazlo más específico y deseable para ESTE negocio, sin inventar nada. Ideal 90-160 palabras comerciales; la profundidad vive en la página.' }]).catch(() => null)
     if (!rewritten) break
-    p = { ...p, ...rewritten, evidence: rewritten.evidence || p.evidence, offerPitch: rewritten.offerPitch || p.offerPitch, diagnosis: rewritten.diagnosis || p.diagnosis }
+    p = rewritten
+    lint = lintCopy(p, row.company)
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
   const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
@@ -134,22 +135,13 @@ function internalBrief(row, research, proposal, angle, sendId) {
   ].filter(x => x !== '').join('\n')
 }
 
-export async function recoverCopyRejected(env, now=Date.now()) {
-  const rows=(await env.DB.prepare("SELECT id FROM outreach WHERE status='review' AND error LIKE 'copy_rejected%' AND (suppressed IS NULL OR suppressed=0) ORDER BY updated_at LIMIT 30").all().catch(()=>({results:[]}))).results||[]
-  let recovered=0
-  for(const row of rows){
-    const n=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events WHERE outreach_id=? AND type='copy.retry'").bind(row.id).first().catch(()=>({n:0}))
-    if(Number(n?.n||0)>=2) continue
-    const c=await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE id=? AND status='review'").bind(now,row.id).run()
-    if(c.meta.changes){ recovered++; await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'copy.retry',?)").bind(`copy-retry-${row.id}-${Number(n?.n||0)+1}`,row.id,now).run() }
-  }
-  return { recovered, candidates: rows.length }
-}
 export async function runOutreach(env, now = Date.now()) {
   if (env.OUTREACH_ENABLED !== 'true') return { enabled: false }
   if (!env.RESEND_API_KEY || !env.OPENROUTER_API_KEY || !env.EMAIL_FROM?.includes('clientes@soycatalinajaramillo.com')) return { reason: 'connections_missing' }
   const control = await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
   if (control?.paused) return { reason: 'paused', detail: control.reason }
+  // Recover legacy opportunities that were rejected only by the old 110-word ceiling.
+  await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE status='review' AND sent_at IS NULL AND provider_id IS NULL AND error LIKE 'copy_rejected:%110 palabras%'").bind(Date.now()).run().catch(()=>{})
   const cap = await currentDailyCap(env)
   // Las muestras internas (id test-*) no consumen el cupo diario de prospectos.
   const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND sent_at>?").bind(now - 86400000).first()
@@ -196,7 +188,7 @@ export async function runOutreach(env, now = Date.now()) {
     const subject = String(proposal.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
     const html = brandedProposal(row.company, proposal, `${SITE}/propuesta/${row.id}`, schedulingUrl(env), { postal: env.SENDER_POSTAL_ADDRESS })
     const greeting = proposal.contactName ? `Hola, ${proposal.contactName}:` : `Hola, equipo de ${row.company}:`
-    const text = [greeting, '', 'Soy Catalina Jaramillo. Diseño sistemas comerciales y operativos con inteligencia artificial.', '', proposal.offerPitch, '', proposal.observation, '', proposal.hypothesis, '', `Preparé una propuesta específica para ${row.company}: ${SITE}/propuesta/${row.id}`, '', 'Si prefiere hablar directamente con Catalina, puede escribirle por WhatsApp al +1 786 929 9442 · solo WhatsApp, no llamadas.', '', 'Catalina Jaramillo', proposal.ps ? '\nP. D. ' + proposal.ps : '', '', 'Si prefiere no recibir más mensajes, responda BAJA.', env.SENDER_POSTAL_ADDRESS || ''].join('\n')
+    const text = [greeting, '', proposal.observation, '', proposal.hypothesis, '', proposal.scene ? `Ejemplo: «${proposal.scene.customer}» → ${proposal.scene.agent}` : '', '', `Preparé el recorrido completo para ${row.company}: ${SITE}/propuesta/${row.id}`, '', 'Catalina Jaramillo', proposal.ps ? '\nP. D. ' + proposal.ps : '', '', 'Si prefiere no recibir más mensajes, responda BAJA.', env.SENDER_POSTAL_ADDRESS || ''].join('\n')
     await env.DB.prepare("UPDATE outreach SET research=?,subject=?,html=?,angle=?,status='sending',updated_at=? WHERE id=?").bind(JSON.stringify({ source: research.source, signals: research.signals, pages: research.pages, phones: research.publicPhones || [], socialLinks: research.socialLinks || [], logo: research.logo || '', publicText: String(research.publicText || '').slice(0, 7000), ...proposal }), subject, html, angle.id, Date.now(), row.id).run()
     // Clave de idempotencia estable: un envío ambiguo nunca se reintenta automáticamente.
     const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `outreach-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [row.email], reply_to: 'clientes@soycatalinajaramillo.com', subject, html, text, headers: { 'List-Unsubscribe': '<mailto:clientes@soycatalinajaramillo.com?subject=BAJA>' }, tags: [{ name: 'angle', value: angle.id.replace(/[^a-zA-Z0-9_-]/g, '_') }] }), signal: AbortSignal.timeout(12000) })

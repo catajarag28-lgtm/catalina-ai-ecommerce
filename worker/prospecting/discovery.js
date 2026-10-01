@@ -18,7 +18,9 @@ const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '')
 // Colombia solo en segmento premium con clientela internacional.
 export const segments = [
   { id: 'miami-medspa', weight: 3, region: 'EE. UU.', sector: 'spa', q: 'med spa o spa de estética en Miami, Doral, Coral Gables o Brickell con atención en español y reservas en línea' },
-  { id: 'miami-realestate', weight: 3, region: 'EE. UU.', sector: 'inmobiliaria', q: 'agencia inmobiliaria independiente en Miami que atiende compradores latinoamericanos e inversionistas en español' },
+  { id: 'miami-realestate', weight: 6, region: 'EE. UU.', sector: 'inmobiliaria', q: 'agencia inmobiliaria independiente en Miami, Doral, Brickell o Coral Gables que atiende compradores latinoamericanos e inversionistas en español y publica propiedades o agenda visitas' },
+  { id: 'tx-realestate', weight: 4, region: 'EE. UU.', sector: 'inmobiliaria', q: 'agencia inmobiliaria hispana independiente en Houston, Dallas, Austin o San Antonio que publica propiedades y atiende leads en español' },
+  { id: 'pr-realestate', weight: 2, region: 'Puerto Rico', sector: 'inmobiliaria', q: 'agencia inmobiliaria o broker en San Juan Puerto Rico con propiedades activas, formulario o WhatsApp y atención en español' },
   { id: 'fl-dental', weight: 2, region: 'EE. UU.', sector: 'salud-admin', q: 'clínica dental hispana en Florida con citas en línea y atención en español' },
   { id: 'usa-legal', weight: 2, region: 'EE. UU.', sector: 'servicios', q: 'firma de abogados de inmigración en Estados Unidos con atención en español y consulta inicial agendable' },
   { id: 'usa-services', weight: 2, region: 'EE. UU.', sector: 'servicios', q: 'agencia de seguros, contabilidad o impuestos hispana en Houston, Dallas, Los Ángeles o Nueva York con citas' },
@@ -26,14 +28,15 @@ export const segments = [
   { id: 'tx-ca-medspa', weight: 2, region: 'EE. UU.', sector: 'spa', q: 'med spa latino en Houston, San Antonio, Los Ángeles o San Diego con servicios en español' },
   { id: 'tx-high-ticket', weight: 3, region: 'EE. UU.', sector: 'servicios', q: 'negocio hispano de ticket alto en Houston, Dallas, Austin o San Antonio: clínica dental, med spa, inmigración, bienes raíces, roofing, HVAC o servicios profesionales con consultas o citas' },
   { id: 'pr-services', weight: 1, region: 'Puerto Rico', sector: 'spa', q: 'clínica estética, spa o dentista en San Juan Puerto Rico con reservas en línea' },
-  { id: 'pa-services', weight: 1, region: 'Panamá', sector: 'servicios', q: 'clínica estética, inmobiliaria o dentista en Ciudad de Panamá con clientes internacionales' },
+  { id: 'pa-services', weight: 1, region: 'Panamá', sector: 'servicios', q: 'clínica estética o dentista en Ciudad de Panamá con clientes internacionales' },
+  { id: 'pa-realestate', weight: 2, region: 'Panamá', sector: 'inmobiliaria', q: 'inmobiliaria o desarrolladora en Ciudad de Panamá con propiedades para compradores internacionales, formulario o WhatsApp y agenda de visitas' },
   { id: 'mx-clinicas', weight: 2, region: 'México', sector: 'spa', q: 'clínica de medicina estética o dermatología con varias sucursales en Ciudad de México, Monterrey o Guadalajara' },
-  { id: 'mx-realestate', weight: 2, region: 'México', sector: 'inmobiliaria', q: 'desarrolladora o inmobiliaria en Cancún, Tulum, Playa del Carmen o Los Cabos que vende a compradores extranjeros' },
+  { id: 'mx-realestate', weight: 4, region: 'México', sector: 'inmobiliaria', q: 'desarrolladora o inmobiliaria en Cancún, Tulum, Playa del Carmen o Los Cabos que vende a compradores extranjeros, publica inventario y recibe consultas online' },
   { id: 'mx-ecommerce', weight: 1, region: 'México', sector: 'ecommerce', q: 'marca mexicana de cosmética o moda con tienda online propia y envíos nacionales' },
   { id: 'usa-ny-chi', weight: 2, region: 'EE. UU.', sector: 'spa', q: 'med spa, clínica dental o estética latina en Nueva York, Nueva Jersey o Chicago con citas en línea y atención en español' },
   { id: 'usa-az-nv', weight: 1, region: 'EE. UU.', sector: 'servicios', q: 'negocio hispano de servicios profesionales, estética o bienes raíces en Phoenix, Las Vegas o Denver con reservas o consultas en línea' },
   { id: 'fl-orlando-tampa', weight: 2, region: 'EE. UU.', sector: 'inmobiliaria', q: 'inmobiliaria o med spa en Orlando o Tampa que atiende clientes latinoamericanos en español' },
-  { id: 'do-realestate', weight: 1, region: 'Rep. Dominicana', sector: 'inmobiliaria', q: 'inmobiliaria o desarrolladora en Punta Cana o Santo Domingo que vende a compradores extranjeros en dólares' },
+  { id: 'do-realestate', weight: 3, region: 'Rep. Dominicana', sector: 'inmobiliaria', q: 'inmobiliaria o desarrolladora en Punta Cana o Santo Domingo que vende a compradores extranjeros en dólares, publica propiedades y recibe consultas online' },
   { id: 'cr-services', weight: 1, region: 'Costa Rica', sector: 'spa', q: 'clínica dental o estética en Costa Rica que atiende pacientes de Estados Unidos (turismo médico) con citas en línea' },
   { id: 'cl-uy-clinicas', weight: 1, region: 'Chile', sector: 'spa', q: 'clínica de estética o dermatología con varias sedes en Santiago de Chile o Montevideo con reservas en línea' },
   { id: 'aliados-miami-marketing', kind: 'partner', weight: 2, region: 'EE. UU.', sector: 'agencia', q: 'agencia de marketing digital hispana o latina en Miami que atiende pequeños negocios como spas, clínicas, restaurantes o inmobiliarias' },
@@ -47,7 +50,9 @@ const rotation = segments.flatMap(s => Array(s.weight).fill(s))
 // Consultas para Google Maps (rotan por ciudad) y áreas de OpenStreetMap por segmento.
 export const placesQueries = {
   'miami-medspa': ['med spa en Miami', 'med spa Doral FL', 'spa facial Coral Gables', 'med spa Brickell Miami', 'estética facial Hialeah', 'med spa Kendall FL'],
-  'miami-realestate': ['inmobiliaria en Miami', 'real estate agency Doral FL', 'bienes raíces Brickell', 'realtor hispano Miami'],
+  'miami-realestate': ['inmobiliaria en Miami', 'real estate agency Doral FL', 'bienes raíces Brickell', 'realtor hispano Miami', 'real estate agency Coral Gables'],
+  'tx-realestate': ['realtor hispano Houston', 'inmobiliaria Dallas español', 'real estate agency Austin hispanic', 'realtor San Antonio español'],
+  'pr-realestate': ['inmobiliaria San Juan Puerto Rico', 'real estate broker Guaynabo', 'bienes raíces Puerto Rico'],
   'fl-dental': ['dentista hispano Miami', 'clínica dental Hialeah', 'dentista Doral FL', 'dentista Kendall'],
   'usa-legal': ['abogado de inmigración Miami', 'abogado de inmigración Houston', 'abogado de inmigración Los Angeles', 'abogado de inmigración Dallas'],
   'usa-services': ['seguros hispanos Houston', 'contador hispano Miami', 'preparación de impuestos hispano Dallas', 'agencia de seguros latina Los Angeles'],
@@ -56,7 +61,8 @@ export const placesQueries = {
   'usa-ny-chi': ['med spa Queens NY', 'dentista hispano Chicago', 'med spa Nueva Jersey', 'clínica estética Bronx'],
   'fl-orlando-tampa': ['inmobiliaria Orlando hispana', 'med spa Orlando', 'med spa Tampa', 'realtor hispano Kissimmee'],
   'pr-services': ['med spa San Juan Puerto Rico', 'dentista San Juan Puerto Rico', 'spa Guaynabo'],
-  'pa-services': ['clínica estética Ciudad de Panamá', 'inmobiliaria Ciudad de Panamá', 'dentista Ciudad de Panamá'],
+  'pa-services': ['clínica estética Ciudad de Panamá', 'dentista Ciudad de Panamá'],
+  'pa-realestate': ['inmobiliaria Ciudad de Panamá', 'real estate Panama City', 'bienes raíces Panamá'],
   'mx-clinicas': ['clínica de medicina estética CDMX', 'clínica estética Monterrey', 'dermatología estética Guadalajara'],
   'mx-realestate': ['inmobiliaria Tulum', 'inmobiliaria Playa del Carmen', 'desarrolladora Cancún', 'inmobiliaria Los Cabos'],
   'do-realestate': ['inmobiliaria Punta Cana', 'real estate Santo Domingo'],
@@ -68,7 +74,7 @@ export const placesQueries = {
   'aliados-crm': ['consultor GoHighLevel Miami', 'automatización de marketing Miami'],
   'aliados-mx': ['agencia de marketing digital CDMX clínicas', 'agencia de marketing Monterrey'],
 }
-export const osmAreas = { 'miami-medspa': 'Miami-Dade County', 'miami-realestate': 'Miami-Dade County', 'fl-dental': 'Miami-Dade County', 'fl-orlando-tampa': 'Orange County', 'tx-ca-medspa': 'Harris County', 'tx-high-ticket': 'Harris County', 'usa-legal': 'Harris County', 'usa-services': 'Miami-Dade County' }
+export const osmAreas = { 'miami-medspa': 'Miami-Dade County', 'miami-realestate': 'Miami-Dade County', 'tx-realestate': 'Harris County', 'pr-realestate': 'San Juan', 'pa-realestate': 'Panamá', 'fl-dental': 'Miami-Dade County', 'fl-orlando-tampa': 'Orange County', 'tx-ca-medspa': 'Harris County', 'tx-high-ticket': 'Harris County', 'usa-legal': 'Harris County', 'usa-services': 'Miami-Dade County' }
 
 // Aprendizaje de dónde buscar: los segmentos cuyos negocios muestran interés (demo, clic, visita, respuesta)
 // reciben más búsquedas; los que no, menos. Solo se ajusta con 15+ envíos en 30 días (factor entre 0,3 y 3).

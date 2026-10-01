@@ -106,8 +106,8 @@ export function lintCopy(p, company) {
   if (p.scene && (wc(p.scene.customer) > 30 || wc(p.scene.agent) > 55 || wc(p.scene.handoff) > 24)) issues.push('burbujas de la escena demasiado largas')
   if (/esto es lo que vería su cliente|qué sabe su equipo antes del primer|así respondería ava/i.test([p.subject, p.hook].join(' '))) issues.push('copia literal de un ejemplo de la guía')
   const commercialWords = [p.hook, p.subhook, p.offerPitch, p.observation, p.hypothesis, p.ps].join(' ').split(/\s+/).filter(Boolean).length
+  if (commercialWords > 180) issues.push('correo comercial supera 180 palabras')
   if (commercialWords < 40) issues.push('correo comercial demasiado corto para demostrar investigación')
-  if (commercialWords > 180) issues.push('correo comercial requiere reducción de redundancias')
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
   return issues
 }
