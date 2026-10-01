@@ -13,6 +13,7 @@ import { skillContext } from './skills/chatSkills.js'
 import { notifyCatalina, leadEmail } from './core/notify.js'
 import { handleInbound } from './core/inbox.js'
 import { isMeetingMail, handleMeetingMail, learnedPlaybook } from './core/meetings.js'
+import { instagramReady, verifyInstagramChallenge, receiveInstagramWebhook } from './core/instagram.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -196,6 +197,8 @@ export default {
     const origin = request.headers.get('origin')
     const url = new URL(request.url)
     if (url.pathname === '/webhooks/resend' && request.method === 'POST') return receiveResendEvent(request,env)
+    if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
+    if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
     // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
@@ -262,7 +265,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
