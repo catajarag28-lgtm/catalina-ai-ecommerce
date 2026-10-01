@@ -242,10 +242,10 @@ export async function sendDailyContactList(env, now = Date.now()) {
       r.phone ? `   Teléfono/WhatsApp: ${r.phone}` : null,
       r.instagram ? `   Instagram: ${r.instagram}` : null,
       r.linkedin ? `   LinkedIn: ${r.linkedin}` : null,
-      wa ? `   WhatsApp listo: ${wa}` : null,
+      null,
       `   Propuesta: https://soycatalinajaramillo.com/propuesta/${r.id}`,
-      `   DM sugerido: ${dm}`,
-      video ? `   VIDEO 45–60 s (top 5): ${video}` : null,
+      null,
+      null,
     ].filter(Boolean).join('\n')
   })
 
