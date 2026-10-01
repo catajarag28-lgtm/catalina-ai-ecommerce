@@ -11,5 +11,6 @@ test('Freelancer autosubmit requires explicit enablement and OAuth token',()=>{
 
 test('Upwork autosubmit remains off until token and Submit Proposal permission are explicitly enabled',()=>{
   assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token'}),false)
-  assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true'}),true)
+  assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true'}),false)
+  assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true',UPWORK_ADAPTER_READY:'true'}),true)
 })
