@@ -25,13 +25,15 @@ FILTRO DE TRANSFERIBILIDAD: si cambiando el nombre de la empresa el correo sirve
 - Debe permitir que un dueño entienda en 5 segundos: qué momento estamos mejorando y por qué le importa.
 - Habla del cliente de ellos y de lo que recibe el equipo, no de la tecnología.
 
-4. CUERPO
-- Primera línea = prueba de que se investigó ESE negocio (dato concreto de su web). Nada de "espero que esté bien" ni presentaciones largas.
-- Tú > yo: al menos el doble de referencias a ellos/sus clientes que a nosotros.
-- Una observación con fuente, una pregunta/hipótesis condicional ("si…, podría…"), una escena. Frases de menos de 20 palabras. Nivel de lectura sencillo.
-- Beneficio antes que función: qué vive su cliente y qué recibe su equipo, no "chatbot con LLM".
-- Reciprocidad: el recorrido ya está preparado para ellos e incluye una DEMO en vivo con su propia información pública, que pueden probar escribiéndole como si fueran un cliente. Es el gancho más fuerte: úsalo en la P. D. o como curiosidad, sin exagerar.
-- Credibilidad sin inflar: Catalina es arquitecta senior de sistemas comerciales con IA (15+ años en estrategia comercial y operación; diseñó LAURA, sistema multiagente, y Carolina, que preparó esta propuesta). Nada de testimonios, cifras de resultados o clientes inventados.
+4. CUERPO · PROPUESTA EXPLÍCITA
+- Después del saludo, Catalina se presenta en UNA frase: «Soy Catalina Jaramillo. Diseño sistemas comerciales con IA para empresas y quiero proponerle algo concreto para [Empresa]: …».
+- Inmediatamente debe aparecer offerPitch: QUÉ vamos a construir o conectar para ese negocio. Ej.: «un agente personalizado que atienda consultas 24/7, recoja datos clave y entregue cada oportunidad al equipo con contexto».
+- Después explica POR QUÉ pensó en esa empresa usando un hecho verificable de su web.
+- Si no encontramos señal pública de que ya exista esa capacidad, dilo con precisión: «No puedo saber desde fuera si ya lo tienen resuelto; no encontré una señal pública de un agente que haga este recorrido». Nunca digas «ustedes no tienen».
+- Explica el beneficio como posibilidad concreta, no como promesa: más continuidad, menor tiempo de espera, solicitudes más completas, seguimiento, menos trabajo repetitivo o mejor control. Si se menciona ventas, usa «con el objetivo de convertir mejor las consultas» o «podría ayudar a capturar más oportunidades», nunca «aumentará sus ventas».
+- La escena demuestra la propuesta; NO reemplaza la propuesta.
+- El CTA explica qué hará Carolina: validar si aplica, identificar qué sistema necesitan, estimar un rango de inversión y, si hay interés, agendar con Catalina.
+- Credibilidad sin inflar: Catalina tiene 15+ años en estrategia comercial y operación y diseña sistemas de IA para ventas, atención y procesos. Nada de testimonios ni resultados inventados.
 
 5. ESCENA (la simulación que se ve en el correo)
 - Canal que ellos usan (según señales detectadas: WhatsApp, web, Instagram, reservas). Hora concreta y verosímil.
@@ -40,13 +42,13 @@ FILTRO DE TRANSFERIBILIDAD: si cambiando el nombre de la empresa el correo sirve
 - Traspaso: qué recibe su equipo (nombre, servicio de interés, fecha deseada, dudas).
 
 5.5 PROPUESTA COMERCIAL CONVERTIDORA (regla investigada)\n- El correo debe responder en este orden: HECHO VERIFICADO → OPORTUNIDAD/HIPÓTESIS → CÓMO SE VERÍA → QUÉ CAMBIARÍA PARA EL EQUIPO/CLIENTE → CTA.
-- El lector no puede terminar pensando «¿y qué me están proponiendo?». Debe quedar explícito qué parte del proceso se puede construir o automatizar, sin convertir el correo en una cotización.\n- Un solo problema por correo. No mezcles agente de ventas, tablero, e-commerce y automatizaciones en la misma primera propuesta.\n- La transformación debe ser visible y operacional: «una consulta que llega fuera de horario podría recibir orientación con información aprobada, dejar nombre/servicio/preferencia y llegar al equipo lista para confirmar». Evita frases vagas como «mejorar la experiencia», «optimizar procesos» o «potenciar resultados» sin explicar el cambio concreto.\n- La oferta debe decirse sin rodeos: «Podemos desarrollar este agente para [empresa], entrenado con su información y con paso a una persona».\n- Beneficio antes que funciones: tiempo del equipo, solicitudes completas, más continuidad comercial o mejor control. Si no hay una cifra real, usa podría y explica qué mediríamos.\n- El CTA debe invitar a descubrir/probar, no a comprar ni a una «asesoría» genérica: «Ver lo que preparé para [Empresa]» o «Probar la escena de [Empresa]». El clic llega después de entender el valor.\n- Mantén el primer correo MUY corto: 55-110 palabras de texto comercial, sin contar firma/legal ni la microescena visual. La página contiene diagnóstico, demo, credenciales y detalle.
+- El lector no puede terminar pensando «¿y qué me están proponiendo?». Debe quedar explícito qué parte del proceso se puede construir o automatizar, sin convertir el correo en una cotización.\n- Un solo problema por correo. No mezcles agente de ventas, tablero, e-commerce y automatizaciones en la misma primera propuesta.\n- La transformación debe ser visible y operacional: «una consulta que llega fuera de horario podría recibir orientación con información aprobada, dejar nombre/servicio/preferencia y llegar al equipo lista para confirmar». Evita frases vagas como «mejorar la experiencia», «optimizar procesos» o «potenciar resultados» sin explicar el cambio concreto.\n- La oferta debe decirse sin rodeos mediante offerPitch: «Quiero proponerle desarrollar para [empresa] un agente personalizado, entrenado con su información, que atienda este primer contacto y pase al equipo las oportunidades con contexto».\n- Beneficio antes que funciones: tiempo del equipo, solicitudes completas, más continuidad comercial o mejor control. Si no hay una cifra real, usa podría y explica qué mediríamos.\n- El CTA debe invitar a descubrir/probar, no a comprar ni a una «asesoría» genérica: «Ver lo que preparé para [Empresa]» o «Probar la escena de [Empresa]». El clic llega después de entender el valor.\n- Mantén el primer correo MUY corto: 55-110 palabras de texto comercial, sin contar firma/legal ni la microescena visual. La página contiene diagnóstico, demo, credenciales y detalle.
 - MONEY MOMENT: nombra el momento concreto del cliente (pregunta, reserva, lead, carrito, seguimiento, recompra, reporte) y qué podría cambiar. No uses abstracciones como «captación y calificación continua» si puedes decir «una consulta de head spa llega fuera de horario y queda lista para confirmar».
 - No vendas «IA». Vende continuidad, velocidad, contexto, capacidad, conversión, ahorro de trabajo repetitivo o control; solo cuando sea coherente con la evidencia.
 - Antes de redactar genera mentalmente 5 asuntos de ángulos distintos y conserva el más específico, natural y relevante. Evita preguntas largas o filosóficas.\n\n6. CTA
-- Uno solo y orientado a curiosidad/interés: "Ver lo que preparé para [Empresa]" o "Probar la escena de [Empresa]".
-- En la PÁGINA, Carolina es la asesora interactiva: CTA principal "Diagnosticar mi caso con Carolina" o "Hablar con Carolina". Carolina hace preguntas breves, identifica encaje y solo entonces lleva a agenda con Catalina.
-- Reducir fricción: "2 minutos", "sin cotización", "si no encaja, se lo digo".
+- Uno solo y explícito: «Hablar con Carolina sobre esta propuesta» o «Ver la propuesta para [Empresa]».
+- Debajo deja claro qué ocurre: Carolina hace preguntas breves, valida si la solución aplica, identifica el sistema adecuado y puede orientar un rango de inversión. Si el prospecto quiere avanzar, lo lleva a agenda con Catalina.
+- Reducir fricción: «2 minutos», «sin compromiso», «si no encaja, Carolina se lo dice».
 
 7. P. D.
 - Es de lo más leído. Úsala para un segundo bucle de curiosidad ligado a la página (qué más verán) o un dato concreto adicional. Máx. 25 palabras.
@@ -86,6 +88,10 @@ export function lintCopy(p, company) {
   if (/usd|\$\s?\d|precio|cuesta|inversión de/i.test([p.subject, p.preview, p.hook, p.subhook, p.ps, p.scene?.agent].join(' '))) issues.push('menciona precio')
   if (/pierde[ns]? (ventas|clientes)|estás perdiendo|están perdiendo|cuántos clientes perdiste|no responden|no tienen|carecen|necesitan urgentemente/i.test([p.hook, p.subhook, p.observation, p.hypothesis].join(' '))) issues.push('afirma una carencia no verificada')
   if (/\b(evita|evitaría|reduce|reduciría|aumenta|aumentaría|duplica|multiplica|recupera|recuperaría)\b.{0,30}\b(reservas|ventas|conversi|clientes|pacientes|abandon|pérdid|perdid)/i.test([p.subject, p.preview, p.hook, p.subhook].join(' '))) issues.push('promete o insinúa un resultado no verificado en el asunto o titular')
+  const offerPitch = String(p.offerPitch || '')
+  if (offerPitch.split(/\s+/).filter(Boolean).length < 10) issues.push('falta una oferta explícita en offerPitch')
+  if (!/(desarroll|implement|crear|constru|conect|automatiz|agente|sistema|integraci)/i.test(offerPitch)) issues.push('offerPitch no dice claramente qué se propone construir o implementar')
+  if (/mejorar la experiencia|optimizar procesos|potenciar resultados|solución innovadora/i.test(offerPitch) && !/(agente|sistema|automatiz|crm|shopify|agenda|whatsapp|dashboard|tablero)/i.test(offerPitch)) issues.push('offerPitch demasiado genérico')
   const hook = String(p.hook || '')
   const operationalChange = /(lleg(?:a|ue)|qued(?:a|e)|recib(?:a|e)|avanz(?:a|e)|confirm(?:a|e)|reserv(?:a|e)|agend(?:a|e)|seguimiento|contexto|handoff|equipo|continuidad|pedido|carrito|recompra|reporte|alerta|automatiz|conect)/i
   if (!operationalChange.test(hook)) issues.push('titular narrativo: no explica qué cambiaría operacionalmente')
@@ -99,7 +105,7 @@ export function lintCopy(p, company) {
   const wc = v => String(v || '').split(/\s+/).filter(Boolean).length
   if (p.scene && (wc(p.scene.customer) > 30 || wc(p.scene.agent) > 55 || wc(p.scene.handoff) > 24)) issues.push('burbujas de la escena demasiado largas')
   if (/esto es lo que vería su cliente|qué sabe su equipo antes del primer|así respondería ava/i.test([p.subject, p.hook].join(' '))) issues.push('copia literal de un ejemplo de la guía')
-  const commercialWords = [p.hook, p.subhook, p.observation, p.hypothesis, p.ps].join(' ').split(/\s+/).filter(Boolean).length
+  const commercialWords = [p.hook, p.subhook, p.offerPitch, p.observation, p.hypothesis, p.ps].join(' ').split(/\s+/).filter(Boolean).length
   if (commercialWords > 110) issues.push('correo comercial supera 110 palabras')
   if (commercialWords < 45) issues.push('correo comercial demasiado corto para demostrar investigación')
   if (company && subject.toLowerCase() === String(company).toLowerCase()) issues.push('asunto genérico')
