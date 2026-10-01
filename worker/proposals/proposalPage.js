@@ -124,6 +124,7 @@ export function renderProposalPage({ id, company, proposal, subject, nonce = '',
   const measures = Array.isArray(ex?.measures) ? ex.measures.slice(0, 4) : []
   const scene = sceneOf(proposal)
   const moments = Array.isArray(proposal.moments) ? proposal.moments.slice(0, 3) : []
+  const roadmap = Array.isArray(proposal.roadmap) ? proposal.roadmap.filter(x=>x?.level&&x?.title&&Array.isArray(x?.items)).slice(0,3) : []
   const source = typeof proposal.sourceUrl === 'string' && proposal.sourceUrl.startsWith('https://') ? proposal.sourceUrl : (typeof proposal.source === 'string' && proposal.source.startsWith('https://') ? proposal.source : '')
   const talk = '/propuesta/' + encodeURIComponent(id) + '/hablar'
   const mail = 'mailto:clientes@soycatalinajaramillo.com?subject=' + encodeURIComponent('Re: ' + (subject || 'Recorrido para ' + company))
@@ -158,6 +159,7 @@ h2{font:500 clamp(30px,4vw,46px)/1.1 'Cormorant Garamond',Georgia,serif;margin:1
 .moments{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:m}.m{padding:26px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#1c1813,#15120e);opacity:0;transform:translateY(16px);animation:in .7s forwards}.m:nth-child(2){animation-delay:.15s}.m:nth-child(3){animation-delay:.3s}
 .m:before{counter-increment:m;content:"0" counter(m);font:600 13px Manrope;color:var(--gold);letter-spacing:.2em}.m h3{font:500 26px/1.15 'Cormorant Garamond',serif;margin:10px 0 8px;color:var(--ivory)}.m p{margin:0;color:#cbbfa9;font-size:15px}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:10px}.s{padding:20px;border-top:2px solid var(--gold);background:#fff;border-radius:0 0 14px 14px}.s b{display:block;font-size:14px;margin-bottom:6px}.s span{font-size:14px;color:#5e5549}
+.roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}.road{padding:24px;border:1px solid #e3d7c4;border-radius:18px;background:#fff}.road small{display:block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#947347;font-weight:700}.road h3{margin:8px 0 14px;font:500 25px/1.15 'Cormorant Garamond',serif}.road ul{margin:0;padding-left:18px}.road li{margin:7px 0;font-size:14px;color:#5e5549}
 .note{margin-top:22px;font-size:14px;color:#655b4f}
 .who{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center}.mono{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--gold);font:500 34px 'Cormorant Garamond',serif;color:var(--gold2)}
 .exec{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.exec div{padding:24px;border:1px solid #e3d7c4;border-radius:16px;background:#fff}.exec h3{margin:0 0 8px;font:600 12px Manrope;letter-spacing:.22em;text-transform:uppercase;color:#947347}.exec p{margin:0;font-size:15px}
@@ -178,7 +180,7 @@ h2{font:500 clamp(30px,4vw,46px)/1.1 'Cormorant Garamond',Georgia,serif;margin:1
 .cta{text-align:center;padding:90px 0}.btn{display:inline-block;padding:18px 30px;border-radius:999px;background:var(--gold);color:#1d1914;font-weight:700;text-decoration:none;box-shadow:0 12px 40px rgba(198,162,107,.35);transition:transform .2s}.btn:hover{transform:translateY(-2px)}
 .ghost{display:inline-block;margin-top:16px;color:var(--gold2);font-size:14px}
 footer{padding:28px 0 50px;font-size:12px;color:#8d7f6b;border-top:1px solid #2a231c}
-@media(max-width:820px){.grid,.two,.moments,.steps,.exec{grid-template-columns:1fr}.hero{padding-top:30px}.phone{margin-top:10px}.who{grid-template-columns:1fr}}
+@media(max-width:820px){.grid,.two,.moments,.steps,.exec,.roadmap{grid-template-columns:1fr}.hero{padding-top:30px}.phone{margin-top:10px}.who{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;opacity:1!important;transform:none!important}.typing{display:none}}
 </style></head><body>
 <div class="wrap top"><b>CATALINA&nbsp;<span style="letter-spacing:.28em;color:var(--gold2);font-weight:400">JARAMILLO</span></b><span class="for">Preparado para ${logo ? `<img src="${e(logo)}" alt="${e(company)}" referrerpolicy="no-referrer">` : ''}<b>${e(company)}</b></span></div>
@@ -197,6 +199,7 @@ ${demo && (!scene || sceneType(scene) === 'chat') ? `<section id="demo"><div cla
 <div class="chips" id="chips">${(Array.isArray(proposal.demoPrompts) ? proposal.demoPrompts.slice(0, 3) : scene ? [scene.customer] : []).map(q => `<button type="button">${e(q)}</button>`).join('')}</div>
 <form class="ask" id="ask"><input id="q" maxlength="400" autocomplete="off" placeholder="Escriba como lo haría un cliente…" aria-label="Mensaje para la demo"><button>Enviar</button></form>
 <div class="after" id="after">¿Le gustaría algo así para ${e(company)}, entrenado con su información real? <a href="${talk}">Hablar con Carolina →</a></div></div></div></section>` : ''}
+${roadmap.length ? `<section class="paper"><div class="wrap"><div class="eyebrow">Una arquitectura que puede crecer con ustedes</div><h2>De un piloto útil a un sistema completo</h2><div class="roadmap">${roadmap.map(r => `<div class="road"><small>${e(r.level)}</small><h3>${e(r.title)}</h3><ul>${r.items.slice(0,4).map(i=>`<li>${e(i)}</li>`).join('')}</ul></div>`).join('')}</div><p class="note">No proponemos implementar todo de una vez. La primera fase se elige según el punto de mayor valor y las herramientas que ya usan.</p></div></section>` : ''}
 <section class="paper"><div class="wrap"><div class="eyebrow">Cómo lo exploraríamos</div><h2>Con su equipo al mando, paso a paso</h2><p style="max-width:70ch">${e(proposal.solution)}</p>
 <div class="steps">${phases.map(([t, d]) => `<div class="s"><b>${t}</b><span>${d}</span></div>`).join('')}</div>
 <p class="note">Siempre con supervisión humana: el sistema no reemplaza a su equipo; automatiza lo acordado y entrega contexto cuando debe intervenir una persona. Cualquier conexión con agenda, CRM o tienda se valida antes con ustedes. El alcance final se define tras conversar.</p></div></section>
