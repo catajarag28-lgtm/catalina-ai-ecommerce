@@ -19,6 +19,10 @@ export const intentQueries = [
   'site:upwork.com/jobs "workflow automation" n8n Make Zapier CRM',
   'site:upwork.com/jobs "WhatsApp automation" CRM appointment setter AI',
   'site:freelancer.com AI automation CRM chatbot WhatsApp project',
+  'inmobiliaria busca automatización WhatsApp CRM visitas agente IA',
+  'real estate agency AI WhatsApp CRM appointment automation Spanish',
+  'inmobiliaria chatbot WhatsApp calificar leads agendar visitas',
+  'desarrolladora inmobiliaria automatizar leads CRM WhatsApp propiedades',
 ]
 
 export async function searchIntent(env, query) {
