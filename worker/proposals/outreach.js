@@ -3,7 +3,7 @@ import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
 import { skill, skillsPrompt } from '../skills/registry.js'
 import { learnedPlaybook } from '../core/meetings.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
-import { researchWebsite, researchBusiness } from '../core/integrations.js'
+import { researchWebsite, researchBusiness, validPublicEmail } from '../core/integrations.js'
 import { brandedProposal, escapeHtml } from './proposalPage.js'
 import { catalog } from '../../src/offers.js'
 import { notifyCatalina } from '../core/notify.js'
@@ -182,7 +182,7 @@ export async function runOutreach(env, now = Date.now()) {
   const claimed = await env.DB.prepare("UPDATE outreach SET status='researching',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), row.id).run()
   if (!claimed.meta.changes) return { reason: 'already_claimed' }
   try {
-    if (!/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(row.email) || (row.kind !== 'inbound' && !row.source_url?.startsWith('https://'))) throw new Error('contact_not_verified')
+    if (!validPublicEmail(row.email) || (row.kind !== 'inbound' && !row.source_url?.startsWith('https://'))) throw new Error('contact_not_verified')
     if (await env.DB.prepare('SELECT 1 FROM suppression WHERE email=?').bind(row.email.toLowerCase()).first()) throw new Error('suppressed')
     if (row.kind !== 'inbound' && !testTo && await env.DB.prepare("SELECT 1 FROM emails WHERE direction='out' AND lower(to_addr)=?").bind(row.email.toLowerCase()).first()) throw new Error('already_contacted')
     let research
