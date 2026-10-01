@@ -21,7 +21,12 @@ export function freelancerReady(env={}) {
   return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' && !!env.FREELANCER_OAUTH_TOKEN
 }
 export function upworkReady(env={}) {
-  return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' && !!env.UPWORK_ACCESS_TOKEN && !!env.UPWORK_SUBMIT_PROPOSAL_ENABLED
+  // La API de Upwork sí permite enviar propuestas, pero Carolina solo se marca lista
+  // cuando el adaptador y el permiso Submit Proposal estén efectivamente validados.
+  return env.MARKETPLACE_AUTOSUBMIT_ENABLED==='true' &&
+    env.UPWORK_ADAPTER_READY==='true' &&
+    env.UPWORK_SUBMIT_PROPOSAL_ENABLED==='true' &&
+    !!env.UPWORK_ACCESS_TOKEN
 }
 
 async function ensureTable(env) {
@@ -126,7 +131,6 @@ function validBid(p,j) {
   if(amount==null||amount<=0) return null
   if(p.budgetMin!=null) amount=Math.max(amount,p.budgetMin)
   if(p.budgetMax!=null) amount=Math.min(amount,p.budgetMax)
-  if(p.currency==='USD' && p.budgetMax!=null && p.budgetMax<Number(p.MIN_USD||0)) return null
   period=Math.max(2,Math.min(30,period))
   const proposal=safe(j.proposal)
   if(proposal.length<120||proposal.length>1800) return null
@@ -152,7 +156,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   await ensureTable(env)
   const out={
     freelancer:{ready:freelancerReady(env),submitted:0,reviewed:0},
-    upwork:{ready:upworkReady(env),submitted:0,reason:upworkReady(env)?'adapter_pending_schema_validation':'api_permission_or_token_missing'},
+    upwork:{ready:upworkReady(env),submitted:0,reason:upworkReady(env)?'ready':'official_api_adapter_or_submit_permission_missing'},
     workana:{ready:false,submitted:0,reason:'no_official_submission_api; automated robots and off-platform contact are not used'},
   }
   if(!freelancerReady(env)||!env.OPENROUTER_API_KEY) return out
