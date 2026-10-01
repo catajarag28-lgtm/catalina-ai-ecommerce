@@ -74,11 +74,15 @@ async function prepare(env, row, research, angle) {
   let critiqueError = null
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500 }).catch(e => { critiqueError = e.message; return null })
-  const lint = lintCopy(p, row.company)
-  if (critique?.rewrite || lint.length) {
-    const issues = [...(critique?.issues || []), ...lint]
-    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Hazlo más específico y deseable para ESTE negocio, sin inventar nada. El correo debe ser breve; la profundidad vive en la página.' }]).catch(() => null)
-    if (rewritten) p = rewritten
+  // Reparación limitada: problemas de estilo y longitud se corrigen solos.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const currentLint = lintCopy(p, row.company)
+    const needsRewrite = attempt === 0 ? !!critique?.rewrite || currentLint.length > 0 : currentLint.length > 0
+    if (!needsRewrite) break
+    const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...currentLint]
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Conserva hechos, evidence, offerPitch y diagnóstico. Reduce redundancias y deja idealmente 90–160 palabras comerciales. No inventes nada.' }]).catch(() => null)
+    if (!rewritten) break
+    p = { ...p, ...rewritten, evidence: rewritten.evidence || p.evidence, offerPitch: rewritten.offerPitch || p.offerPitch, diagnosis: rewritten.diagnosis || p.diagnosis }
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
   const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
@@ -130,6 +134,17 @@ function internalBrief(row, research, proposal, angle, sendId) {
   ].filter(x => x !== '').join('\n')
 }
 
+export async function recoverCopyRejected(env, now=Date.now()) {
+  const rows=(await env.DB.prepare("SELECT id FROM outreach WHERE status='review' AND error LIKE 'copy_rejected%' AND (suppressed IS NULL OR suppressed=0) ORDER BY updated_at LIMIT 30").all().catch(()=>({results:[]}))).results||[]
+  let recovered=0
+  for(const row of rows){
+    const n=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events WHERE outreach_id=? AND type='copy.retry'").bind(row.id).first().catch(()=>({n:0}))
+    if(Number(n?.n||0)>=2) continue
+    const c=await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE id=? AND status='review'").bind(now,row.id).run()
+    if(c.meta.changes){ recovered++; await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'copy.retry',?)").bind(`copy-retry-${row.id}-${Number(n?.n||0)+1}`,row.id,now).run() }
+  }
+  return { recovered, candidates: rows.length }
+}
 export async function runOutreach(env, now = Date.now()) {
   if (env.OUTREACH_ENABLED !== 'true') return { enabled: false }
   if (!env.RESEND_API_KEY || !env.OPENROUTER_API_KEY || !env.EMAIL_FROM?.includes('clientes@soycatalinajaramillo.com')) return { reason: 'connections_missing' }
@@ -181,7 +196,7 @@ export async function runOutreach(env, now = Date.now()) {
     const subject = String(proposal.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
     const html = brandedProposal(row.company, proposal, `${SITE}/propuesta/${row.id}`, schedulingUrl(env), { postal: env.SENDER_POSTAL_ADDRESS })
     const greeting = proposal.contactName ? `Hola, ${proposal.contactName}:` : `Hola, equipo de ${row.company}:`
-    const text = [greeting, '', proposal.observation, '', proposal.hypothesis, '', proposal.scene ? `Ejemplo: «${proposal.scene.customer}» → ${proposal.scene.agent}` : '', '', `Preparé el recorrido completo para ${row.company}: ${SITE}/propuesta/${row.id}`, '', 'Catalina Jaramillo', proposal.ps ? '\nP. D. ' + proposal.ps : '', '', 'Si prefiere no recibir más mensajes, responda BAJA.', env.SENDER_POSTAL_ADDRESS || ''].join('\n')
+    const text = [greeting, '', 'Soy Catalina Jaramillo. Diseño sistemas comerciales y operativos con inteligencia artificial.', '', proposal.offerPitch, '', proposal.observation, '', proposal.hypothesis, '', `Preparé una propuesta específica para ${row.company}: ${SITE}/propuesta/${row.id}`, '', 'Si prefiere hablar directamente con Catalina, puede escribirle por WhatsApp al +1 786 929 9442 · solo WhatsApp, no llamadas.', '', 'Catalina Jaramillo', proposal.ps ? '\nP. D. ' + proposal.ps : '', '', 'Si prefiere no recibir más mensajes, responda BAJA.', env.SENDER_POSTAL_ADDRESS || ''].join('\n')
     await env.DB.prepare("UPDATE outreach SET research=?,subject=?,html=?,angle=?,status='sending',updated_at=? WHERE id=?").bind(JSON.stringify({ source: research.source, signals: research.signals, pages: research.pages, phones: research.publicPhones || [], socialLinks: research.socialLinks || [], logo: research.logo || '', publicText: String(research.publicText || '').slice(0, 7000), ...proposal }), subject, html, angle.id, Date.now(), row.id).run()
     // Clave de idempotencia estable: un envío ambiguo nunca se reintenta automáticamente.
     const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `outreach-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [row.email], reply_to: 'clientes@soycatalinajaramillo.com', subject, html, text, headers: { 'List-Unsubscribe': '<mailto:clientes@soycatalinajaramillo.com?subject=BAJA>' }, tags: [{ name: 'angle', value: angle.id.replace(/[^a-zA-Z0-9_-]/g, '_') }] }), signal: AbortSignal.timeout(12000) })

@@ -230,11 +230,11 @@ export async function sendDailyContactList(env, now = Date.now()) {
   const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('contactlist-' + day, 'system', 'contactlist.sent', now).run()
   if (!mark.meta.changes) return { due: false }
 
-  const heatLabel = ['propuesta enviada', 'abrió el correo', 'interacción leve', 'vio/clic en propuesta', '🔥 pidió hablar, probó demo o abrió agenda']
+  const heatLabel = ['propuesta enviada', 'abrió el correo', 'interacción leve', 'visitó propuesta', 'señal de interés registrada']
   const lines = list.map((r, i) => {
-    const wa = r.phone ? 'https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(whatsappMessage(r,r.d)) : ''
-    const dm = instagramDmDraft(r,r.d)
-    const video = i < 5 ? videoScript(r,r.d) : ''
+    const wa = ''
+    const dm = ''
+    const video = ''
     return [
       `${i + 1}. ${r.company} — ${heatLabel[Math.min(4,Number(r.heat||0))]}`,
       r.d.contactName ? `   Decisor público: ${r.d.contactName}${r.d.contactRole ? ' · '+r.d.contactRole : ''}` : '   Decisor público: no identificado',
@@ -251,9 +251,9 @@ export async function sendDailyContactList(env, now = Date.now()) {
 
   for (const r of list) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?, 'contact.listed',?)").bind('listed-' + r.id, r.id, now).run()
   await notifyCatalina(env, `🔥 Dream Accounts de hoy · ${list.length} cuentas`, [
-    'Carolina priorizó estas cuentas para contacto humano multicanal. Ya recibieron una propuesta investigada.',
-    'Top 5: graba/envía el video solo si el negocio realmente merece el esfuerzo. Instagram/LinkedIn/WhatsApp: usa el borrador uno a uno; nunca envío masivo.',
+    'Carolina ya gestionó estas cuentas por email y muestra la señal exacta registrada.',
+    'No hay videos, DMs ni tareas manuales en este reporte. El siguiente paso es automático por email.',
     'Si responden por Instagram y la API oficial está conectada, Carolina puede continuar automáticamente después de que ellos hayan iniciado/resuelto la conversación.', '', ...lines,
   ].join('\n')).catch(() => {})
-  return { due: true, sent: true, count: list.length, videos: Math.min(5,list.length) }
+  return { due: true, sent: true, count: list.length, videos: 0 }
 }

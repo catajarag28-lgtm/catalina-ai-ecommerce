@@ -1,5 +1,5 @@
 import { discoverProspects, findCandidates, verifyCandidate, segments } from './prospecting/discovery.js'
-import { runOutreach, queueQualifiedLeads, runHotFollowup } from './proposals/outreach.js'
+import { runOutreach, queueQualifiedLeads, runHotFollowup, recoverCopyRejected } from './proposals/outreach.js'
 import { receiveResendEvent, checkOutreachHealth, sendDailyOutreachReport, sendDailyContactList, setupResendWebhook } from './proposals/engagement.js'
 import { renderProposalPage } from './proposals/proposalPage.js'
 import { handleDemo } from './proposals/demo.js'
@@ -228,6 +228,17 @@ export default {
       if(!(await rateLimit(env, request, 'demo', 40))) return json({ error: 'Demasiados mensajes. Inténtelo en una hora.' }, 429)
       return handleDemo(request, env, demoRoute[1])
     }
+    // CTA de WhatsApp: registra apertura y redirige al único número humano autorizado.
+    const waRoute=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})\/whatsapp$/i)
+    if(waRoute && request.method==='GET'){
+      const id=waRoute[1]
+      const row=await env.DB.prepare("SELECT company FROM outreach WHERE id=? AND status IN ('sent','replied')").bind(id).first()
+      const human=!/bot|crawler|spider|preview|scanner|headless/i.test(request.headers.get('user-agent')||'')
+      if(!row)return new Response('Propuesta no disponible',{status:404})
+      if(human) await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'whatsapp.opened',?)").bind('wa-'+id,id,Date.now()).run().catch(()=>{})
+      const msg=encodeURIComponent(`Hola Catalina, vengo de la propuesta para ${row.company}.`)
+      return new Response(null,{status:302,headers:{location:`https://wa.me/17869299442?text=${msg}`,'cache-control':'no-store','referrer-policy':'no-referrer'}})
+    }
     // Botón «agendar directamente»: registra la intención (señal fuerte) y lleva a la página oficial de reservas de Google.
     const bookRoute=url.pathname.match(/^\/propuesta\/([a-z0-9-]{20,90})\/agendar$/i)
     if(bookRoute && request.method==='GET'){
@@ -351,6 +362,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('hot', () => runHotFollowup(env))
     // Discover first so candidates found in this invocation can be sent immediately.
     await step('discovery', () => discoverProspects(env))
+    await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', () => runOutreach(env))
     await step('intent', () => runIntentScan(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
