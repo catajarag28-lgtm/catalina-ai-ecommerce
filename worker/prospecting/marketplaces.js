@@ -139,7 +139,7 @@ La propuesta debe ser MUY específica al texto del proyecto, profesional y comer
 5) cerrar con UNA pregunta inteligente que facilite respuesta.
 NO escribas «te sugiero buscar proveedores», «mi consejo es» ni un tutorial neutral. Catalina está postulándose para GANAR el proyecto.
 No uses teléfono, WhatsApp, email, redes ni enlaces externos. No prometas resultados inventados. No digas que ya construiste algo que no existe.
-Credibilidad permitida sin exagerar: Catalina tiene 15+ años en estrategia comercial/operación y diseña sistemas de IA para ventas, atención, ecommerce y automatización. Menciónalo solo si aporta al proyecto.
+Credibilidad permitida sin exagerar: Catalina es founder-operator de ecommerce y ha diseñado sistemas propios de IA y automatización para ventas, atención, ecommerce, seguimiento y operaciones. Puede mencionar LAURA, Carolina y automatización de pedidos/postventa solo cuando sean relevantes y sin atribuir resultados no demostrados a la IA. No inventes años de experiencia, clientes externos, herramientas dominadas ni resultados.
 Para precio: respeta el presupuesto publicado. Si no hay datos suficientes o el presupuesto es incompatible, fit=bajo.
 Devuelve SOLO JSON:
 {"fit":"alto|medio|bajo","reason":"...","proposal":"...","amount":numero,"periodDays":numero}
@@ -167,7 +167,7 @@ function validBid(p,j) {
   period=Math.max(2,Math.min(30,period))
   const proposal=safe(j.proposal)
   if(proposal.length<120||proposal.length>1800) return null
-  if(/\+?\d[\d\s().-]{7,}|wa\.me|whatsapp|@gmail|@outlook|linkedin\.com|instagram\.com|soycatalinajaramillo\.com/i.test(proposal)) return null
+  if(/\+?\d[\d\s().-]{7,}|wa\.me|@gmail|@outlook|linkedin\.com|instagram\.com|soycatalinajaramillo\.com/i.test(proposal)) return null
   return {amount,period,proposal}
 }
 
@@ -184,6 +184,42 @@ async function placeFreelancerBid(env,p,bid,bidderId) {
 }
 
 const bogotaDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(now)
+
+const normalizePath=url=>{try{return new URL(url).pathname.replace(/\/+$/,'').toLowerCase()}catch{return ''}}
+const words=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').split(/\s+/).filter(x=>x.length>3)
+function intentQuery(row){
+  const path=normalizePath(row.url)
+  const slug=decodeURIComponent(path.split('/').filter(Boolean).slice(-1)[0]||'').replace(/[-_]+/g,' ')
+  const base=(slug+' '+safe(row.need)).trim()
+  return words(base).slice(0,8).join(' ') || 'AI automation'
+}
+function intentMatchScore(row,p){
+  const a=normalizePath(row.url), b=normalizePath(p.url)
+  if(a && b && (a===b || a.endsWith(b) || b.endsWith(a))) return 1000
+  const wanted=new Set(words((row.url||'')+' '+(row.need||'')))
+  const got=new Set(words((p.title||'')+' '+(p.description||'')))
+  let hits=0
+  for(const w of wanted) if(got.has(w)) hits++
+  return hits
+}
+async function prioritizedFreelancerIntent(env){
+  const rows=await env.DB.prepare("SELECT url,need,fit,status,found_at FROM intent_leads WHERE lower(platform) LIKE '%freelancer%' AND fit='alto' AND status IN ('new','official_api_pending','application_ready') ORDER BY found_at DESC LIMIT 8").all().catch(()=>({results:[]}))
+  const out=[]
+  const used=new Set()
+  for(const row of rows.results||[]){
+    const q=intentQuery(row)
+    let found=await searchFreelancer(env,q)
+    if(!found.length && row.need) found=await searchFreelancer(env,words(row.need).slice(0,5).join(' '))
+    found.sort((a,b)=>intentMatchScore(row,b)-intentMatchScore(row,a))
+    const best=found[0]
+    if(best && intentMatchScore(row,best)>=2 && !used.has(best.id)){
+      used.add(best.id)
+      out.push({...best,intentUrl:row.url})
+      await env.DB.prepare("UPDATE intent_leads SET status='official_api_matched' WHERE url=?").bind(row.url).run().catch(()=>{})
+    }
+  }
+  return out
+}
 
 export async function runMarketplaceAcquisition(env,now=Date.now()) {
   await ensureTable(env)
@@ -209,9 +245,15 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   const rotation=Math.floor(now/(15*60*1000))%FL_QUERIES.length
   const queries=[FL_QUERIES[rotation],FL_QUERIES[(rotation+3)%FL_QUERIES.length],FL_QUERIES[(rotation+7)%FL_QUERIES.length],FL_QUERIES[(rotation+11)%FL_QUERIES.length]]
   const seen=new Set()
+  const intentCandidates=await prioritizedFreelancerIntent(env)
   const candidates=[]
+  for(const p of intentCandidates) if(!seen.has(p.id)){seen.add(p.id);candidates.push(p)}
   for(const q of queries) for(const p of await searchFreelancer(env,q)) if(!seen.has(p.id)){seen.add(p.id);candidates.push(p)}
-  candidates.sort((a,b)=>freelancerRelevance(b)-freelancerRelevance(a))
+  candidates.sort((a,b)=>{
+    const ai=a.intentUrl?1:0, bi=b.intentUrl?1:0
+    if(ai!==bi) return bi-ai
+    return freelancerRelevance(b)-freelancerRelevance(a)
+  })
 
   for(const p of candidates.slice(0,12)) {
     if((count?.n||0)+out.freelancer.submitted>=limit) break
@@ -221,6 +263,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     if(p.currency==='USD' && p.budgetMax!=null && p.budgetMax<Number(env.MARKETPLACE_MIN_USD||750)) {
       await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped','budget_below_floor',?,?)")
         .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,now,now).run()
+      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='skipped_budget' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
       continue
     }
     const j=await judgeFreelancer(env,p)
@@ -229,6 +272,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     if(!bid){
       await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped',?,?,?)")
         .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,safe(j?.reason||'low_fit').slice(0,500),now,now).run()
+      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='skipped_after_review' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
       continue
     }
 
@@ -242,6 +286,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       await env.DB.prepare("UPDATE marketplace_submissions SET status='submitted',provider_id=?,updated_at=? WHERE id=?")
         .bind(String(sent.data.result.id),Date.now(),'freelancer:'+p.id).run()
       out.freelancer.submitted++
+      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='submitted' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
       await notifyCatalina(env,`🎯 Carolina postuló en Freelancer · ${p.title}`,[
         'Carolina encontró el proyecto, lo evaluó y presentó el bid desde tu cuenta mediante la API oficial de Freelancer.',
         `Proyecto: ${p.url}`,
@@ -256,6 +301,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       const err=JSON.stringify(sent.data||{}).slice(0,700)
       await env.DB.prepare("UPDATE marketplace_submissions SET status='failed',error=?,updated_at=? WHERE id=?")
         .bind(err,Date.now(),'freelancer:'+p.id).run()
+      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='submit_failed' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
     }
   }
   return out
