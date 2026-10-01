@@ -1,0 +1,15 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { freelancerReady, upworkReady } from '../worker/prospecting/marketplaces.js'
+
+test('Freelancer autosubmit requires explicit enablement and OAuth token',()=>{
+  assert.equal(freelancerReady({}),false)
+  assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true'}),false)
+  assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',FREELANCER_OAUTH_TOKEN:'token'}),true)
+  assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'false',FREELANCER_OAUTH_TOKEN:'token'}),false)
+})
+
+test('Upwork autosubmit remains off until token and Submit Proposal permission are explicitly enabled',()=>{
+  assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token'}),false)
+  assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true'}),true)
+})
