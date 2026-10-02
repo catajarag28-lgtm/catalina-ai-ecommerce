@@ -332,13 +332,22 @@ export async function runDirectApplications(env,now=Date.now()){
   if(!enabled) return out
   if(!env.OPENROUTER_API_KEY||!env.RESEND_API_KEY) return {...out,reason:'connections_missing'}
   const limit=Math.max(1,Math.min(30,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||20)))
-  const count=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status='sent' AND sent_at>=?").bind(bogotaStart(now)).first()
+  const count=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status IN ('sent','replied') AND sent_at>=?").bind(bogotaStart(now)).first()
   if((count?.n||0)>=limit) return {...out,reason:'daily_cap',limit}
 
-  const rows=(await env.DB.prepare(`SELECT * FROM intent_leads
-    WHERE fit='alto'
-      AND status IN ('new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound')
-    ORDER BY found_at DESC LIMIT 40`).all()).results||[]
+  const rows=(await env.DB.prepare(`SELECT i.* FROM intent_leads i
+    LEFT JOIN direct_applications d ON d.source_url=i.url
+    WHERE i.fit='alto'
+      AND coalesce(i.explicit_demand,1)=1
+      AND coalesce(i.active_now,1)=1
+      AND (
+        i.status IN ('new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound')
+        OR (
+          i.status IN ('waiting_human_submit','needs_application_review')
+          AND (d.updated_at IS NULL OR d.updated_at < ?)
+        )
+      )
+    ORDER BY i.found_at DESC LIMIT 50`).bind(now-24*3600000).all()).results||[]
 
   for(const row of rows){
     if((count?.n||0)+out.sent>=limit) break
@@ -354,7 +363,7 @@ export async function runDirectApplications(env,now=Date.now()){
       continue
     }
     const prior=await env.DB.prepare('SELECT status FROM direct_applications WHERE source_url=?').bind(row.url).first()
-    if(prior?.status==='sent') continue
+    if(['sent','replied','external_email_sent'].includes(prior?.status)) continue
 
     out.reviewed++
     const route=await resolveApplicationRoute(env,row)
