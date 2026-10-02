@@ -56,7 +56,7 @@ async function resolveApplicationRoute(env,row){
         {role:'system',content:`Eres un verificador de rutas de aplicación laboral/freelance. Debes decidir si una publicación pública es una solicitud REAL de contratación o proyecto y cómo pide recibir candidaturas.
 
 Devuelve SOLO JSON:
-{"realOpportunity":true|false,"route":"email|official_form|community|none","email":"","contactUrl":"","evidence":"","company":"","opportunityType":"freelance_project|contract|job|community_request|content","asksCv":true|false,"asksRate":true|false,"asksAvailability":true|false,"hardRequirements":["..."],"confidence":"alta|media|baja","reason":"..."}
+{"realOpportunity":true|false,"activeNow":true|false,"publishedDate":"YYYY-MM-DD|","route":"email|official_form|community|none","email":"","contactUrl":"","evidence":"","company":"","opportunityType":"freelance_project|contract|job|community_request|content","asksCv":true|false,"asksRate":true|false,"asksAvailability":true|false,"hardRequirements":["..."],"confidence":"alta|media|baja","reason":"..."}
 
 REGLAS:
 - route=email SOLO si la publicación o una página oficial vinculada dice explícitamente que se puede aplicar/escribir por email.
@@ -65,6 +65,7 @@ REGLAS:
 - route=official_form si existe formulario oficial de aplicación.
 - route=community si pide DM, comentario o respuesta dentro de la comunidad/red.
 - realOpportunity=false para tutoriales, discusiones, proveedores promocionándose, feedback de producto, artículos o gente que NO está contratando.
+- activeNow=false si la oportunidad está cerrada/cancelada o es antigua (más de ~180 días) sin una señal reciente de que siga aceptando candidaturas. No revivas ofertas viejas solo porque la página siga indexada.
 - No conviertas un correo genérico encontrado al azar en "application email".
 - No inventes requisitos, contactos ni empresas.`},
         {role:'user',content:JSON.stringify({sourceUrl:row.url,platform:row.platform,who:row.who,need:row.need})}
@@ -77,7 +78,7 @@ REGLAS:
   const msg=data.choices?.[0]?.message||{}
   let out={};try{out=JSON.parse(msg.content||'{}')}catch{return null}
   const cited=(msg.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url_citation?.url).filter(Boolean)
-  if(out.confidence!=='alta') return {...out,verified:false}
+  if(out.confidence!=='alta' || out.activeNow===false) return {...out,verified:false}
   if(out.route==='email'){
     const email=safe(out.email).toLowerCase()
     if(!validPublicEmail(email) || !safe(out.evidence).toLowerCase().includes(email)) return {...out,verified:false}
@@ -196,14 +197,14 @@ export async function runDirectApplications(env,now=Date.now()){
   const out={enabled,reviewed:0,sent:0,waitingHuman:0,skipped:0}
   if(!enabled) return out
   if(!env.OPENROUTER_API_KEY||!env.RESEND_API_KEY) return {...out,reason:'connections_missing'}
-  const limit=Math.max(1,Math.min(20,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||10)))
+  const limit=Math.max(1,Math.min(30,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||20)))
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status='sent' AND sent_at>=?").bind(bogotaStart(now)).first()
   if((count?.n||0)>=limit) return {...out,reason:'daily_cap',limit}
 
   const rows=(await env.DB.prepare(`SELECT * FROM intent_leads
     WHERE fit='alto'
       AND status IN ('new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound')
-    ORDER BY found_at DESC LIMIT 12`).all()).results||[]
+    ORDER BY found_at DESC LIMIT 40`).all()).results||[]
 
   for(const row of rows){
     if((count?.n||0)+out.sent>=limit) break
@@ -233,10 +234,18 @@ export async function runDirectApplications(env,now=Date.now()){
     }
 
     if(route.route!=='email'){
+      // Si la publicación solo permite DM/comentario, Carolina intenta primero identificar
+      // de forma independiente la empresa y un correo empresarial público mediante el
+      // pipeline normal. No usa ni deriva datos privados de la comunidad.
+      let fallback={queued:false}
+      if(route.route==='community' && route.company){
+        fallback=await queueIntentForDirectOutbound(env,{...row,company:route.company},now).catch(()=>({queued:false}))
+      }
+      const status=fallback.queued?'queued_outbound':'waiting_human_submit'
       await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET route=excluded.route,status=excluded.status,error=excluded.error,updated_at=excluded.updated_at")
-        .bind(row.url,platform,safe(route.route),'waiting_human_submit',safe(route.contactUrl||route.reason||'No authorized email route').slice(0,600),now,now).run()
-      await env.DB.prepare("UPDATE intent_leads SET status='waiting_human_submit' WHERE url=?").bind(row.url).run().catch(()=>{})
-      out.waitingHuman++
+        .bind(row.url,platform,safe(route.route),status,safe(route.contactUrl||route.reason||'No authorized email route').slice(0,600),now,now).run()
+      await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?").bind(status,row.url).run().catch(()=>{})
+      out.waitingHuman+=fallback.queued?0:1
       continue
     }
 
