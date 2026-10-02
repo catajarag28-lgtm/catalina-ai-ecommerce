@@ -76,6 +76,7 @@ export async function handleInbound(message, env) {
 
   // Una respuesta humana detiene cualquier seguimiento y deja el estado comercial visible.
   await env.DB.prepare("UPDATE outreach SET status='replied',updated_at=? WHERE lower(email)=? AND status='sent'").bind(now, from).run()
+  await env.DB.prepare("UPDATE direct_applications SET status='replied',updated_at=? WHERE lower(recipient)=? AND status='sent'").bind(now, from).run().catch(()=>{})
   if (isUnsubscribe(subject, text)) {
     await env.DB.prepare("UPDATE outreach SET status='suppressed',updated_at=? WHERE lower(email)=? AND status IN ('sent','replied','pending','review')").bind(now, from).run()
     await env.DB.prepare('INSERT OR REPLACE INTO suppression(email,reason,created_at) VALUES (?,?,?)').bind(from, 'reply_unsubscribe', now).run()
