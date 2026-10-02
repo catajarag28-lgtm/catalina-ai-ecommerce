@@ -199,13 +199,43 @@ async function sendApplication(env,row,route,draft,now){
     profileUrl?((draft.language==='en'?'Profile: ':'Perfil: ')+profileUrl):null
   ].filter(Boolean).join('\n')
   const fullText=safe(draft.body)+'\n\n'+links
-  const htmlBody='<div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:auto;color:#201a17;line-height:1.58">'
-    +'<div style="border-left:4px solid #b89a67;padding-left:16px;margin-bottom:22px"><div style="font-size:18px;font-weight:700">Catalina Jaramillo</div><div style="font-size:13px;color:#6b625d">AI Systems & Automation · Founder-Operator</div></div>'
-    +'<div style="font-size:15px;white-space:pre-line">'+escapeHtml(safe(draft.body))+'</div>'
-    +'<div style="margin-top:24px;padding-top:16px;border-top:1px solid #ded3ca;font-size:13px;color:#6b625d">'
-    +'<a href="'+PORTFOLIO+'" style="color:#6d553f">Portfolio</a> &nbsp;·&nbsp; <a href="'+SITE+'" style="color:#6d553f">Website</a>'
-    +(profileUrl?' &nbsp;·&nbsp; <a href="'+profileUrl+'" style="color:#6d553f">'+(draft.language==='en'?'Visual profile':'Perfil visual')+'</a>':'')
-    +'</div></div>'
+  const systemCopy={
+    'LAURA':draft.language==='en'?'WhatsApp sales, support, follow-up and human handoff.':'Ventas, atención, seguimiento y handoff humano en WhatsApp.',
+    'CAROLINA':draft.language==='en'?'Opportunity discovery, research, proposals, follow-up and pipeline.':'Búsqueda de oportunidades, investigación, propuestas, seguimiento y pipeline.',
+    'Ecommerce Operations':draft.language==='en'?'Shopify, COD, logistics, confirmation and post-sale workflows.':'Shopify, COD, logística, confirmación y postventa.',
+    'Meta Growth Intelligence':draft.language==='en'?'Creative-performance reading, hooks, angles, testing and scaling signals.':'Lectura creativa, hooks, ángulos, testing y señales de escalado.',
+    'Creative Intelligence':draft.language==='en'?'Creative forensics, viral signals, hooks and market/competitor reading.':'Forense creativo, señales virales, hooks y lectura de mercado/competencia.',
+    'Content Studio':draft.language==='en'?'UGC concepts, scripts, hooks and content workflows.':'Conceptos UGC, guiones, hooks y workflows de contenido.',
+    'Executive / CEO Orchestration':draft.language==='en'?'Cross-functional summaries, alerts, prioritization and routing.':'Resúmenes cruzados, alertas, priorización y routing.',
+    'Finance & Performance Ops':draft.language==='en'?'Channel tracking, finance/performance logic and operational metrics.':'Tracking por canal, lógica financiera y métricas operativas.',
+    'Monitoring & Diagnostics':draft.language==='en'?'Monitoring, incident logic, diagnostics and operational safeguards.':'Monitoreo, incidentes, diagnóstico y salvaguardas operativas.'
+  }
+  const selected=(Array.isArray(draft.selectedSystems)?draft.selectedSystems:[]).slice(0,3)
+  const selectedHtml=selected.length
+    ? '<div style="margin:26px 0 8px"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:10px">'+(draft.language==='en'?'Relevant systems I have built':'Sistemas míos relevantes para este proyecto')+'</div>'
+      +selected.map(name=>'<div style="border:1px solid #e6d9cd;border-radius:12px;padding:12px 14px;margin:8px 0;background:#fbf7f3"><div style="font-weight:800;color:#1b1816;font-size:13px">'+escapeHtml(name)+'</div><div style="color:#726961;font-size:12px;line-height:1.45;margin-top:3px">'+escapeHtml(systemCopy[name]||'')+'</div></div>').join('')
+      +'</div>'
+    : ''
+  const bodyHtml=escapeHtml(safe(draft.body)).split(/\n\s*\n/).map(p=>'<p style="margin:0 0 14px">'+p.replace(/\n/g,'<br>')+'</p>').join('')
+  const htmlBody='<!doctype html><html><body style="margin:0;background:#f4efe9;padding:22px 10px">'
+    +'<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 34px rgba(55,42,33,.08);color:#201a17">'
+    +'<div style="background:#171513;padding:26px 28px;display:flex;align-items:center">'
+    +'<div style="flex:1"><div style="width:42px;height:3px;background:#b59667;margin-bottom:14px"></div><div style="font-size:24px;line-height:1.05;font-weight:800;color:#fff">Catalina Jaramillo</div><div style="font-size:13px;color:#d9c9b8;margin-top:7px">AI Commerce & Automation Systems · Founder-Operator</div></div>'
+    +'<img src="'+SITE+'/catalina.jpg" alt="Catalina Jaramillo" width="92" height="92" style="display:block;width:92px;height:92px;object-fit:cover;object-position:center 25%;border-radius:50%;border:3px solid #b59667;margin-left:18px">'
+    +'</div>'
+    +'<div style="padding:28px 30px">'
+    +'<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:8px">'+(draft.language==='en'?'Tailored application':'Postulación personalizada')+'</div>'
+    +'<div style="font-size:22px;line-height:1.2;font-weight:800;color:#1b1816;margin-bottom:20px">'+escapeHtml(safe(draft.subject))+'</div>'
+    +'<div style="font-size:15px;line-height:1.68;color:#342e2a">'+bodyHtml+'</div>'
+    +selectedHtml
+    +'<div style="margin:24px 0 0;padding:16px;border-radius:14px;background:#171513;color:white"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#d8c1a4;font-weight:800">'+(draft.language==='en'?'Operator perspective':'Perspectiva de operación')+'</div><div style="font-size:13px;line-height:1.55;margin-top:7px">'+(draft.language==='en'?'I have operated the business side myself: thousands of Shopify orders, customer operations, sales, post-sale and the systems around them. I build automation with adoption and day-to-day reality in mind.':'He operado el negocio del otro lado: miles de pedidos Shopify, atención, ventas, postventa y los sistemas alrededor. Diseño automatización pensando también en adopción y operación diaria.')+'</div></div>'
+    +'<div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:9px">'
+    +'<a href="'+PORTFOLIO+'" style="display:inline-block;background:#6b5548;color:#fff;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:13px;font-weight:800">'+(draft.language==='en'?'View portfolio':'Ver portafolio')+'</a>'
+    +(profileUrl?'<a href="'+profileUrl+'" style="display:inline-block;background:#f7f2ec;color:#2c241f;text-decoration:none;padding:11px 15px;border-radius:10px;border:1px solid #e2d5c9;font-size:13px;font-weight:800">'+(draft.language==='en'?'Visual profile':'Perfil visual')+'</a>':'')
+    +'<a href="'+SITE+'" style="display:inline-block;color:#6b5548;text-decoration:none;padding:11px 4px;font-size:13px;font-weight:800">soycatalinajaramillo.com</a>'
+    +'</div>'
+    +'<div style="margin-top:26px;padding-top:16px;border-top:1px solid #eadfd5;font-size:11.5px;line-height:1.5;color:#81776f">Catalina Jaramillo · '+escapeHtml(replyTo)+' · WhatsApp +1 786 929 9442<br>'+(draft.language==='en'?'Business track record is from Professional Glam / Piel y Glamour and is not attributed to AI.':'La trayectoria de negocio corresponde a Professional Glam / Piel y Glamour y no se atribuye a la IA.')+'</div>'
+    +'</div></div></body></html>'
   const payload={
     from,
     to:[route.email],
