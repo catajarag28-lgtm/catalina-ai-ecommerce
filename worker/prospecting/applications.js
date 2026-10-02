@@ -106,12 +106,12 @@ REGLAS:
 }
 
 async function applicationLearning(env){
-  const sent=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status='sent'").first().catch(()=>({n:0}))
+  const sent=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status IN ('sent','replied')").first().catch(()=>({n:0}))
   const replied=await env.DB.prepare(`SELECT COUNT(DISTINCT d.source_url) n
     FROM direct_applications d
     JOIN emails m ON lower(m.thread_key)=lower(d.recipient)
-    WHERE d.status='sent' AND m.direction='in'`).first().catch(()=>({n:0}))
-  const recent=(await env.DB.prepare("SELECT subject FROM direct_applications WHERE status='sent' AND subject<>'' ORDER BY sent_at DESC LIMIT 8").all().catch(()=>({results:[]}))).results||[]
+    WHERE d.status IN ('sent','replied') AND m.direction='in'`).first().catch(()=>({n:0}))
+  const recent=(await env.DB.prepare("SELECT subject FROM direct_applications WHERE status IN ('sent','replied') AND subject<>'' ORDER BY sent_at DESC LIMIT 8").all().catch(()=>({results:[]}))).results||[]
   const replyExamples=(await env.DB.prepare(`SELECT substr(m.body,1,360) body
     FROM direct_applications d JOIN emails m ON lower(m.thread_key)=lower(d.recipient)
     WHERE d.status='sent' AND m.direction='in'
