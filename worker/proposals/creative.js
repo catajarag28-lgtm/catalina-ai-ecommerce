@@ -114,21 +114,45 @@ export async function evolveAngles(env, now = Date.now()) {
   const stats = await angleStats(env, now)
   const tracked = !!(await webhookSecret(env))
   const rate = a => (stats[a.id]?.score || 0) / Math.max(1, stats[a.id]?.n || 0)
-  const mature = active.filter(a => (stats[a.id]?.n || 0) >= 25)
+  const mature = active.filter(a => (stats[a.id]?.n || 0) >= 18)
   const best = mature.reduce((m, a) => Math.max(m, rate(a)), 0)
   const changes = []
   for (const a of mature.sort((x, y) => rate(x) - rate(y))) {
     if (active.length - changes.length <= 2) break
     const s = stats[a.id]
     const lowOpen = tracked && s.opened / s.n < 0.12
-    if (rate(a) < best * 0.5 || lowOpen || (s.engaged === 0 && s.n >= 30)) {
+    if (rate(a) < best * 0.5 || lowOpen || (s.engaged === 0 && s.n >= 20)) {
       const reason = `${s.n} envíos · interés ${Math.round(100 * s.engaged / s.n)} %${tracked ? ' · aperturas ' + Math.round(100 * s.opened / s.n) + ' %' : ''} · respuestas ${s.replied}`
       await env.DB.prepare("UPDATE outreach_angles SET status='retired',retired_at=?,retired_reason=? WHERE id=?").bind(now, reason, a.id).run()
       changes.push(`Retirado «${a.name}»: ${reason}`)
     }
   }
+  const totalMature = Object.values(stats).reduce((a,s)=>a+Number(s.n||0),0)
+  const totalReplies = Object.values(stats).reduce((a,s)=>a+Number(s.replied||0),0)
+  const totalEngaged = Object.values(stats).reduce((a,s)=>a+Number(s.engaged||0),0)
+  // Every ~50 mature sends, inspect the whole funnel. If people are seeing the outreach
+  // but nobody replies, force a challenger instead of repeating the same creative indefinitely.
+  const cohort = Math.floor(totalMature / 50)
+  let forceChallenger = false
+  if (cohort >= 1) {
+    const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)")
+      .bind('copy-challenge-' + cohort, 'system', 'copy.challenge', now).run().catch(()=>({meta:{changes:0}}))
+    const replyRate = totalReplies / Math.max(1,totalMature)
+    const engagementRate = totalEngaged / Math.max(1,totalMature)
+    if (mark?.meta?.changes && ((totalMature >= 50 && totalReplies === 0) || (totalMature >= 100 && replyRate < 0.01))) {
+      forceChallenger = true
+      const candidates = active.filter(a=>!changes.some(x=>x.includes('«'+a.name+'»'))).sort((a,b)=>rate(a)-rate(b))
+      const loser = candidates.find(a=>(stats[a.id]?.n||0)>=10)
+      if (loser && active.length - changes.length > 2) {
+        const s=stats[loser.id]
+        const reason = `cohorte ${totalMature} envíos · respuesta ${Math.round(replyRate*1000)/10}% · interés ${Math.round(engagementRate*1000)/10}%`
+        await env.DB.prepare("UPDATE outreach_angles SET status='retired',retired_at=?,retired_reason=? WHERE id=? AND status='active'").bind(now,reason,loser.id).run()
+        changes.push(`Retirado «${loser.name}» por bajo rendimiento de cohorte: ${reason}`)
+      }
+    }
+  }
   const remaining = active.length - changes.length
-  if (remaining < 4 && env.OPENROUTER_API_KEY) {
+  if ((remaining < 4 || forceChallenger) && env.OPENROUTER_API_KEY) {
     const created = await inventAngle(env, active, stats).catch(() => null)
     if (created) changes.push(`Nuevo enfoque en prueba «${created.name}» (${created.format}): ${created.brief}`)
   }
