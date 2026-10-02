@@ -105,7 +105,24 @@ REGLAS:
   return {...out,verified:true}
 }
 
+async function applicationLearning(env){
+  const sent=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status='sent'").first().catch(()=>({n:0}))
+  const replied=await env.DB.prepare(`SELECT COUNT(DISTINCT d.source_url) n
+    FROM direct_applications d
+    JOIN emails m ON lower(m.thread_key)=lower(d.recipient)
+    WHERE d.status='sent' AND m.direction='in'`).first().catch(()=>({n:0}))
+  const recent=(await env.DB.prepare("SELECT subject FROM direct_applications WHERE status='sent' AND subject<>'' ORDER BY sent_at DESC LIMIT 8").all().catch(()=>({results:[]}))).results||[]
+  const replyExamples=(await env.DB.prepare(`SELECT substr(m.body,1,360) body
+    FROM direct_applications d JOIN emails m ON lower(m.thread_key)=lower(d.recipient)
+    WHERE d.status='sent' AND m.direction='in'
+    ORDER BY m.id DESC LIMIT 5`).all().catch(()=>({results:[]}))).results||[]
+  const n=Number(sent?.n||0), r=Number(replied?.n||0)
+  const variant=['proof-first','problem-first','paid-pilot-first'][n%3]
+  return {sent:n,replied:r,replyRate:r/Math.max(1,n),variant,recentSubjects:recent.map(x=>x.subject),replyExamples:replyExamples.map(x=>x.body)}
+}
+
 async function writeApplication(env,row,route){
+  const learning=await applicationLearning(env)
   const profileEs=safe(env.PROFILE_ES_URL)
   const profileEn=safe(env.PROFILE_EN_URL)
   const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
@@ -118,6 +135,19 @@ async function writeApplication(env,row,route){
       response_format:{type:'json_object'},
       messages:[
         {role:'system',content:`Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
+
+APRENDIZAJE REAL DE POSTULACIONES:
+- Postulaciones enviadas registradas: ${learning.sent}
+- Respuestas registradas: ${learning.replied}
+- Tasa de respuesta observada: ${(learning.replyRate*100).toFixed(1)}%
+- Variante obligatoria para esta candidatura: ${learning.variant}
+- Asuntos recientes que NO debes copiar: ${learning.recentSubjects.join(' | ') || 'sin historial suficiente'}
+- Respuestas reales previas, si existen: ${learning.replyExamples.join(' || ') || 'ninguna todavía'}
+Si hay 20+ postulaciones y la tasa de respuesta es <5%, cambia de forma material el enfoque respecto a los asuntos recientes. Si hay 50+ y la tasa sigue <3%, reduce introducción, muestra prueba relevante antes y usa un CTA de paid test/piloto acotado cuando encaje. No esperes a 100 para aprender.
+VARIANTES:
+- proof-first: abre con el sistema/caso propio más parecido y luego conecta con el problema.
+- problem-first: abre con el fallo operativo concreto del anuncio y cómo lo estabilizarías.
+- paid-pilot-first: abre proponiendo una primera prueba pagada y acotada, sin regalar trabajo ni inventar precio si el anuncio no lo pide.
 
 IDENTIDAD PROFESIONAL REAL:
 Catalina es founder-operator, diseñadora de sistemas IA y automatización aplicada a negocio. Su ventaja es conectar estrategia comercial, customer experience, ecommerce y lógica técnica. No la presentes como senior software engineer, ML engineer ni especialista certificada en una herramienta.
@@ -187,7 +217,7 @@ ASUNTO:
 Específico al problema/proyecto, no genérico "Application". Si la publicación obliga un subject, respétalo exactamente.
 
 LONGITUD:
-- Email directo: 150-260 palabras.
+- Email directo: 120-220 palabras; si el anuncio exige respuestas detalladas, puede ser más largo solo para cubrir lo obligatorio.
 - Si la oportunidad pide CV/portfolio, menciona portfolio y perfil visual si la URL está configurada; nunca digas "adjunto" si no hay archivo realmente adjunto.
 - Si pide rate y no existe rate obligatorio definido, di que prefieres cotizar por alcance tras ver el workflow o paid test; no inventes una tarifa.
 - WhatsApp solo si la publicación lo pide explícitamente; no conviertas el email en un mensaje de WhatsApp.
