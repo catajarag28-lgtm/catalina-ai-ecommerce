@@ -21,6 +21,11 @@ async function ensureTable(env){
     status TEXT NOT NULL,
     provider_id TEXT,
     error TEXT,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_attempt_at INTEGER,
+    next_attempt_at INTEGER,
+    blocker TEXT,
+    terminal INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     sent_at INTEGER
