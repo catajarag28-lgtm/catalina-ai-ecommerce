@@ -8,6 +8,7 @@ import { queueIntentForDirectOutbound } from './intent.js'
 const SITE='https://soycatalinajaramillo.com'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app/'
 const safe=v=>String(v??'').trim()
+const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
 
 async function ensureTable(env){
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS direct_applications (
@@ -91,49 +92,94 @@ REGLAS:
 }
 
 async function writeApplication(env,row,route){
+  const profileEs=safe(env.PROFILE_ES_URL)
+  const profileEn=safe(env.PROFILE_EN_URL)
   const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
     method:'POST',
     headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Application Writer'},
     body:JSON.stringify({
       model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,
-      temperature:0.25,
-      max_tokens:1800,
+      temperature:0.38,
+      max_tokens:2200,
       response_format:{type:'json_object'},
       messages:[
-        {role:'system',content:`Escribes una candidatura directa en nombre de Catalina Jaramillo para una oportunidad REAL.
+        {role:'system',content:`Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
 
-HECHOS QUE SÍ PUEDES USAR:
-- Catalina es founder-operator de ecommerce y Creative Strategist DTC.
-- Diseña sistemas de IA y automatización para ventas, atención, seguimiento, ecommerce y operaciones.
-- LAURA: sistema propio para ventas/atención/seguimiento y handoff humano en WhatsApp.
-- Ha trabajado en automatización operativa ecommerce conectando Shopify, pedidos COD, logística y postventa.
-- CAROLINA: agente propio de desarrollo comercial que investiga oportunidades, prepara propuestas, hace seguimiento y gestiona pipeline/agenda.
-- Tiene experiencia trabajando con APIs, webhooks y workflows. Puede trabajar con n8n, pero NO la describas como experta avanzada ni inventes años/proyectos específicos.
-- Español nativo. Inglés funcional para lectura, escritura preparada y trabajo asincrónico con apoyo de herramientas.
-- Web: ${SITE}
+IDENTIDAD PROFESIONAL REAL:
+Catalina es founder-operator, diseñadora de sistemas IA y automatización aplicada a negocio. Su ventaja es conectar estrategia comercial, customer experience, ecommerce y lógica técnica. No la presentes como senior software engineer, ML engineer ni especialista certificada en una herramienta.
+
+PRUEBA DE OPERACIÓN REAL:
+- Professional Glam / Piel y Glamour: ecommerce real operado por Catalina.
+- 9.296 pedidos digitales documentados.
+- COP 1.016B+ en ventas Shopify registradas.
+- 3 sedes físicas operadas.
+Estas métricas prueban experiencia operando negocio; NUNCA afirmes que fueron causadas por IA.
+
+SISTEMAS Y AGENTES QUE PUEDE PRESENTAR COMO DISEÑADOS / DESARROLLADOS:
+1. LAURA - comercio conversacional y CX: ventas por WhatsApp, soporte, seguimiento, continuidad de pedido, confirmación, postventa y handoff humano.
+2. CAROLINA - desarrollo comercial: búsqueda pública de oportunidades, investigación de prospectos, fit scoring, propuestas personalizadas, tracking, follow-up y agenda.
+3. Ecommerce Operations - Shopify + COD + logística/Dropi + confirmación + postventa + continuidad operativa.
+4. Meta Growth Intelligence - análisis read-only de campañas, fatiga creativa, hooks/ángulos, testing, scaling intelligence y reporte ejecutivo.
+5. Creative Intelligence - forense creativo, señales virales, hook intelligence, angle discovery y lectura estructurada de mercado/competencia.
+6. Content Studio - hooks, guiones, conceptos UGC, captions y workflows de contenido preservando voz de marca.
+7. Executive / CEO Orchestration - resúmenes cruzados, alertas, priorización, routing de casos y soporte estructurado a decisiones.
+8. Finance & Performance Ops - tracking de ventas por canal, lógica de reportes financieros/margen y métricas operativas.
+9. Monitoring & Diagnostics - monitoreo, lógica de incidentes, diagnóstico y salvaguardas para sistemas operativos.
+No digas que estos fueron para clientes externos si no está demostrado. Puedes decir "he diseñado/desarrollado" o "entre los sistemas que he construido/diseñado".
+
+CAPACIDADES VERIFICADAS:
+- Ecommerce, Shopify, WhatsApp, atención, seguimiento, customer journey y postventa.
+- APIs, webhooks, workflows e integraciones.
+- n8n: nivel de trabajo / working proficiency. No "experta avanzada".
+- Product ownership, arquitectura funcional, pruebas, QA e iteración con herramientas técnicas.
+- Español nativo.
+- Inglés funcional para lectura, escritura preparada y trabajo asincrónico apoyado en herramientas.
 - Portfolio: ${PORTFOLIO}
+- Web: ${SITE}
+- Perfil visual ES (si existe): ${profileEs||'no configurado'}
+- Visual profile EN (if available): ${profileEn||'not configured'}
 
-PROHIBIDO:
-- Inventar experiencia con Azure/Microsoft Graph, Airtable, PostgreSQL, GoHighLevel, HubSpot, Retell, Vapi, Dify, LangFlow, Make, Zapier, TimelinesAI, Zoho u otra herramienta si no está en los hechos.
-- Inventar clientes externos, resultados, años de experiencia, certificaciones, ratings o proyectos.
-- Afirmar que ya se hizo exactamente el sistema pedido si no está en los hechos.
-- Sonar como un bot. Debe leerse como un email breve escrito por Catalina.
+NO PUEDES INVENTAR:
+Azure/Microsoft Graph, Airtable, PostgreSQL, GoHighLevel, HubSpot, Retell, Vapi, Dify, LangFlow, Make, Zapier, TimelinesAI, Zoho, certificaciones, años concretos, clientes externos, resultados de clientes o herramientas no verificadas.
+Si una de esas herramientas aparece en la vacante, habla de cómo abordarías la integración y de capacidades transferibles, no de experiencia previa ficticia.
 
-Evalúa primero si los requisitos obligatorios son compatibles. Si la oportunidad exige como requisito central experiencia profunda demostrable en una tecnología no verificada, devuelve send=false.
-Si faltan datos obligatorios que la publicación exige (por ejemplo salario actual/esperado o disponibilidad exacta) y no se pueden responder honestamente, devuelve send=false y missingRequired con esos datos.
+FILTRO DE FIT:
+Antes de escribir, decide si Catalina tiene una posibilidad razonable de competir.
+- Si el requisito central es experiencia profunda demostrable en una tecnología no verificada y no es transferible, send=false.
+- Si falta un dato obligatorio imposible de responder honestamente (salario exacto, disponibilidad obligatoria, permiso legal, etc.), send=false y explica missingRequired.
+- Si el requisito puede aprenderse/implementarse desde APIs, workflows o arquitectura y NO exige experiencia previa demostrable, sí puede competir con transparencia.
+
+MARCO FIJO DE CONVERSIÓN - PERSONALIZA SIEMPRE:
+A. Apertura de relevancia (1-2 frases): nombra SU problema, no digas "vi tu publicación y puedo encargarme".
+B. Prueba selectiva (2 sistemas máximo): elige los 1-2 sistemas de Catalina más parecidos. Explica qué parte es transferible a SU necesidad.
+C. Plan concreto (2-4 frases): cómo empezaría, qué protegería y cuál sería el primer resultado verificable. Sin regalar una consultoría completa.
+D. Razón para confiar (1 frase): founder-operator + negocio real + piensa en adopción/operación, no solo en conectar herramientas. Usa métricas solo si ayudan.
+E. CTA humano (1 pregunta): conversación de 15-20 min, revisión del workflow o paid test/piloto acotado.
+
+VOZ:
+- Debe sonar como Catalina: directa, cálida, comercial, práctica, cero humo.
+- Natural, no perfecta ni grandilocuente.
+- Evita lenguaje típico de IA: "he revisado los requerimientos", "mi enfoque se centra", "mis entregables iniciales serían", "llevarlo al siguiente nivel", "solución robusta y escalable", "puedo encargarme de esto" repetido.
+- No listes 8 capacidades. Selecciona.
+- Nada de párrafos gigantes ni manifiestos.
+- No abuses de bullets. Máximo 3 si realmente ayudan.
+- No uses emojis salvo que la publicación sea claramente informal.
+- No escribas como agencia si la contratación es individual. Habla en primera persona.
+- No afirmes un dominio técnico que no existe.
+- Mantén una pequeña variación de ritmo para que las propuestas no parezcan generadas por plantilla.
+- Español natural si la publicación está en español. Inglés profesional pero simple y claro si está en inglés.
+
+ASUNTO:
+Específico al problema/proyecto, no genérico "Application". Si la publicación obliga un subject, respétalo exactamente.
+
+LONGITUD:
+- Email directo: 150-260 palabras.
+- Si la oportunidad pide CV/portfolio, menciona portfolio y perfil visual si la URL está configurada; nunca digas "adjunto" si no hay archivo realmente adjunto.
+- Si pide rate y no existe rate obligatorio definido, di que prefieres cotizar por alcance tras ver el workflow o paid test; no inventes una tarifa.
+- WhatsApp solo si la publicación lo pide explícitamente; no conviertas el email en un mensaje de WhatsApp.
 
 Devuelve SOLO JSON:
-{"send":true|false,"reason":"...","missingRequired":["..."],"subject":"...","body":"..."}
-
-Si send=true:
-- idioma de la publicación;
-- 160-320 palabras;
-- mencionar 2-3 sistemas/casos reales relevantes, no una lista genérica;
-- responder al problema específico;
-- incluir ${PORTFOLIO} y ${SITE};
-- cerrar con una pregunta o disponibilidad para un paid test/scoped first project;
-- si pide rate pero no da formato obligatorio, di que prefieres cotizar por alcance tras revisar el workflow, sin inventar tarifa;
-- si pide CV y no hay URL de CV configurada, el cuerpo puede funcionar como candidatura resumida y enlazar portfolio, pero NO digas "adjunto CV".`},
+{"send":true|false,"reason":"...","missingRequired":["..."],"language":"es|en","selectedSystems":["..."],"subject":"...","body":"..."}`},
         {role:'user',content:JSON.stringify({sourceUrl:row.url,platform:row.platform,who:row.who,need:row.need,route,priorDraft:row.reply})}
       ]
     }),
@@ -143,16 +189,30 @@ Si send=true:
   const data=await res.json().catch(()=>({}))
   try{return JSON.parse(data.choices?.[0]?.message?.content||'{}')}catch{return null}
 }
-
 async function sendApplication(env,row,route,draft,now){
   const from=env.APPLICATION_EMAIL_FROM||env.EMAIL_FROM
   const replyTo=env.CATALINA_EMAIL||'catalinajaramillogirldo28@gmail.com'
+  const profileUrl=draft.language==='en'?safe(env.PROFILE_EN_URL):safe(env.PROFILE_ES_URL)
+  const links=[
+    'Portfolio: '+PORTFOLIO,
+    'Website: '+SITE,
+    profileUrl?((draft.language==='en'?'Profile: ':'Perfil: ')+profileUrl):null
+  ].filter(Boolean).join('\n')
+  const fullText=safe(draft.body)+'\n\n'+links
+  const htmlBody='<div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:auto;color:#201a17;line-height:1.58">'
+    +'<div style="border-left:4px solid #b89a67;padding-left:16px;margin-bottom:22px"><div style="font-size:18px;font-weight:700">Catalina Jaramillo</div><div style="font-size:13px;color:#6b625d">AI Systems & Automation · Founder-Operator</div></div>'
+    +'<div style="font-size:15px;white-space:pre-line">'+escapeHtml(safe(draft.body))+'</div>'
+    +'<div style="margin-top:24px;padding-top:16px;border-top:1px solid #ded3ca;font-size:13px;color:#6b625d">'
+    +'<a href="'+PORTFOLIO+'" style="color:#6d553f">Portfolio</a> &nbsp;·&nbsp; <a href="'+SITE+'" style="color:#6d553f">Website</a>'
+    +(profileUrl?' &nbsp;·&nbsp; <a href="'+profileUrl+'" style="color:#6d553f">'+(draft.language==='en'?'Visual profile':'Perfil visual')+'</a>':'')
+    +'</div></div>'
   const payload={
     from,
     to:[route.email],
     reply_to:replyTo,
     subject:safe(draft.subject).replace(/[\r\n]/g,' ').slice(0,180),
-    text:safe(draft.body),
+    text:fullText,
+    html:htmlBody,
     headers:{'X-Carolina-Source':row.url.slice(0,900)},
     tags:[{name:'type',value:'direct_application'}]
   }
