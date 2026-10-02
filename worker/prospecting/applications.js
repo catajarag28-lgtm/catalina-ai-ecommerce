@@ -325,6 +325,28 @@ const bogotaStart=now=>{
   return Date.parse(d+'T00:00:00-05:00')
 }
 
+const retryDelayMs=attempt=>{
+  if(attempt<=1) return 6*3600000
+  if(attempt===2) return 24*3600000
+  if(attempt===3) return 72*3600000
+  return 7*86400000
+}
+
+async function scheduleRetry(env,url,{status,route='none',error='',blocker='',terminal=0,now=Date.now(),recipient=null}={}){
+  const prior=await env.DB.prepare('SELECT attempt_count FROM direct_applications WHERE source_url=?').bind(url).first().catch(()=>null)
+  const attempt=Number(prior?.attempt_count||0)+1
+  const next=terminal?null:now+retryDelayMs(attempt)
+  await env.DB.prepare(`INSERT INTO direct_applications(source_url,platform,recipient,route,status,error,blocker,attempt_count,last_attempt_at,next_attempt_at,terminal,created_at,updated_at)
+    SELECT url,platform,?, ?,?,?,?,?,?,?,?, ?,? FROM intent_leads WHERE url=?
+    ON CONFLICT(source_url) DO UPDATE SET
+      recipient=coalesce(excluded.recipient,direct_applications.recipient),
+      route=excluded.route,status=excluded.status,error=excluded.error,blocker=excluded.blocker,
+      attempt_count=excluded.attempt_count,last_attempt_at=excluded.last_attempt_at,next_attempt_at=excluded.next_attempt_at,
+      terminal=excluded.terminal,updated_at=excluded.updated_at`)
+    .bind(recipient,route,status,error,blocker,attempt,now,next,terminal,now,now,url).run()
+  return {attempt,next}
+}
+
 export async function runDirectApplications(env,now=Date.now()){
   await ensureTable(env)
   const enabled=env.DIRECT_APPLICATIONS_ENABLED==='true'
@@ -340,14 +362,23 @@ export async function runDirectApplications(env,now=Date.now()){
     WHERE i.fit='alto'
       AND coalesce(i.explicit_demand,1)=1
       AND coalesce(i.active_now,1)=1
-      AND (
-        i.status IN ('new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound')
-        OR (
-          i.status IN ('waiting_human_submit','needs_application_review')
-          AND (d.updated_at IS NULL OR d.updated_at < ?)
-        )
+      AND coalesce(d.terminal,0)=0
+      AND i.status IN (
+        'new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound',
+        'waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review',
+        'route_unverified','direct_email_failed'
       )
-    ORDER BY i.found_at DESC LIMIT 50`).bind(now-24*3600000).all()).results||[]
+      AND (d.next_attempt_at IS NULL OR d.next_attempt_at<=?)
+    ORDER BY
+      CASE coalesce(i.application_route,'unknown')
+        WHEN 'email' THEN 0
+        WHEN 'official_form' THEN 1
+        WHEN 'community' THEN 2
+        ELSE 3
+      END,
+      coalesce(d.updated_at,0) ASC,
+      i.found_at DESC
+    LIMIT 60`).bind(now).all()).results||[]
 
   for(const row of rows){
     if((count?.n||0)+out.sent>=limit) break
@@ -362,8 +393,8 @@ export async function runDirectApplications(env,now=Date.now()){
       // Freelancer/Upwork/Workana/etc. se resuelven por sus propios ejecutores/autorizaciones.
       continue
     }
-    const prior=await env.DB.prepare('SELECT status FROM direct_applications WHERE source_url=?').bind(row.url).first()
-    if(['sent','replied','external_email_sent'].includes(prior?.status)) continue
+    const prior=await env.DB.prepare('SELECT status,terminal,attempt_count FROM direct_applications WHERE source_url=?').bind(row.url).first()
+    if(prior?.terminal || ['sent','replied','external_email_sent'].includes(prior?.status)) continue
 
     out.reviewed++
     const route=await resolveApplicationRoute(env,row)
