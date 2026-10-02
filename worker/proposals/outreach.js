@@ -3,7 +3,7 @@ import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
 import { skill, skillsPrompt } from '../skills/registry.js'
 import { learnedPlaybook } from '../core/meetings.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
-import { researchWebsite, researchBusiness, validPublicEmail } from '../core/integrations.js'
+import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { brandedProposal, escapeHtml } from './proposalPage.js'
 import { catalog } from '../../src/offers.js'
 import { notifyCatalina } from '../core/notify.js'
@@ -183,6 +183,7 @@ export async function runOutreach(env, now = Date.now()) {
   if (!claimed.meta.changes) return { reason: 'already_claimed' }
   try {
     if (!validPublicEmail(row.email) || (row.kind !== 'inbound' && !row.source_url?.startsWith('https://'))) throw new Error('contact_not_verified')
+    if (row.kind !== 'inbound' && !(await emailDomainReachable(row.email))) throw new Error('email_domain_unreachable')
     if (await env.DB.prepare('SELECT 1 FROM suppression WHERE email=?').bind(row.email.toLowerCase()).first()) throw new Error('suppressed')
     if (row.kind !== 'inbound' && !testTo && await env.DB.prepare("SELECT 1 FROM emails WHERE direction='out' AND lower(to_addr)=?").bind(row.email.toLowerCase()).first()) throw new Error('already_contacted')
     let research
