@@ -5,7 +5,7 @@ import { freelancerReady, freelancerBidAllowance, upworkReady } from '../worker/
 test('Freelancer autosubmit requires explicit enablement and OAuth token',()=>{
   assert.equal(freelancerReady({}),false)
   assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true'}),false)
-  assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',FREELANCER_OAUTH_TOKEN:'token'}),true)
+  assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',FREELANCER_BID_SCOPE_VERIFIED:'true',FREELANCER_OAUTH_TOKEN:'token'}),true)
   assert.equal(freelancerReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'false',FREELANCER_OAUTH_TOKEN:'token'}),false)
 })
 
