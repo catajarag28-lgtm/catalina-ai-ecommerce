@@ -298,7 +298,7 @@ async function sendApplication(env,row,route,draft,now){
   }).catch(()=>null)
   const data=await res?.json().catch(()=>({}))
   if(!res?.ok||!data?.id) return {ok:false,error:JSON.stringify(data||{}).slice(0,700)}
-  await env.DB.prepare("UPDATE direct_applications SET status='sent',provider_id=?,sent_at=?,updated_at=? WHERE source_url=?").bind(String(data.id),now,now,row.url).run()
+  await env.DB.prepare("UPDATE direct_applications SET status='sent',provider_id=?,sent_at=?,terminal=1,blocker=NULL,next_attempt_at=NULL,last_attempt_at=?,updated_at=? WHERE source_url=?").bind(String(data.id),now,now,now,row.url).run()
   await env.DB.prepare("UPDATE intent_leads SET status='direct_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
   await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
     .bind(route.email,'out',from,route.email,payload.subject,payload.text,String(data.id),'direct_application',now).run().catch(()=>{})
@@ -384,7 +384,7 @@ export async function runDirectApplications(env,now=Date.now()){
     if((count?.n||0)+out.sent>=limit) break
     if(MANUAL_APPLICATIONS_SENT.has(row.url)){
       await env.DB.prepare("UPDATE intent_leads SET status='external_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
-      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET status='external_email_sent',route='email',error='sent manually from authorized Gmail account on 2026-10-02',updated_at=excluded.updated_at")
+      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,terminal,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?) ON CONFLICT(source_url) DO UPDATE SET status='external_email_sent',route='email',error='sent manually from authorized Gmail account on 2026-10-02',terminal=1,next_attempt_at=NULL,updated_at=excluded.updated_at")
         .bind(row.url,safe(row.platform),'email','external_email_sent','sent manually from authorized Gmail account on 2026-10-02',now,now).run().catch(()=>{})
       continue
     }
@@ -400,14 +400,22 @@ export async function runDirectApplications(env,now=Date.now()){
     const route=await resolveApplicationRoute(env,row)
     if(!route?.verified || !route.realOpportunity){
       const status=route?.realOpportunity===false?'not_hiring':'route_unverified'
-      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET route=excluded.route,status=excluded.status,error=excluded.error,updated_at=excluded.updated_at")
-        .bind(row.url,platform,safe(route?.route||'none'),status,safe(route?.reason||'application route not verified').slice(0,600),now,now).run()
+      const reason=safe(route?.reason||'application route not verified').slice(0,600)
+      await scheduleRetry(env,row.url,{
+        status,
+        route:safe(route?.route||'none'),
+        error:reason,
+        blocker:reason,
+        terminal:route?.realOpportunity===false?1:0,
+        now
+      })
       if(route?.realOpportunity===false){
         await env.DB.prepare("UPDATE intent_leads SET status='not_hiring' WHERE url=?").bind(row.url).run().catch(()=>{})
         out.skipped++
       }else{
-        const fallback=await queueIntentForDirectOutbound(env,row,now).catch(()=>({queued:false}))
-        await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?").bind(fallback.queued?'queued_outbound':'waiting_human_submit',row.url).run().catch(()=>{})
+        // A cold-outbound fallback may run independently, but the CONTRACT application remains unresolved.
+        await queueIntentForDirectOutbound(env,row,now).catch(()=>({queued:false}))
+        await env.DB.prepare("UPDATE intent_leads SET status='waiting_human_submit' WHERE url=?").bind(row.url).run().catch(()=>{})
         out.waitingHuman++
       }
       continue
@@ -421,11 +429,11 @@ export async function runDirectApplications(env,now=Date.now()){
       if(route.route==='community' && route.company){
         fallback=await queueIntentForDirectOutbound(env,{...row,company:route.company},now).catch(()=>({queued:false}))
       }
-      const status=fallback.queued?'queued_outbound':'waiting_human_submit'
-      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET route=excluded.route,status=excluded.status,error=excluded.error,updated_at=excluded.updated_at")
-        .bind(row.url,platform,safe(route.route),status,safe(route.contactUrl||route.reason||'No authorized email route').slice(0,600),now,now).run()
+      const status=route.route==='official_form'?'waiting_human_form':route.route==='community'?'waiting_human_channel':'waiting_human_submit'
+      const blocker=safe(route.contactUrl||route.reason||'No authorized automatic application route').slice(0,600)
+      await scheduleRetry(env,row.url,{status,route:safe(route.route),error:blocker,blocker,terminal:0,now})
       await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?").bind(status,row.url).run().catch(()=>{})
-      out.waitingHuman+=fallback.queued?0:1
+      out.waitingHuman++
       continue
     }
 
@@ -433,20 +441,20 @@ export async function runDirectApplications(env,now=Date.now()){
     if(!draft?.send || !safe(draft.subject) || safe(draft.body).length<200){
       const missing=Array.isArray(draft?.missingRequired)?draft.missingRequired.join(', '):''
       const reason=safe(draft?.reason||missing||'application_not_safe_to_send').slice(0,700)
-      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,route=excluded.route,status=excluded.status,error=excluded.error,updated_at=excluded.updated_at")
-        .bind(row.url,platform,route.email,'email','needs_review',reason,now,now).run()
+      await scheduleRetry(env,row.url,{status:'needs_review',route:'email',recipient:route.email,error:reason,blocker:reason,terminal:0,now})
       await env.DB.prepare("UPDATE intent_leads SET status='needs_application_review' WHERE url=?").bind(row.url).run().catch(()=>{})
       out.waitingHuman++
       continue
     }
 
-    await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,subject,body,route,status,created_at,updated_at) VALUES (?,?,?,?,?,'email','sending',?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,subject=excluded.subject,body=excluded.body,route='email',status='sending',error=NULL,updated_at=excluded.updated_at")
+    await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,subject,body,route,status,created_at,updated_at) VALUES (?,?,?,?,?,'email','sending',?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,subject=excluded.subject,body=excluded.body,route='email',status='sending',error=NULL,blocker=NULL,last_attempt_at=excluded.updated_at,next_attempt_at=NULL,terminal=0,updated_at=excluded.updated_at")
       .bind(row.url,platform,route.email,safe(draft.subject).slice(0,180),safe(draft.body),now,now).run()
     const sent=await sendApplication(env,row,route,draft,now)
     if(sent.ok){
       out.sent++
     }else{
-      await env.DB.prepare("UPDATE direct_applications SET status='failed',error=?,updated_at=? WHERE source_url=?").bind(safe(sent.error).slice(0,700),now,row.url).run()
+      const reason=safe(sent.error).slice(0,700)
+      await scheduleRetry(env,row.url,{status:'direct_email_failed',route:'email',recipient:route.email,error:reason,blocker:reason,terminal:0,now})
       await env.DB.prepare("UPDATE intent_leads SET status='direct_email_failed' WHERE url=?").bind(row.url).run().catch(()=>{})
     }
   }
