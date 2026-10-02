@@ -202,7 +202,7 @@ Devuelve SOLO JSON:
 }
 async function sendApplication(env,row,route,draft,now){
   const from=env.APPLICATION_EMAIL_FROM||env.EMAIL_FROM
-  const replyTo=env.CATALINA_EMAIL||'catalinajaramillogirldo28@gmail.com'
+  const replyTo=env.APPLICATION_REPLY_TO||'clientes@soycatalinajaramillo.com'
   const profileUrl=draft.language==='en'?safe(env.PROFILE_EN_URL):safe(env.PROFILE_ES_URL)
   const links=[
     'Portfolio: '+PORTFOLIO,
