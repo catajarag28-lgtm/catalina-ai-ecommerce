@@ -2,7 +2,7 @@
 // No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
 // explícitamente que acepta aplicaciones por email y la dirección queda verificada.
 import { notifyCatalina } from '../core/notify.js'
-import { validPublicEmail } from '../core/integrations.js'
+import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { queueIntentForDirectOutbound } from './intent.js'
 
 const SITE='https://soycatalinajaramillo.com'
@@ -96,6 +96,7 @@ REGLAS:
   if(out.route==='email'){
     const email=safe(out.email).toLowerCase()
     if(!validPublicEmail(email) || !safe(out.evidence).toLowerCase().includes(email)) return {...out,verified:false}
+    if(!(await emailDomainReachable(email))) return {...out,verified:false,reason:'application_email_domain_unreachable'}
     const sourceSeen=await sourceContainsEmail(row.url,email)
     const citationSeen=cited.some(u=>sameHost(u,row.url) || (out.contactUrl&&sameHost(u,out.contactUrl)))
     if(!sourceSeen && !citationSeen) return {...out,verified:false}
