@@ -5,7 +5,7 @@ import { renderProposalPage } from './proposals/proposalPage.js'
 import { handleDemo } from './proposals/demo.js'
 import { runIntentScan, searchIntent, intentQueries } from './prospecting/intent.js'
 import { runMarketplaceAcquisition, marketplaceSnapshot } from './prospecting/marketplaces.js'
-import { runDirectApplications, applicationCoverageAudit } from './prospecting/applications.js'
+import { runDirectApplications, applicationCoverageAudit, directApplicationSnapshot } from './prospecting/applications.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './proposals/creative.js'
 import { schedulingUrl } from './skills/salesStrategy.js'
 import { constitution, knowledge } from './core/knowledge.js'
@@ -279,7 +279,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })), applications: await directApplicationSnapshot(env).catch(()=>({ enabled:false, stats:[], coverage:null })) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
