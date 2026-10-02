@@ -184,7 +184,19 @@ export async function runIntentScan(env, now = Date.now()) {
   for (let k = 0; k < searchesPerSlot; k++) {
     const q = intentQueries[(start + k) % intentQueries.length]
     for (const p of await searchIntent(env, q)) {
-      const r = await env.DB.prepare("INSERT OR IGNORE INTO intent_leads(url,platform,who,need,fit,reply,query,found_at,status) VALUES (?,?,?,?,?,?,?,?,'new')").bind(p.url, String(p.platform || '').slice(0, 60), String(p.who || '').slice(0, 200), String(p.need).slice(0, 400), String(p.fit || ''), String(p.reply).slice(0, 1500), q, now).run()
+      const r = await env.DB.prepare("INSERT OR IGNORE INTO intent_leads(url,platform,who,need,fit,reply,query,found_at,status,explicit_demand,active_now,application_route,evidence) VALUES (?,?,?,?,?,?,?,?,'new',1,?,?,?)").bind(
+        p.url,
+        String(p.platform || '').slice(0, 60),
+        String(p.who || '').slice(0, 200),
+        String(p.need).slice(0, 400),
+        String(p.fit || ''),
+        String(p.reply).slice(0, 1500),
+        q,
+        now,
+        p.activeNow === false ? 0 : 1,
+        String(p.applicationRoute || 'unknown').slice(0, 30),
+        String(p.evidence || '').slice(0, 280)
+      ).run()
       if (r.meta.changes) {
         fresh.push(p)
         if (p.fit === 'alto') {
