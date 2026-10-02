@@ -35,6 +35,8 @@ const allowedPlatform=p=>!/freelancer|upwork|workana|contra|peopleperhour|people
 // Aplicaciones enviadas manualmente desde Gmail el 2026-10-02 mientras Codex/Cloudflare estaba bloqueado.
 // Se registran aquí para que Carolina no duplique candidaturas cuando vuelva a procesar el backfill.
 const MANUAL_APPLICATIONS_SENT=new Set([
+  'https://www.linkedin.com/posts/martin-xavier-udoh-930a52191_hiring-n8n-automation-activity-7505025442404487168-q03w',
+  'https://www.linkedin.com/posts/robert-thomas-18661b218_seeking-ai-automation-crm-integration-activity-7469162704017170432-auO1',
   'https://www.linkedin.com/posts/rashibali873_n8n-automation-freelance-activity-7475879601269825537-Y4ez',
   'https://www.linkedin.com/posts/samiya-islam-0a61a02ba_hiring-automationengineer-n8n-activity-7490638742702137344-m8Cq',
   'https://www.linkedin.com/posts/josephmagdy_hiring-ai-n8n-activity-7493402270659809280-XgGf',
