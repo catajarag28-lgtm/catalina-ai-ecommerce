@@ -43,6 +43,13 @@ export const segments = [
   { id: 'aliados-web', kind: 'partner', weight: 1, region: 'EE. UU.', sector: 'agencia', q: 'diseñador web o agencia de páginas web latina en Florida o Texas para pequeños negocios hispanos' },
   { id: 'aliados-crm', kind: 'partner', weight: 1, region: 'EE. UU.', sector: 'agencia', q: 'consultor de CRM, GoHighLevel o automatización de marketing que atiende negocios hispanos en Estados Unidos' },
   { id: 'aliados-mx', kind: 'partner', weight: 1, region: 'México', sector: 'agencia', q: 'agencia de marketing digital en Ciudad de México o Monterrey especializada en clínicas estéticas o inmobiliarias' },
+  { id: 'usa-home-services', weight: 4, region: 'EE. UU.', sector: 'servicios', q: 'empresa hispana de roofing, HVAC, plomería, electricidad, remodelación o restoration en Florida, Texas, Arizona o Nevada con formularios, llamadas o citas y servicios de ticket alto' },
+  { id: 'usa-property-management', weight: 3, region: 'EE. UU.', sector: 'inmobiliaria', q: 'empresa de property management o administración de propiedades en Florida o Texas que atiende propietarios e inquilinos, recibe solicitudes online y coordina visitas o mantenimiento' },
+  { id: 'usa-auto', weight: 2, region: 'EE. UU.', sector: 'servicios', q: 'dealer de autos independiente o taller premium hispano en Florida o Texas con inventario, cotizaciones, citas o consultas online' },
+  { id: 'usa-staffing', weight: 2, region: 'EE. UU.', sector: 'servicios', q: 'agencia de staffing o reclutamiento bilingüe en Estados Unidos que recibe candidatos y empresas por formularios, agenda entrevistas o maneja alto volumen de seguimiento' },
+  { id: 'usa-mortgage-insurance', weight: 3, region: 'EE. UU.', sector: 'servicios', q: 'broker hipotecario, seguros o financial services hispano en Florida o Texas con formularios de precalificación, consultas o citas en español' },
+  { id: 'aliados-automation-agencies', kind: 'partner', weight: 4, region: 'EE. UU.', sector: 'agencia', q: 'agencia de automatización, CRM, marketing o AI en Estados Unidos que busca contractors, white-label implementers o capacidad técnica para entregar proyectos a sus clientes' },
+  { id: 'aliados-shopify', kind: 'partner', weight: 2, region: 'EE. UU.', sector: 'agencia', q: 'agencia Shopify ecommerce CRO email marketing o performance en Estados Unidos que atiende marcas DTC y puede necesitar partner de automatización y agentes IA' },
   { id: 'co-premium', weight: 1, region: 'Colombia', sector: 'spa', q: 'clínica de cirugía plástica o estética premium en Medellín o Bogotá que atiende pacientes internacionales' },
 ]
 const rotation = segments.flatMap(s => Array(s.weight).fill(s))
@@ -68,6 +75,13 @@ export const placesQueries = {
   'do-realestate': ['inmobiliaria Punta Cana', 'real estate Santo Domingo'],
   'cr-services': ['clínica dental Costa Rica turismo', 'clínica estética San José Costa Rica'],
   'cl-uy-clinicas': ['clínica estética Santiago de Chile', 'clínica estética Montevideo'],
+  'usa-home-services': ['roofing hispano Miami', 'HVAC hispano Houston', 'plomero hispano Dallas', 'restoration company latino Florida', 'remodelación hispana Orlando'],
+  'usa-property-management': ['property management Miami español', 'property management Houston bilingual', 'administración de propiedades Orlando'],
+  'usa-auto': ['auto dealer hispano Miami', 'car dealership latino Houston', 'taller mecánico hispano Dallas'],
+  'usa-staffing': ['staffing agency bilingual Miami', 'agencia de empleo hispana Houston', 'recruiting agency bilingual Dallas'],
+  'usa-mortgage-insurance': ['mortgage broker hispano Miami', 'insurance agency hispana Houston', 'loan officer español Orlando'],
+  'aliados-automation-agencies': ['automation agency Miami', 'n8n agency USA', 'AI automation agency Florida', 'CRM automation agency Texas'],
+  'aliados-shopify': ['Shopify agency Miami', 'ecommerce agency Florida', 'DTC marketing agency Texas'],
   'co-premium': ['cirugía plástica Medellín', 'clínica estética Bogotá'],
   'aliados-miami-marketing': ['agencia de marketing digital hispana Miami', 'agencia de marketing Doral FL', 'agencia de redes sociales Miami latina'],
   'aliados-web': ['diseño de páginas web Miami hispano', 'diseñador web latino Orlando', 'agencia web Houston hispana'],
@@ -80,12 +94,22 @@ export const osmAreas = { 'miami-medspa': 'Miami-Dade County', 'miami-realestate
 // reciben más búsquedas; los que no, menos. Solo se ajusta con 15+ envíos en 30 días (factor entre 0,3 y 3).
 export async function segmentWeights(env, now = Date.now()) {
   const rows = (await env.DB.prepare(`SELECT o.segment, COUNT(DISTINCT o.id) n,
-      COUNT(DISTINCT CASE WHEN o.status='replied' OR e.type IN ('demo.used','cta.clicked','page.viewed','email.clicked','chat.started') THEN o.id END) engaged
-    FROM outreach o LEFT JOIN outreach_events e ON e.outreach_id=o.id
-    WHERE o.sent_at>? AND o.id NOT LIKE 'test-%' AND o.segment<>'' GROUP BY o.segment`).bind(now - 30 * 86400000).all()).results || []
-  const total = rows.reduce((a, r) => a + r.n, 0), eng = rows.reduce((a, r) => a + r.engaged, 0)
-  const base = total ? Math.max(eng / total, 0.01) : 0.01
-  return Object.fromEntries(rows.filter(r => r.n >= 15).map(r => [r.segment, Math.min(3, Math.max(0.3, (r.engaged / r.n) / base))]))
+      COUNT(DISTINCT CASE WHEN e.type IN ('email.clicked','page.viewed','cta.clicked','chat.started','demo.used') THEN o.id END) engaged,
+      COUNT(DISTINCT CASE WHEN o.status='replied' THEN o.id END) replied,
+      COUNT(DISTINCT CASE WHEN m.id IS NOT NULL THEN o.id END) meetings
+    FROM outreach o
+    LEFT JOIN outreach_events e ON e.outreach_id=o.id
+    LEFT JOIN meetings m ON lower(m.email)=lower(o.email)
+    WHERE o.sent_at>? AND o.id NOT LIKE 'test-%' AND o.segment<>''
+    GROUP BY o.segment`).bind(now - 30 * 86400000).all()).results || []
+  const score = r => Number(r.engaged||0)*0.25 + Number(r.replied||0)*1.5 + Number(r.meetings||0)*4
+  const totalN = rows.reduce((a,r)=>a+Number(r.n||0),0)
+  const totalScore = rows.reduce((a,r)=>a+score(r),0)
+  const baseline = totalN ? Math.max(totalScore/totalN,0.01) : 0.01
+  return Object.fromEntries(rows.filter(r=>Number(r.n||0)>=12).map(r=>{
+    const rate=score(r)/Math.max(1,Number(r.n||0))
+    return [r.segment,Math.min(3.5,Math.max(0.2,rate/baseline))]
+  }))
 }
 export function pickSegment(factors = {}, rnd = Math.random()) {
   const w = segments.map(s => s.weight * (factors[s.id] ?? 1))
