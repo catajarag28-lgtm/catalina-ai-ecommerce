@@ -177,7 +177,11 @@ export async function researchBusiness(url) {
 export function pickBusinessEmail(emails, host) {
   const clean=(emails||[]).filter(validPublicEmail)
   const own = clean.filter(e => !/(%22|%3c|%3e|data-style|support-contact)/i.test(e) && e.split('@')[1].replace(/^www\./, '').endsWith(host))
-  const preferred = own.find(e => /^(info|hola|hello|contacto|contact|citas|reservas|ventas|sales|admin|office|recepcion|front|booking|appointments)@/i.test(e)) || own[0]
+  // Public named mailboxes usually reach a decision-maker more directly than info@.
+  // Never infer addresses: this only ranks emails literally published by the business.
+  const named = own.find(e => !/^(info|hola|hello|contacto|contact|citas|reservas|ventas|sales|admin|office|recepcion|front|booking|appointments|support|help|careers|jobs|billing|accounts?)@/i.test(e))
+  if (named) return named
+  const preferred = own.find(e => /^(sales|ventas|contacto|contact|hola|hello|citas|reservas|booking|appointments|office|recepcion|front|info|admin)@/i.test(e)) || own[0]
   if (preferred) return preferred
   return clean.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
 }
