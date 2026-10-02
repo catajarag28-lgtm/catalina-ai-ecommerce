@@ -461,8 +461,66 @@ export async function runDirectApplications(env,now=Date.now()){
   return out
 }
 
+export async function applicationCoverageAudit(env,now=Date.now()){
+  await ensureTable(env)
+  const rows=(await env.DB.prepare(`SELECT
+      i.url,i.platform,i.who,i.need,i.status AS intent_status,i.application_route,i.evidence,i.found_at,
+      d.status AS application_status,d.provider_id,d.blocker,d.attempt_count,d.next_attempt_at,d.terminal
+    FROM intent_leads i
+    LEFT JOIN direct_applications d ON d.source_url=i.url
+    WHERE i.fit='alto'
+      AND coalesce(i.explicit_demand,0)=1
+      AND coalesce(i.active_now,1)=1
+    ORDER BY i.found_at DESC
+    LIMIT 300`).all()).results||[]
+
+  const intentTerminal=new Set(['direct_email_sent','external_email_sent','submitted','not_hiring','skipped_budget','skipped_after_review'])
+  const appTerminal=new Set(['sent','replied','external_email_sent','not_hiring'])
+  const pending=[]
+  let sent=0,marketplacePending=0,directPending=0,orphaned=0
+  for(const row of rows){
+    const done=Number(row.terminal||0)===1 || appTerminal.has(row.application_status) || intentTerminal.has(row.intent_status)
+    if(done){sent++;continue}
+    const marketplace=!allowedPlatform(row.platform)
+    if(marketplace) marketplacePending++; else directPending++
+    if(!marketplace && !row.application_status) orphaned++
+    pending.push({...row,marketplace})
+  }
+  const stale=pending.filter(r=>Number(r.found_at||0) < now-2*3600000)
+  if(stale.length){
+    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(now)
+    const key='application_backlog_alert:'+day
+    const once=await env.DB.prepare("INSERT OR IGNORE INTO app_settings(key,value,updated_at) VALUES (?,?,?)").bind(key,String(stale.length),now).run().catch(()=>({meta:{changes:0}}))
+    if(once?.meta?.changes){
+      const top=stale.slice(0,20).map((r,i)=>[
+        `${i+1}. ${safe(r.platform)||'web'} · ${safe(r.who)||safe(r.need).slice(0,80)}`,
+        `   intent=${r.intent_status||'new'} · application=${r.application_status||'sin registro'} · route=${r.application_route||'unknown'}`,
+        r.blocker?`   bloqueo: ${safe(r.blocker).slice(0,180)}`:'',
+        `   ${r.url}`
+      ].filter(Boolean).join('\n')).join('\n')
+      await notifyCatalina(env,`⚠️ ${stale.length} contratos todavía sin postulación confirmada`,[
+        'Este aviso NO cuenta encontrados como postulados. Son oportunidades explícitas activas sin provider_id/bid_id/confirmación final.',
+        `Directos pendientes: ${directPending} · marketplaces pendientes: ${marketplacePending} · huérfanos sin registro de aplicación: ${orphaned}`,
+        '',
+        top
+      ].join('\n')).catch(()=>{})
+    }
+  }
+  return {
+    explicitActive:rows.length,
+    resolved:sent,
+    pending:pending.length,
+    directPending,
+    marketplacePending,
+    orphaned,
+    stale:stale.length,
+    topPending:pending.slice(0,12).map(r=>({url:r.url,platform:r.platform,status:r.intent_status,applicationStatus:r.application_status||null,route:r.application_route||null,blocker:r.blocker||null}))
+  }
+}
+
 export async function directApplicationSnapshot(env){
   await ensureTable(env)
   const rows=await env.DB.prepare('SELECT status,COUNT(*) n FROM direct_applications GROUP BY status').all()
-  return {enabled:env.DIRECT_APPLICATIONS_ENABLED==='true',stats:rows.results||[]}
+  const coverage=await applicationCoverageAudit(env).catch(()=>null)
+  return {enabled:env.DIRECT_APPLICATIONS_ENABLED==='true',stats:rows.results||[],coverage}
 }
