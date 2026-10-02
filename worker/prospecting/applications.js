@@ -491,7 +491,7 @@ export async function runDirectApplications(env,now=Date.now()){
   return out
 }
 
-export async function applicationCoverageAudit(env,now=Date.now()){
+export async function applicationCoverageAudit(env,now=Date.now(),notify=true){
   await ensureTable(env)
   const rows=(await env.DB.prepare(`SELECT
       i.url,i.platform,i.who,i.need,i.status AS intent_status,i.application_route,i.evidence,i.found_at,
@@ -517,7 +517,7 @@ export async function applicationCoverageAudit(env,now=Date.now()){
     pending.push({...row,marketplace})
   }
   const stale=pending.filter(r=>Number(r.found_at||0) < now-2*3600000)
-  if(stale.length){
+  if(notify && stale.length){
     const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(now)
     const key='application_backlog_alert:'+day
     const once=await env.DB.prepare("INSERT OR IGNORE INTO app_settings(key,value,updated_at) VALUES (?,?,?)").bind(key,String(stale.length),now).run().catch(()=>({meta:{changes:0}}))
@@ -551,6 +551,6 @@ export async function applicationCoverageAudit(env,now=Date.now()){
 export async function directApplicationSnapshot(env){
   await ensureTable(env)
   const rows=await env.DB.prepare('SELECT status,COUNT(*) n FROM direct_applications GROUP BY status').all()
-  const coverage=await applicationCoverageAudit(env).catch(()=>null)
+  const coverage=await applicationCoverageAudit(env,Date.now(),false).catch(()=>null)
   return {enabled:env.DIRECT_APPLICATIONS_ENABLED==='true',stats:rows.results||[],coverage}
 }
