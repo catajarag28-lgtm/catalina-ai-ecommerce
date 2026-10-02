@@ -23,6 +23,7 @@
     "DIRECT_APPLICATIONS_ENABLED": "true",
     "DIRECT_APPLICATION_DAILY_LIMIT": "20",
     "APPLICATION_EMAIL_FROM": "Catalina Jaramillo <catalina@soycatalinajaramillo.com>",
+    "APPLICATION_REPLY_TO": "clientes@soycatalinajaramillo.com",
     "PROFILE_ES_URL": "https://soycatalinajaramillo.com/perfil-catalina.html",
     "PROFILE_EN_URL": "https://soycatalinajaramillo.com/catalina-profile.html",
     "INSTAGRAM_ENABLED": "true",
