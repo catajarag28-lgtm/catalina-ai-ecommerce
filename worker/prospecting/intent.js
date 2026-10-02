@@ -119,7 +119,7 @@ async function resolveOfficialBusiness(env, p) {
   return citedHost?data.website:null
 }
 
-async function queueIntentForDirectOutbound(env,p,now) {
+export async function queueIntentForDirectOutbound(env,p,now) {
   const platform=String(p.platform||'').toLowerCase()
   if(/freelancer|upwork|workana|contra|peopleperhour|people per hour|guru|fiverr|toptal/.test(platform)) return {queued:false,reason:'marketplace'}
   const website=await resolveOfficialBusiness(env,p)
@@ -135,7 +135,7 @@ function actionModeForIntent(p) {
   if(/freelancer/.test(platform)) return 'official_api'
   if(/upwork|workana|contra|peopleperhour|people per hour|guru|malt|twine|wellfound/.test(platform)) return 'application_ready'
   if(/lever|greenhouse|ashby|remoteok|we work remotely|builtin|built in/.test(platform)) return 'application_ready'
-  return 'verify_for_direct_outbound'
+  return 'direct_application'
 }
 
 async function setIntentStatus(env,url,status) {
@@ -170,8 +170,10 @@ export async function runIntentScan(env, now = Date.now()) {
           } else if (mode === 'application_ready') {
             await setIntentStatus(env,p.url,'application_ready')
           } else {
-            const routed=await queueIntentForDirectOutbound(env,p,now).catch(()=>({queued:false,reason:'route_failed'}))
-            await setIntentStatus(env,p.url,routed.queued ? 'queued_outbound' : 'needs_verified_identity')
+            // Primero intenta una postulación real por la vía explícita de la publicación.
+            // El ejecutor de aplicaciones decide si hay email/formulario/comunidad; solo
+            // cae a outreach directo si no existe una ruta de aplicación verificable.
+            await setIntentStatus(env,p.url,'direct_application_pending')
           }
         }
       }
