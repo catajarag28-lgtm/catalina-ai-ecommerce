@@ -5,7 +5,7 @@ import { renderProposalPage } from './proposals/proposalPage.js'
 import { handleDemo } from './proposals/demo.js'
 import { runIntentScan, searchIntent, intentQueries } from './prospecting/intent.js'
 import { runMarketplaceAcquisition, marketplaceSnapshot } from './prospecting/marketplaces.js'
-import { runDirectApplications } from './prospecting/applications.js'
+import { runDirectApplications, applicationCoverageAudit } from './prospecting/applications.js'
 import { evolveAngles, adjustDailyCap, webhookSecret } from './proposals/creative.js'
 import { schedulingUrl } from './skills/salesStrategy.js'
 import { constitution, knowledge } from './core/knowledge.js'
@@ -368,6 +368,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('intent', () => runIntentScan(env))
     await step('applications', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
+    await step('applicationCoverage', () => applicationCoverageAudit(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
     await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})
     const clock = now()
