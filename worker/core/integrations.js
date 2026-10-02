@@ -70,6 +70,33 @@ export const validPublicEmail = value => {
   return !junkEmail.test(e)
 }
 
+export async function emailDomainReachable(value) {
+  const email=String(value||'').trim().toLowerCase()
+  if(!validPublicEmail(email)) return false
+  const domain=email.split('@')[1]
+  try {
+    const res=await fetch('https://cloudflare-dns.com/dns-query?name='+encodeURIComponent(domain)+'&type=MX',{
+      headers:{accept:'application/dns-json'},
+      signal:AbortSignal.timeout(5000)
+    })
+    if(!res.ok) return true // DNS verifier outage must not create false negatives.
+    const data=await res.json().catch(()=>({}))
+    if(Number(data.Status)!==0) return false
+    const answers=Array.isArray(data.Answer)?data.Answer:[]
+    // RFC 7505 null-MX (".") explicitly means the domain accepts no email.
+    const mx=answers.filter(a=>Number(a.type)===15).map(a=>String(a.data||'').trim())
+    if(mx.some(x=>/\s\.$/.test(x))) return false
+    if(mx.length) return true
+    // Legacy fallback: domains without MX may receive mail on an A/AAAA record.
+    const a=await fetch('https://cloudflare-dns.com/dns-query?name='+encodeURIComponent(domain)+'&type=A',{
+      headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(5000)
+    }).then(r=>r.ok?r.json():null).catch(()=>null)
+    return !!(a && Number(a.Status)===0 && Array.isArray(a.Answer) && a.Answer.length)
+  } catch {
+    return true
+  }
+}
+
 // Lee una página pública siguiendo hasta 3 redirecciones https, sin salir a hosts privados.
 export async function researchWebsite(url) {
   try {
