@@ -32,6 +32,17 @@ const hostOf=url=>{try{return new URL(url).hostname.replace(/^www\./,'').toLower
 const sameHost=(a,b)=>{const x=hostOf(a),y=hostOf(b);return !!x&&!!y&&(x===y||x.endsWith('.'+y)||y.endsWith('.'+x))}
 const allowedPlatform=p=>!/freelancer|upwork|workana|contra|peopleperhour|people per hour|guru|malt|twine|wellfound/i.test(safe(p))
 
+// Aplicaciones enviadas manualmente desde Gmail el 2026-10-02 mientras Codex/Cloudflare estaba bloqueado.
+// Se registran aquí para que Carolina no duplique candidaturas cuando vuelva a procesar el backfill.
+const MANUAL_APPLICATIONS_SENT=new Set([
+  'https://www.linkedin.com/posts/rashibali873_n8n-automation-freelance-activity-7475879601269825537-Y4ez',
+  'https://www.linkedin.com/posts/samiya-islam-0a61a02ba_hiring-automationengineer-n8n-activity-7490638742702137344-m8Cq',
+  'https://www.linkedin.com/posts/josephmagdy_hiring-ai-n8n-activity-7493402270659809280-XgGf',
+  'https://community.make.com/t/looking-for-a-freelancer-whatsapp-api-ai-automation-expert/109983',
+  'https://community.make.com/t/were-hiring-make-com-expert-for-full-funnel-automation-zoho-one-integration-agentic-ai/87945',
+  'https://community.openai.com/t/looking-for-a-developer-who-can-integrate-with-gohighlevel/215650'
+])
+
 async function sourceContainsEmail(url,email){
   try{
     const res=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CarolinaApplications/1.0; +https://soycatalinajaramillo.com)','accept-language':'en,es;q=0.9'},redirect:'follow',signal:AbortSignal.timeout(10000)})
@@ -298,6 +309,12 @@ export async function runDirectApplications(env,now=Date.now()){
 
   for(const row of rows){
     if((count?.n||0)+out.sent>=limit) break
+    if(MANUAL_APPLICATIONS_SENT.has(row.url)){
+      await env.DB.prepare("UPDATE intent_leads SET status='external_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
+      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET status='external_email_sent',route='email',error='sent manually from authorized Gmail account on 2026-10-02',updated_at=excluded.updated_at")
+        .bind(row.url,safe(row.platform),'email','external_email_sent','sent manually from authorized Gmail account on 2026-10-02',now,now).run().catch(()=>{})
+      continue
+    }
     const platform=safe(row.platform)
     if(!allowedPlatform(platform)){
       // Freelancer/Upwork/Workana/etc. se resuelven por sus propios ejecutores/autorizaciones.
