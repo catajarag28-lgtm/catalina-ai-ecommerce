@@ -68,8 +68,8 @@ export async function checkOutreachHealth(env, now=Date.now()) {
   const sent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=?").bind(now-14*86400000).first()
   const complaints=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.complained' AND occurred_at>=?").bind(now-14*86400000).first()
   const bounces=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(now-14*86400000).first()
-  if ((complaints?.n||0)>0 || ((sent?.n||0)>=20 && (bounces?.n||0)*100/(sent.n)>=5)) {
-    await pauseOutreach(env,'Quejas o rebotes por encima del umbral')
+  if ((complaints?.n||0)>0 || ((sent?.n||0)>=20 && (bounces?.n||0)*100/(sent.n)>=2)) {
+    await pauseOutreach(env,'Quejas o rebotes por encima del umbral seguro (2%)')
     return {paused:true,reason:'delivery'}
   }
   const mature=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.delivered' AND occurred_at BETWEEN ? AND ?").bind(now-21*86400000,now-7*86400000).first()
