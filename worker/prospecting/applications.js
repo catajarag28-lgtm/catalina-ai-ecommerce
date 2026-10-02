@@ -45,6 +45,21 @@ const MANUAL_APPLICATIONS_SENT=new Set([
   'https://community.openai.com/t/looking-for-a-developer-who-can-integrate-with-gohighlevel/215650'
 ])
 
+const MANUAL_APPLICATION_RECIPIENTS_SENT=new Set([
+  'automationai068@gmail.com',
+  'josephmagdy.work@gmail.com',
+  'samiya.islam@vservit.com',
+  'abhinav@fastenerworldindia.com',
+  'ceo@religiate.com',
+  'employment@iconichomesolutions.com',
+  'info@avenuebillingservices.com',
+  'rthomas6@farmersagent.com',
+  'martoudoh1@gmail.com'
+])
+const MANUAL_APPLICATION_RECIPIENTS_BOUNCED=new Set([
+  'sales@infiwebinfotech.com'
+])
+
 async function sourceContainsEmail(url,email){
   try{
     const res=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; CarolinaApplications/1.0; +https://soycatalinajaramillo.com)','accept-language':'en,es;q=0.9'},redirect:'follow',signal:AbortSignal.timeout(10000)})
@@ -433,6 +448,21 @@ export async function runDirectApplications(env,now=Date.now()){
       const blocker=safe(route.contactUrl||route.reason||'No authorized automatic application route').slice(0,600)
       await scheduleRetry(env,row.url,{status,route:safe(route.route),error:blocker,blocker,terminal:0,now})
       await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?").bind(status,row.url).run().catch(()=>{})
+      out.waitingHuman++
+      continue
+    }
+
+    if(MANUAL_APPLICATION_RECIPIENTS_SENT.has(safe(route.email).toLowerCase())){
+      await env.DB.prepare("UPDATE intent_leads SET status='external_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
+      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,route,status,error,terminal,created_at,updated_at) VALUES (?,?,?,?,?,?,1,?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,route='email',status='external_email_sent',error='manual_recipient_already_sent',terminal=1,next_attempt_at=NULL,updated_at=excluded.updated_at")
+        .bind(row.url,platform,route.email,'email','external_email_sent','manual_recipient_already_sent',now,now).run().catch(()=>{})
+      continue
+    }
+    if(MANUAL_APPLICATION_RECIPIENTS_BOUNCED.has(safe(route.email).toLowerCase())){
+      const reason='manual_recipient_bounced_do_not_resend_same_address'
+      await scheduleRetry(env,row.url,{status:'waiting_human_submit',route:'email',recipient:route.email,error:reason,blocker:reason,terminal:0,now})
+      await env.DB.prepare("UPDATE direct_applications SET next_attempt_at=? WHERE source_url=?").bind(now+7*86400000,row.url).run().catch(()=>{})
+      await env.DB.prepare("UPDATE intent_leads SET status='waiting_human_submit' WHERE url=?").bind(row.url).run().catch(()=>{})
       out.waitingHuman++
       continue
     }
