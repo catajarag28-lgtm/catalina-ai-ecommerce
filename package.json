@@ -9,7 +9,11 @@
     "test": "node --test tests/*.test.mjs",
     "deploy": "vite build && npx wrangler deploy",
     "preview": "vite preview",
-    "skills:doc": "node scripts/skills-doc.mjs"
+    "skills:doc": "node scripts/skills-doc.mjs",
+    "carolina:runner": "node scripts/runner-local.js run",
+    "carolina:connect": "node scripts/runner-local.js connect-all",
+    "carolina:audit": "node scripts/runner-local.js audit",
+    "carolina:report": "node scripts/carolina-daily-report.js"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
