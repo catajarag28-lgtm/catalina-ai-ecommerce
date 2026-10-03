@@ -146,7 +146,7 @@ export async function browserSessionSummary(env){
 export async function createBrowserSetup(env,platform){
   if(!env.BROWSER||!env.BROWSER_SESSIONS)throw new Error('browser_binding_missing')
   const p=cfg(platform)
-  const browser=await launch(env.BROWSER,{keep_alive:1200000})
+  const browser=await launch(env.BROWSER,{keep_alive:600000})
   const context=await browser.newContext()
   const page=await context.newPage()
   await page.goto(p.login,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
@@ -159,7 +159,7 @@ export async function createBrowserSetup(env,platform){
   await page.waitForTimeout(500)
   const cdp=await context.newCDPSession(page)
   const live=await cdp.send('Cloudflare.getLiveView',{mode:'tab',expiresInMs:3600000})
-  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión en ${p.label}. Completa MFA/CAPTCHA si aparece. No cambies otras configuraciones. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:3600000}).catch(()=>null)
+  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión en ${p.label}. Completa MFA/CAPTCHA si aparece. No cambies otras configuraciones. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:1800000}).catch(()=>null)
   const token=crypto.randomUUID().replace(/-/g,'')
   const setup={platform:p.id,sessionId:browser.sessionId(),targetId:live.id,createdAt:Date.now()}
   await env.BROWSER_SESSIONS.put('setup:'+token,await seal(env,setup),{expirationTtl:7200})
@@ -194,7 +194,7 @@ const GOOGLE_BOOTSTRAP_PLATFORMS=['linkedin','upwork','workana','n8n','make','co
 
 export async function createGoogleBootstrap(env){
   if(!env.BROWSER||!env.BROWSER_SESSIONS)throw new Error('browser_binding_missing')
-  const browser=await launch(env.BROWSER,{keep_alive:3600000})
+  const browser=await launch(env.BROWSER,{keep_alive:600000})
   const context=await browser.newContext()
   const page=await context.newPage()
   await page.goto('https://accounts.google.com/',{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
@@ -203,7 +203,7 @@ export async function createGoogleBootstrap(env){
   await cdp.send('Cloudflare.handoff',{
     targetId:live.id,
     instructions:'Inicia sesión UNA sola vez en la cuenta de Google que usas para tus plataformas. Completa MFA/CAPTCHA si aparece. Cuando veas tu cuenta de Google abierta, vuelve a la pestaña de Carolina y pulsa Conectar plataformas.',
-    timeout:3600000
+    timeout:1800000
   }).catch(()=>null)
   const token=crypto.randomUUID().replace(/-/g,'')
   await env.BROWSER_SESSIONS.put('google-bootstrap:'+token,await seal(env,{sessionId:browser.sessionId(),createdAt:Date.now()}),{expirationTtl:7200})
