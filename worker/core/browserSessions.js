@@ -158,15 +158,11 @@ export async function createBrowserSetup(env,platform){
   const page=await context.newPage()
   await page.goto(p.login,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
   await page.waitForTimeout(700)
-  // Si la plataforma ofrece SSO con Google, deja al usuario directamente en ese camino.
-  const googleButton=page.getByRole('button',{name:/google/i}).first()
-  const googleLink=page.getByRole('link',{name:/google/i}).first()
-  if(await googleButton.count()) await googleButton.click().catch(()=>{})
-  else if(await googleLink.count()) await googleLink.click().catch(()=>{})
-  await page.waitForTimeout(500)
+  // No forzar Google SSO: algunos proveedores bloquean Google dentro de Browser Run.
+  // El usuario elige manualmente el método de acceso disponible en cada plataforma.
   const cdp=await context.newCDPSession(page)
   const live=await cdp.send('Cloudflare.getLiveView',{mode:'tab',expiresInMs:3600000})
-  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión en ${p.label}. Completa MFA/CAPTCHA si aparece. No cambies otras configuraciones. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:1800000}).catch(()=>null)
+  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión directamente en ${p.label} con el método que esa plataforma permita. No es obligatorio usar Google. Si aparece MFA/CAPTCHA, complétalo tú. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:1800000}).catch(()=>null)
   const token=crypto.randomUUID().replace(/-/g,'')
   const setup={platform:p.id,sessionId:browser.sessionId(),targetId:live.id,createdAt:Date.now()}
   await env.BROWSER_SESSIONS.put('setup:'+token,await seal(env,setup),{expirationTtl:7200})
