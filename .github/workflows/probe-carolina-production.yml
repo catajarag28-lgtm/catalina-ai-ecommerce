@@ -1,0 +1,47 @@
+name: Probe Carolina Production
+
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-carolina-production.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch production health
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 https://soycatalinajaramillo.com/health -o health.json
+          node - <<'NODE'
+          const fs=require('fs')
+          const h=JSON.parse(fs.readFileSync('health.json','utf8'))
+          const sessions=(h.browserAutomation?.sessions||[]).map(s=>({
+            platform:s.platform,
+            saved:s.saved,
+            status:s.status,
+            lastChecked:s.lastChecked,
+            lastUrl:s.lastUrl
+          }))
+          console.log(JSON.stringify({
+            status:h.status,
+            browserAutomation:{
+              enabled:h.browserAutomation?.enabled,
+              bindingReady:h.browserAutomation?.bindingReady,
+              vaultReady:h.browserAutomation?.vaultReady,
+              sessions
+            },
+            applications:h.applications,
+            marketplaces:h.marketplaces,
+            revenue:h.revenue?.plan ? {
+              at:h.revenue.plan.at,
+              coldOutreachPaused:h.revenue.plan.coldOutreachPaused,
+              actual:h.revenue.plan.actual,
+              deficits:h.revenue.plan.deficits
+            } : null
+          },null,2))
+          NODE
