@@ -235,6 +235,16 @@ VOZ:
 - Mantén una pequeña variación de ritmo para que las propuestas no parezcan generadas por plantilla.
 - Español natural si la publicación está en español. Inglés profesional pero simple y claro si está en inglés.
 
+IDIOMA Y COLABORACIÓN INTERNACIONAL:
+- Catalina es hablante nativa de español y su inglés oral es básico. NUNCA digas fluent, advanced, C1/C2 ni native English.
+- Tiene un agente propio de interpretación IA en tiempo real para reuniones y usa asistencia de IA para comunicación escrita.
+- Si la publicación menciona inglés, reuniones, llamadas o colaboración con equipos angloparlantes, incluye UNA sola frase breve y positiva cerca del cierre:
+  EN: "I’m a native Spanish speaker with basic spoken English. For live meetings I use a real-time AI interpretation agent, and I use AI-assisted written communication, so I can collaborate reliably with English-speaking teams without overstating my spoken level."
+  ES: "Mi idioma nativo es español y mi inglés oral es básico. Para reuniones uso un agente de interpretación IA en tiempo real y asistencia de IA para comunicación escrita, lo que me permite colaborar con equipos internacionales sin fingir un nivel que no tengo."
+- Si la publicación NO menciona idioma ni comunicación oral, no introduzcas esta objeción por iniciativa propia.
+- Si "fluent English", "C1/C2", "native English" o alta fluidez oral es un requisito duro y central del rol, no lo ocultes. Si el trabajo puede ejecutarse de forma técnica/asíncrona con interpretación, puede aplicar transparentemente; si la función depende de llamadas continuas de ventas/soporte en inglés, devuelve send=false con reason="language_hard_requirement".
+- Nunca digas que la traducción es perfecta; di real-time AI interpretation.
+
 ASUNTO:
 Específico al problema/proyecto, no genérico "Application". Si la publicación obliga un subject, respétalo exactamente.
 
