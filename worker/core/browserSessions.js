@@ -114,14 +114,17 @@ export async function finishBrowserSetup(env,token){
   const contexts=browser.contexts()
   const context=contexts[0]||await browser.newContext()
   const pages=context.pages()
-  const page=pages[0]||await context.newPage()
-  const url=page.url()
-  if(p.loginPattern.test(url))throw new Error('still_on_login_page')
+  let page=pages.find(x=>{const u=x.url();return u&&u!=='about:blank'})||pages[pages.length-1]||await context.newPage()
+  if(!page.url()||page.url()==='about:blank') await page.goto(p.home,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+  await page.waitForTimeout(1000)
+  const verified=await classifyPage(page,p)
+  if(verified.status==='expired')throw new Error('still_on_login_page')
+  if(verified.status==='human_required')throw new Error('human_verification_required')
   const state=await context.storageState()
-  await saveBrowserState(env,p.id,state,{lastUrl:url})
+  await saveBrowserState(env,p.id,state,{lastUrl:verified.url,lastChecked:Date.now()})
   await env.BROWSER_SESSIONS.delete('setup:'+String(token||''))
   await browser.close().catch(()=>{})
-  return {platform:p.id,status:'saved',lastUrl:url}
+  return {platform:p.id,status:'saved',lastUrl:verified.url}
 }
 
 async function classifyPage(page,p){
@@ -233,6 +236,97 @@ async function submitDiscourse(env,row,platform){
   }catch(e){return {status:'error',error:String(e?.message||e).slice(0,300)}}finally{if(browser)await browser.close().catch(()=>{})}
 }
 
+function detectRowLanguage(row){
+  const s=' '+String(row.reply||row.need||row.who||'').toLowerCase().replace(/[^a-záéíóúñü\s]/g,' ')+' '
+  const en=(s.match(/\b(the|and|with|for|your|you|we|our|role|project|automation|experience|team|work|looking|hiring)\b/g)||[]).length
+  const es=(s.match(/\b(el|la|los|las|y|con|para|tu|usted|equipo|proyecto|automatización|experiencia|trabajo|busca|contratar)\b/g)||[]).length
+  return en>es?'en':'es'
+}
+async function filePayload(url,name){
+  if(!url)return null
+  const res=await fetch(url,{signal:AbortSignal.timeout(15000)}).catch(()=>null)
+  if(!res?.ok)return null
+  const buffer=new Uint8Array(await res.arrayBuffer())
+  return {name,mimeType:'application/pdf',buffer}
+}
+async function submitLinkedInEasyApply(env,row){
+  const platform='linkedin',p=cfg(platform)
+  const saved=await loadBrowserState(env,platform)
+  if(!saved?.state)return {status:'missing_session'}
+  let browser
+  try{
+    browser=await launch(env.BROWSER,{keep_alive:150000})
+    const context=await browser.newContext({storageState:saved.state})
+    const page=await context.newPage()
+    await page.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
+    await page.waitForTimeout(1400)
+    const auth=await classifyPage(page,p)
+    if(auth.status!=='ready')return auth
+    let easy=page.getByRole('button',{name:/easy apply|solicitud sencilla|solicitud simple/i}).first()
+    if(!(await easy.count())) easy=page.locator('button.jobs-apply-button').first()
+    if(!(await easy.count())) return {status:'waiting_human_form',action:'easy_apply_not_available',url:page.url()}
+    await easy.click()
+    await page.waitForTimeout(900)
+    const dialog=page.locator('[role="dialog"]').last()
+    if(!(await dialog.count()))return {status:'waiting_human_form',action:'easy_apply_dialog_missing',url:page.url()}
+    const language=detectRowLanguage(row)
+    const cvUrl=language==='en'?env.CV_EN_URL:env.CV_ES_URL
+    const fileInput=dialog.locator('input[type="file"]').first()
+    if(await fileInput.count()){
+      const payload=await filePayload(cvUrl,language==='en'?'Catalina_Jaramillo_CV_EN.pdf':'Catalina_Jaramillo_CV_ES.pdf')
+      if(payload) await fileInput.setInputFiles(payload).catch(()=>{})
+    }
+    for(let step=0;step<8;step++){
+      await page.waitForTimeout(500)
+      const text=(await dialog.innerText({timeout:5000}).catch(()=>'' )).slice(0,10000)
+      if(/captcha|verify you are human|security check|checkpoint|unusual activity/i.test(text))return {status:'human_required',url:page.url()}
+      const sensitive=[...text.matchAll(/(?:how many years|cu[aá]ntos a[nñ]os|salary|compensation|sueldo|authorized to work|work authorization|visa|sponsorship|english proficiency|nivel de ingl[eé]s|phone number|n[uú]mero de tel[eé]fono)[^\n]{0,180}/gi)].slice(0,8).map(x=>x[0])
+      const radios=dialog.locator('input[type="radio"]:visible')
+      const selects=dialog.locator('select:visible')
+      const uncheckedRadioGroups=(await radios.count())>0 && (await dialog.locator('input[type="radio"]:checked').count())===0
+      let emptyRequired=[]
+      const req=dialog.locator('input[required]:visible, textarea[required]:visible, select[required]:visible')
+      for(let i=0;i<Math.min(20,await req.count());i++){
+        const el=req.nth(i)
+        const type=String(await el.getAttribute('type')||'').toLowerCase()
+        if(type==='file'||type==='hidden'||type==='radio'||type==='checkbox')continue
+        const val=await el.inputValue().catch(()=>'')
+        if(!String(val||'').trim()){
+          const label=await el.getAttribute('aria-label')||await el.getAttribute('name')||await el.getAttribute('placeholder')||'required_field'
+          emptyRequired.push(String(label).slice(0,160))
+        }
+      }
+      if(sensitive.length||uncheckedRadioGroups||(await selects.count())>0||emptyRequired.length){
+        const questions=[...sensitive,...emptyRequired].slice(0,10)
+        await upsertSubmission(env,row,{platform,status:'waiting_human_form',route:'browser_linkedin_easy_apply',error:JSON.stringify({questions,hasRadio:uncheckedRadioGroups,hasSelect:(await selects.count())>0}).slice(0,700)})
+        return {status:'waiting_human_form',action:'questions_require_human',questions,url:page.url()}
+      }
+      let submit=dialog.getByRole('button',{name:/submit application|enviar solicitud|enviar candidatura/i}).last()
+      if(await submit.count()){
+        await submit.click()
+        await page.waitForTimeout(1800)
+        const after=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(-12000)
+        if(/application (?:was )?sent|application submitted|solicitud enviada|candidatura enviada/i.test(after)){
+          const match=String(row.url).match(/\/jobs\/view\/(\d+)/)
+          const providerId='linkedin:'+(match?.[1]||'easy-apply')+':'+Date.now()
+          await env.DB.prepare("UPDATE intent_leads SET status='submitted' WHERE url=?").bind(row.url).run().catch(()=>{})
+          await upsertSubmission(env,row,{platform,status:'sent',route:'browser_linkedin_easy_apply',providerId})
+          const fresh=await context.storageState();await saveBrowserState(env,platform,fresh,{lastUrl:page.url(),lastChecked:Date.now()})
+          await notifyCatalina(env,'✅ Carolina postuló en LinkedIn',`${row.who||row.need||'Oportunidad'}\n\n${row.url}\n\nConfirmación visible de LinkedIn. Evidencia interna: ${providerId}`).catch(()=>{})
+          return {status:'submitted',providerId,url:page.url()}
+        }
+        return {status:'waiting_human_form',action:'submit_confirmation_missing',url:page.url()}
+      }
+      let review=dialog.getByRole('button',{name:/review|revisar/i}).last()
+      if(await review.count()){await review.click();continue}
+      let next=dialog.getByRole('button',{name:/next|siguiente|continue|continuar/i}).last()
+      if(await next.count()){await next.click();continue}
+      return {status:'waiting_human_form',action:'cannot_advance',url:page.url()}
+    }
+    return {status:'waiting_human_form',action:'too_many_steps',url:page.url()}
+  }catch(e){return {status:'error',error:String(e?.message||e).slice(0,300)}}finally{if(browser)await browser.close().catch(()=>{})}
+}
+
 async function inspectPlatformApplication(env,row,platform){
   const p=cfg(platform)
   const saved=await loadBrowserState(env,platform)
@@ -274,6 +368,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(!saved)continue
     let result
     if(platform==='n8n'||platform==='make')result=await submitDiscourse(env,row,platform)
+    else if(platform==='linkedin')result=await submitLinkedInEasyApply(env,row)
     else result=await inspectPlatformApplication(env,row,platform)
     results.push({platform,url:row.url,...result})
     if(result.status==='expired'||result.status==='human_required'){
