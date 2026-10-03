@@ -26,6 +26,14 @@ const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
 const browserAdminAllowed=(request,env)=>!!env.BROWSER_ADMIN_TOKEN && request.headers.get('authorization')===`Bearer ${env.BROWSER_ADMIN_TOKEN}`
 const browserOps=()=>import('./core/browserSessions.js')
+async function consumeBrowserSetupRequest(env,platform,nonce){
+  const row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='browser_setup_request'").first().catch(()=>null)
+  if(!row?.value)return false
+  let data={};try{data=JSON.parse(row.value)}catch{return false}
+  if(data.platform!==platform||data.nonce!==nonce||Number(data.expiresAt||0)<Date.now())return false
+  await env.DB.prepare("DELETE FROM app_settings WHERE key='browser_setup_request'").run().catch(()=>{})
+  return true
+}
 export function cleanProfile(raw) {
   if (!raw || typeof raw !== 'object') return null
   const p = {}
@@ -207,6 +215,21 @@ export default {
     if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
+    if (url.pathname === '/browser/setup/start' && request.method === 'GET') {
+      const platform=String(url.searchParams.get('platform')||'').toLowerCase()
+      const nonce=String(url.searchParams.get('nonce')||'')
+      if(!(await consumeBrowserSetupRequest(env,platform,nonce))) return new Response('Enlace vencido o inválido',{status:403})
+      const setup=await (await browserOps()).createBrowserSetup(env,platform)
+      const saveUrl=`https://soycatalinajaramillo.com/browser/setup/save?token=${encodeURIComponent(setup.token)}`
+      const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. Cuando veas tu cuenta abierta, vuelve aquí y pulsa <b>Guardar sesión</b>.</p><p>Carolina guardará únicamente el estado de sesión cifrado; no necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar sesión</a></p><p>Este enlace vence en 10 minutos.</p>`
+      return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
+    if (url.pathname === '/browser/setup/save' && request.method === 'GET') {
+      try{
+        const result=await (await browserOps()).finishBrowserSetup(env,url.searchParams.get('token'))
+        return new Response(`<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#eef8ef;border:1px solid #b9ddb9;padding:22px;border-radius:14px}</style><div><h1>Sesión guardada</h1><p>${result.platform} quedó conectado a Carolina. Ya puedes cerrar esta ventana.</p></div>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}})
+      }catch(e){return new Response('No pude guardar la sesión: '+String(e?.message||e),{status:400,headers:{'content-type':'text/plain; charset=utf-8'}})}
+    }
     if (url.pathname === '/ops/browser/setup' && request.method === 'POST') {
       if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
       const body=safeJson(await request.text())
