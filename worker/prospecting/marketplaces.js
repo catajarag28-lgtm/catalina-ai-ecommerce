@@ -212,7 +212,7 @@ function intentMatchScore(row,p){
   return hits
 }
 async function prioritizedFreelancerIntent(env){
-  const rows=await env.DB.prepare("SELECT url,need,fit,status,found_at FROM intent_leads WHERE lower(platform) LIKE '%freelancer%' AND fit='alto' AND status IN ('new','official_api_pending','application_ready') ORDER BY found_at DESC LIMIT 8").all().catch(()=>({results:[]}))
+  const rows=await env.DB.prepare("SELECT url,need,fit,status,found_at FROM intent_leads WHERE lower(platform) LIKE '%freelancer%' AND fit IN ('alto','medio') AND status IN ('new','official_api_pending','application_ready') ORDER BY CASE fit WHEN 'alto' THEN 0 ELSE 1 END, found_at DESC LIMIT 12").all().catch(()=>({results:[]}))
   const out=[]
   const used=new Set()
   for(const row of rows.results||[]){
