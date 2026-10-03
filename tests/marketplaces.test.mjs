@@ -15,9 +15,9 @@ test('Upwork autosubmit remains off until token and Submit Proposal permission a
   assert.equal(upworkReady({MARKETPLACE_AUTOSUBMIT_ENABLED:'true',UPWORK_ACCESS_TOKEN:'token',UPWORK_SUBMIT_PROPOSAL_ENABLED:'true',UPWORK_ADAPTER_READY:'true'}),true)
 })
 
-test('Freelancer sends only one bid until its result is verified',()=>{
+test('Freelancer unlocks normal bid capacity after a verified provider submission',()=>{
   const env={FREELANCER_DAILY_BID_LIMIT:'8'}
   assert.equal(freelancerBidAllowance(env,false),1)
-  assert.equal(freelancerBidAllowance(env,true),0)
+  assert.equal(freelancerBidAllowance(env,true),8)
   assert.equal(freelancerBidAllowance({...env,FREELANCER_FIRST_BID_VERIFIED:'true'},true),8)
 })
