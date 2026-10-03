@@ -163,7 +163,12 @@ amount debe estar dentro del presupuesto cuando exista; periodDays entre 2 y 30.
 }
 
 function validBid(p,j) {
-  if(!j||j.fit!=='alto') return null
+  if(!j) return null
+  const mediumBootstrap=j.fit==='medio' &&
+    p.currency==='USD' &&
+    p.budgetMax!=null && p.budgetMax>=Number(250) &&
+    freelancerRelevance(p)>=4000
+  if(j.fit!=='alto' && !mediumBootstrap) return null
   let amount=num(j.amount), period=Math.round(num(j.periodDays)||7)
   if(amount==null||amount<=0) return null
   if(p.budgetMin!=null) amount=Math.max(amount,p.budgetMin)
@@ -247,7 +252,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   if(!bidderId){out.freelancer.reason='oauth_invalid_or_self_lookup_failed';return out}
 
   const rotation=Math.floor(now/(15*60*1000))%FL_QUERIES.length
-  const queries=[FL_QUERIES[rotation],FL_QUERIES[(rotation+3)%FL_QUERIES.length],FL_QUERIES[(rotation+7)%FL_QUERIES.length],FL_QUERIES[(rotation+11)%FL_QUERIES.length]]
+  const queries=[0,2,4,6,8,10,12,14].map(offset=>FL_QUERIES[(rotation+offset)%FL_QUERIES.length])
   const seen=new Set()
   const intentCandidates=await prioritizedFreelancerIntent(env)
   const candidates=[]
@@ -259,7 +264,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     return freelancerRelevance(b)-freelancerRelevance(a)
   })
 
-  for(const p of candidates.slice(0,12)) {
+  for(const p of candidates.slice(0,20)) {
     if((count?.n||0)+out.freelancer.submitted>=limit) break
     const prior=await env.DB.prepare("SELECT status,error,updated_at FROM marketplace_submissions WHERE id=?").bind('freelancer:'+p.id).first()
     const floor=Number(env.MARKETPLACE_MIN_USD||750)
@@ -284,9 +289,19 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     }
     const j=await judgeFreelancer(env,p)
     out.freelancer.reviewed++
+    if(!j){
+      if(prior){
+        await env.DB.prepare("UPDATE marketplace_submissions SET status='failed',error='judge_unavailable',updated_at=? WHERE id=?")
+          .bind(now,'freelancer:'+p.id).run()
+      }else{
+        await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'failed','judge_unavailable',?,?)")
+          .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,now,now).run()
+      }
+      continue
+    }
     const bid=validBid(p,j)
     if(!bid){
-      const reason=safe(j?.reason||'low_fit').slice(0,500)
+      const reason=safe(j.reason||('fit_'+safe(j.fit||'unknown'))).slice(0,500)
       if(prior){
         await env.DB.prepare("UPDATE marketplace_submissions SET status='skipped',error=?,updated_at=? WHERE id=?")
           .bind(reason,now,'freelancer:'+p.id).run()
