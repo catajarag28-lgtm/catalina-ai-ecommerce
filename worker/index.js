@@ -279,6 +279,14 @@ export default {
       if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
       return json({sessions:await (await browserOps()).browserSessionSummary(env)})
     }
+    if (url.pathname === '/browser/run-now' && request.method === 'GET') {
+      const nonce=String(url.searchParams.get('nonce')||'')
+      const row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='browser_run_request'").first().catch(()=>null)
+      let req={};try{req=row?.value?JSON.parse(row.value):{}}catch{}
+      if(!nonce||req.nonce!==nonce||Number(req.expiresAt||0)<Date.now()) return json({error:'invalid_or_expired'},403)
+      await env.DB.prepare("DELETE FROM app_settings WHERE key='browser_run_request'").run().catch(()=>{})
+      return json(await (await browserOps()).runBrowserApplicationQueue(env,{limit:4}))
+    }
     if (url.pathname === '/ops/browser/run-queue' && request.method === 'POST') {
       if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
       return json(await (await browserOps()).runBrowserApplicationQueue(env,{limit:Math.max(1,Math.min(5,Number(url.searchParams.get('limit')||2))) }))
