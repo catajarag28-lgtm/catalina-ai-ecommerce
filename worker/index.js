@@ -224,7 +224,7 @@ export default {
       if(!ops.browserPlatforms.includes(platform)) return new Response('Plataforma no soportada',{status:400})
       if(!(await rateLimit(env,request,'browser-setup-request:'+platform,6))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
       const nonce=crypto.randomUUID().replace(/-/g,'')
-      const expiresAt=Date.now()+15*60*1000
+      const expiresAt=Date.now()+2*60*60*1000
       const key='browser_setup_request:'+platform
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
         .bind(key,JSON.stringify({platform,nonce,expiresAt}),Date.now()).run()
@@ -238,9 +238,9 @@ export default {
         '3. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa «Guardar sesión».',
         '',
         'Carolina guarda únicamente el estado de sesión cifrado. No necesita guardar tu contraseña.',
-        'El enlace vence en 15 minutos.'
+        'El enlace vence en 2 horas.'
       ].join('\n')).catch(()=>{})
-      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#f7f2eb;border:1px solid #ddcfbf;padding:22px;border-radius:14px}</style><div><h1>Revisa tu correo</h1><p>Carolina te envió un enlace seguro para conectar <b>'+platform+'</b>. El enlace vence en 15 minutos.</p><p>No compartas contraseñas en el chat.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#f7f2eb;border:1px solid #ddcfbf;padding:22px;border-radius:14px}</style><div><h1>Revisa tu correo</h1><p>Carolina te envió un enlace seguro para conectar <b>'+platform+'</b>. El enlace vence en 2 horas.</p><p>No compartas contraseñas en el chat.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
     }
     if (url.pathname === '/browser/setup/start' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
@@ -248,7 +248,7 @@ export default {
       if(!(await consumeBrowserSetupRequest(env,platform,nonce))) return new Response('Enlace vencido o inválido',{status:403})
       const setup=await (await browserOps()).createBrowserSetup(env,platform)
       const saveUrl=`https://soycatalinajaramillo.com/browser/setup/save?token=${encodeURIComponent(setup.token)}`
-      const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. Cuando veas tu cuenta abierta, vuelve aquí y pulsa <b>Guardar sesión</b>.</p><p>Carolina guardará únicamente el estado de sesión cifrado; no necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar sesión</a></p><p>Este enlace vence en 10 minutos.</p>`
+      const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. Cuando veas tu cuenta abierta, vuelve aquí y pulsa <b>Guardar sesión</b>.</p><p>Carolina guardará únicamente el estado de sesión cifrado; no necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar sesión</a></p><p>La ventana segura puede abrirse durante 60 minutos. Cuando termines el login, vuelve aquí y pulsa <b>Guardar sesión</b>.</p>`
       return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
     }
     if (url.pathname === '/browser/setup/save' && request.method === 'GET') {
