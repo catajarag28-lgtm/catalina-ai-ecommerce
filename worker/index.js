@@ -26,6 +26,16 @@ const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
 const browserAdminAllowed=(request,env)=>!!env.BROWSER_ADMIN_TOKEN && request.headers.get('authorization')===`Bearer ${env.BROWSER_ADMIN_TOKEN}`
 const browserOps=()=>import('./core/browserSessions.js')
+async function consumeBrowserRunRequest(env,nonce){
+  const key='browser_run_once:'+String(nonce||'')
+  const row=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind(key).first().catch(()=>null)
+  if(!row?.value)return false
+  let data={};try{data=JSON.parse(row.value)}catch{return false}
+  if(Number(data.expiresAt||0)<Date.now())return false
+  await env.DB.prepare('DELETE FROM app_settings WHERE key=?').bind(key).run().catch(()=>{})
+  return true
+}
+
 async function consumeBrowserSetupRequest(env,platform,nonce){
   const key='browser_setup_request:'+String(platform||'').toLowerCase()
   let row=await env.DB.prepare("SELECT value FROM app_settings WHERE key=?").bind(key).first().catch(()=>null)
@@ -225,6 +235,16 @@ export default {
       if(!(await rateLimit(env,request,'browser-check:'+platform,8))) return json({error:'rate_limited'},429)
       const result=await ops.checkBrowserSession(env,platform)
       return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
+    }
+    if (url.pathname === '/browser/run-once' && request.method === 'GET') {
+      const nonce=String(url.searchParams.get('nonce')||'')
+      if(!(await consumeBrowserRunRequest(env,nonce))) return json({error:'invalid_or_expired_nonce'},403)
+      const ops=await browserOps()
+      const linkedin=await ops.checkBrowserSession(env,'linkedin').catch(e=>({status:'error',error:e?.message}))
+      const applications=linkedin.status==='ready'
+        ? await ops.runBrowserApplicationQueue(env,{limit:4}).catch(e=>({enabled:true,error:e?.message}))
+        : {enabled:true,processed:0,reason:'linkedin_not_ready'}
+      return json({linkedin,applications})
     }
     if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
