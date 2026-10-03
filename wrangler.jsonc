@@ -2,7 +2,8 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "carolina-portfolio-api",
   "main": "worker/index.js",
-  "compatibility_date": "2026-09-29",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
   // workers.dev sigue activo: la copia en GitHub Pages y los scripts de verificación lo usan.
   "workers_dev": true,
   "preview_urls": false,
@@ -44,9 +45,14 @@
     "MARKETPLACE_MIN_USD": "250",
     "UPWORK_SUBMIT_PROPOSAL_ENABLED": "",
     "UPWORK_ADAPTER_READY": "",
+    "BROWSER_AUTOMATION_ENABLED": "true",
+    "CV_ES_URL": "https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf",
+    "CV_EN_URL": "https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf",
     "GOOGLE_BOOKING_URL": "https://calendar.google.com/calendar/appointments/schedules/AcZssZ28En8b9c0EF2eETvQZOqyzsM1NcZSjhcwn-Zs12LMk7scnE1Mzf5ofci45A9K6AdG4yNo7gZOq?gv=true",
     "SENDER_POSTAL_ADDRESS": "Catalina Jaramillo · 14818 SW 180th Terrace, Miami, FL 33187, USA"
   },
+  "browser": { "binding": "BROWSER" },
+  "kv_namespaces": [{ "binding": "BROWSER_SESSIONS", "id": "fa58aaa0035a4618b36c5d608ae9ae4e" }],
   // Avisos de leads a Catalina vía Email Routing; el destino debe estar verificado en Cloudflare.
   "send_email": [{ "name": "NOTIFY", "destination_address": "catalinajaramillogirldo28@gmail.com" }],
   "d1_databases": [{ "binding": "DB", "database_name": "carolina-portfolio", "database_id": "67f1caa9-219a-45d1-b98a-7f7339fe7547" }],

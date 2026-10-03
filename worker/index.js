@@ -24,6 +24,8 @@ const now = () => Date.now()
 const API_PATHS = ['/health', '/session', '/chat', '/event', '/lead']
 const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 'diagnosis_started', 'diagnosis_completed', 'diagnosis_handoff', 'direct_contact']
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
+const browserAdminAllowed=(request,env)=>!!env.BROWSER_ADMIN_TOKEN && request.headers.get('authorization')===`Bearer ${env.BROWSER_ADMIN_TOKEN}`
+const browserOps=()=>import('./core/browserSessions.js')
 export function cleanProfile(raw) {
   if (!raw || typeof raw !== 'object') return null
   const p = {}
@@ -205,6 +207,24 @@ export default {
     if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
+    if (url.pathname === '/ops/browser/setup' && request.method === 'POST') {
+      if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
+      const body=safeJson(await request.text())
+      return json(await (await browserOps()).createBrowserSetup(env,body.platform||url.searchParams.get('platform')))
+    }
+    if (url.pathname === '/ops/browser/setup-finish' && request.method === 'POST') {
+      if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
+      const body=safeJson(await request.text())
+      return json(await (await browserOps()).finishBrowserSetup(env,body.token||url.searchParams.get('token')))
+    }
+    if (url.pathname === '/ops/browser/status' && request.method === 'GET') {
+      if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
+      return json({sessions:await (await browserOps()).browserSessionSummary(env)})
+    }
+    if (url.pathname === '/ops/browser/run-queue' && request.method === 'POST') {
+      if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
+      return json(await (await browserOps()).runBrowserApplicationQueue(env,{limit:Math.max(1,Math.min(5,Number(url.searchParams.get('limit')||2))) }))
+    }
     // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/meeting-dry' && request.method === 'POST') {
@@ -281,7 +301,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })), applications: await directApplicationSnapshot(env).catch(()=>({ enabled:false, stats:[], coverage:null })), revenue: await revenueSnapshot(env).catch(()=>({ plan:null,manualCount:null,manual:[] })) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })), applications: await directApplicationSnapshot(env).catch(()=>({ enabled:false, stats:[], coverage:null })), revenue: await revenueSnapshot(env).catch(()=>({ plan:null,manualCount:null,manual:[] })), browserAutomation:{ enabled:env.BROWSER_AUTOMATION_ENABLED==='true', bindingReady:!!env.BROWSER, vaultReady:!!env.BROWSER_SESSIONS, sessions:await (await browserOps()).browserSessionSummary(env).catch(()=>[]) } }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
@@ -378,6 +398,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('applications', () => runDirectApplications(env))
     if (plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
+    await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
+    await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:2}))
     await step('manualQueue', () => sendManualApplicationQueue(env))
     await step('applicationCoverage', () => applicationCoverageAudit(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
