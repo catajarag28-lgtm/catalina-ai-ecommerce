@@ -27,10 +27,13 @@ const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 
 const browserAdminAllowed=(request,env)=>!!env.BROWSER_ADMIN_TOKEN && request.headers.get('authorization')===`Bearer ${env.BROWSER_ADMIN_TOKEN}`
 const browserOps=()=>import('./core/browserSessions.js')
 async function consumeBrowserSetupRequest(env,platform,nonce){
-  const row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='browser_setup_request'").first().catch(()=>null)
+  const key='browser_setup_request:'+String(platform||'').toLowerCase()
+  let row=await env.DB.prepare("SELECT value FROM app_settings WHERE key=?").bind(key).first().catch(()=>null)
+  if(!row?.value) row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='browser_setup_request'").first().catch(()=>null)
   if(!row?.value)return false
   let data={};try{data=JSON.parse(row.value)}catch{return false}
   if(data.platform!==platform||data.nonce!==nonce||Number(data.expiresAt||0)<Date.now())return false
+  await env.DB.prepare("DELETE FROM app_settings WHERE key=?").bind(key).run().catch(()=>{})
   await env.DB.prepare("DELETE FROM app_settings WHERE key='browser_setup_request'").run().catch(()=>{})
   return true
 }
@@ -215,6 +218,30 @@ export default {
     if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
+    if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
+      const platform=String(url.searchParams.get('platform')||'').toLowerCase()
+      const ops=await browserOps()
+      if(!ops.browserPlatforms.includes(platform)) return new Response('Plataforma no soportada',{status:400})
+      if(!(await rateLimit(env,request,'browser-setup-request:'+platform,6))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
+      const nonce=crypto.randomUUID().replace(/-/g,'')
+      const expiresAt=Date.now()+15*60*1000
+      const key='browser_setup_request:'+platform
+      await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+        .bind(key,JSON.stringify({platform,nonce,expiresAt}),Date.now()).run()
+      const startUrl='https://soycatalinajaramillo.com/browser/setup/start?platform='+encodeURIComponent(platform)+'&nonce='+encodeURIComponent(nonce)
+      await notifyCatalina(env,'🔐 Conectar '+platform+' con Carolina',[
+        'Abre este enlace desde tu navegador:',
+        startUrl,
+        '',
+        '1. Pulsa «Abrir '+platform+' seguro».',
+        '2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.',
+        '3. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa «Guardar sesión».',
+        '',
+        'Carolina guarda únicamente el estado de sesión cifrado. No necesita guardar tu contraseña.',
+        'El enlace vence en 15 minutos.'
+      ].join('\n')).catch(()=>{})
+      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#f7f2eb;border:1px solid #ddcfbf;padding:22px;border-radius:14px}</style><div><h1>Revisa tu correo</h1><p>Carolina te envió un enlace seguro para conectar <b>'+platform+'</b>. El enlace vence en 15 minutos.</p><p>No compartas contraseñas en el chat.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
     if (url.pathname === '/browser/setup/start' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
       const nonce=String(url.searchParams.get('nonce')||'')
