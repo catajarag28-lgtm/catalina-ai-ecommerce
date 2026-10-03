@@ -246,7 +246,8 @@ export default {
       const result=await ops.checkBrowserSession(env,platform)
       return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
     }
-    if (url.pathname === '/browser/google-bootstrap/request' && request.method === 'GET') {      if(!(await rateLimit(env,request,'google-bootstrap-request',4))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
+    if (url.pathname === '/browser/google-bootstrap/request' && request.method === 'GET') {
+      if(!(await rateLimit(env,request,'google-bootstrap-request',4))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
       const nonce=crypto.randomUUID().replace(/-/g,'')
       const expiresAt=Date.now()+2*60*60*1000
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
@@ -554,7 +555,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('hot', () => runHotFollowup(env))
     const plan = cycle.revenuePlan || {}
     // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
-    await step('discovery', () => discoverProspects(env))    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
+    await step('discovery', () => discoverProspects(env))
+    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', () => runOutreach(env))
     // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
