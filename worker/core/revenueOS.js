@@ -29,7 +29,7 @@ export async function buildRevenuePlan(env, now=Date.now()){
     one(env,"SELECT COUNT(*) n FROM meetings WHERE created_at>=?",since)
   ])
   const paused=!!control?.paused
-  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legÃ­timas.
+  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legítimas.
   const targets=revenueTargets(paused)
   const actual={
     outbound:n(outbound),directApplications:n(direct),marketplaces:n(market),intent:n(intent),
@@ -86,7 +86,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
     need:String(r.need||'').slice(0,500),
     route:r.application_route||'unknown',
     status:r.application_status||r.intent_status||'WAITING_HUMAN',
-    blocker:String(r.blocker||'La plataforma requiere acciÃ³n humana/autenticada.').slice(0,400),
+    blocker:String(r.blocker||'La plataforma requiere acción humana/autenticada.').slice(0,400),
     proposal:String(r.body||r.reply||'').slice(0,2200),
     cv:CV,
     visualProfile:PROFILE,
@@ -108,24 +108,24 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
     if(hour!==8 || lastDay?.value===day) return {sent:false,count:rows.length,unchanged:true}
   }
   const lines=[
-    'Estas oportunidades YA fueron calificadas, pero requieren una acciÃ³n humana dentro de la plataforma.',
-    'No estÃ¡n contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
+    'Estas oportunidades YA fueron calificadas, pero requieren una acción humana dentro de la plataforma.',
+    'No están contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
     '',
     ...rows.slice(0,20).flatMap((r,i)=>[
       `${i+1}. [${r.platform}] ${r.project}`,
-      `   FIT: ${r.fit} Â· ESTADO: ${r.status} Â· RUTA: ${r.route}`,
-      `   QuÃ© pide: ${r.need}`,
+      `   FIT: ${r.fit} · ESTADO: ${r.status} · RUTA: ${r.route}`,
+      `   Qué pide: ${r.need}`,
       `   Link: ${r.url}`,
       `   Bloqueo: ${r.blocker}`,
       `   CV: ${r.cv}`,
       `   Perfil visual: ${r.visualProfile}`,
       `   Portafolio: ${r.portfolio}`,
-      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacciÃ³n final dentro de la plataforma.',
-      '   QUÃ‰ HACES TÃš: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
+      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacción final dentro de la plataforma.',
+      '   QUÉ HACES TÚ: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
       ''
     ])
   ]
-  await notifyCatalina(env,`ðŸ–±ï¸ POSTULACIONES MANUALES PENDIENTES Â· ${rows.length}`,lines.join('\n')).catch(()=>{})
+  await notifyCatalina(env,`🖱️ POSTULACIONES MANUALES PENDIENTES · ${rows.length}`,lines.join('\n')).catch(()=>{})
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_signature',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(signature,now).run()
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_last_day',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
