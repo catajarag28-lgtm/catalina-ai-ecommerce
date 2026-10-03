@@ -727,29 +727,196 @@ async function linkedinEasyApply(env,row){
   }finally{if(browser)await browser.close().catch(()=>{})}
 }
 
-async function inspectPlatformApplication(env,row,platform){
-  if(platform==='linkedin') return linkedinEasyApply(env,row)
+async function applicationFieldLabel(el){
+  const direct=[
+    await el.getAttribute('aria-label').catch(()=>''),
+    await el.getAttribute('name').catch(()=>''),
+    await el.getAttribute('placeholder').catch(()=>'')
+  ].filter(Boolean).join(' ')
+  if(direct.trim())return direct.trim()
+  return await el.evaluate(node=>{
+    const id=node.id
+    const byFor=id?document.querySelector('label[for="'+CSS.escape(id)+'"]'):null
+    if(byFor?.innerText)return byFor.innerText.trim()
+    const parent=node.closest('label,fieldset,[role="group"],.form-group,.field,.input-group')
+    return (parent?.innerText||'').trim().slice(0,240)
+  }).catch(()=>'')
+}
+
+function safeApplicationValue(label,env,row){
+  const x=String(label||'').toLowerCase()
+  if(/e-?mail/.test(x))return String(env.CATALINA_EMAIL||'').trim()
+  if(/full.?name|your.?name|nombre completo|^name$|^nombre$/.test(x))return 'Catalina Jaramillo'
+  if(/phone|mobile|whatsapp|tel[eé]fono|celular/.test(x))return String(env.CATALINA_WHATSAPP||'').trim()
+  if(/portfolio|website|web site|sitio web|personal site/.test(x))return 'https://portfolio-nine-lovat-18.vercel.app'
+  if(/linkedin/.test(x))return String(env.CATALINA_LINKEDIN_URL||'').trim()
+  if(/cover.?letter|proposal|message|mensaje|propuesta|why.*(?:fit|you)|tell us|describe.*(?:experience|fit)|additional information|about you/.test(x))return String(row.reply||'').trim()
+  return ''
+}
+
+async function fillKnownApplicationFields(scope,env,row,language){
+  const unknown=[]
+  const cvUrl=language==='en'?(env.CV_EN_URL||CV_EN):(env.CV_ES_URL||CV_ES)
+  const files=scope.locator('input[type="file"]:visible')
+  if(await files.count()){
+    const payload=await filePayload(cvUrl,language==='en'?'Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf':'Catalina_Jaramillo_AI_Automation_Resume_2026.pdf')
+    if(payload){
+      for(let i=0;i<Math.min(3,await files.count());i++) await files.nth(i).setInputFiles(payload).catch(()=>{})
+    }
+  }
+
+  const fields=scope.locator('input:visible, textarea:visible')
+  const total=Math.min(30,await fields.count())
+  let visibleTextareaCount=0
+  for(let i=0;i<total;i++){
+    const el=fields.nth(i)
+    const type=String(await el.getAttribute('type').catch(()=>'')||'').toLowerCase()
+    if(['hidden','file','radio','checkbox','submit','button','reset'].includes(type))continue
+    const tag=String(await el.evaluate(n=>n.tagName).catch(()=>'')).toLowerCase()
+    if(tag==='textarea')visibleTextareaCount++
+  }
+
+  for(let i=0;i<total;i++){
+    const el=fields.nth(i)
+    const type=String(await el.getAttribute('type').catch(()=>'')||'').toLowerCase()
+    if(['hidden','file','radio','checkbox','submit','button','reset'].includes(type))continue
+    const current=await el.inputValue().catch(()=>'')
+    if(String(current||'').trim())continue
+    const label=await applicationFieldLabel(el)
+    let value=safeApplicationValue(label,env,row)
+    const tag=String(await el.evaluate(n=>n.tagName).catch(()=>'')).toLowerCase()
+    if(!value&&tag==='textarea'&&visibleTextareaCount===1)value=String(row.reply||'').trim()
+    if(value){
+      await el.fill(value).catch(()=>{})
+      continue
+    }
+    const required=(await el.getAttribute('required').catch(()=>null))!==null || String(await el.getAttribute('aria-required').catch(()=>'')).toLowerCase()==='true'
+    if(required)unknown.push((label||type||'required_field').slice(0,180))
+  }
+
+  const editors=scope.locator('[contenteditable="true"]:visible')
+  if(await editors.count()===1){
+    const ed=editors.first()
+    const existing=String(await ed.innerText().catch(()=>'')).trim()
+    if(!existing&&String(row.reply||'').trim()) await ed.fill(String(row.reply).trim()).catch(()=>{})
+  }
+
+  const requiredSelects=scope.locator('select[required]:visible, select[aria-required="true"]:visible')
+  for(let i=0;i<Math.min(10,await requiredSelects.count());i++){
+    const el=requiredSelects.nth(i)
+    const value=String(await el.inputValue().catch(()=>'')).trim()
+    if(!value){
+      const label=await applicationFieldLabel(el)
+      unknown.push((label||'required_select').slice(0,180))
+    }
+  }
+
+  const radios=scope.locator('input[type="radio"]:visible')
+  if((await radios.count())>0&&(await scope.locator('input[type="radio"]:checked').count())===0)unknown.push('required_radio_or_choice')
+  const requiredChecks=scope.locator('input[type="checkbox"][required]:visible, input[type="checkbox"][aria-required="true"]:visible')
+  for(let i=0;i<Math.min(10,await requiredChecks.count());i++) if(!(await requiredChecks.nth(i).isChecked().catch(()=>false)))unknown.push('required_checkbox_or_consent')
+
+  return [...new Set(unknown)].slice(0,12)
+}
+
+async function markBrowserSubmitted(env,row,platform,context,page,route){
+  const providerId=`browser:${platform}:${Date.now()}`
+  await env.DB.prepare("UPDATE intent_leads SET status='submitted' WHERE url=?").bind(row.url).run().catch(()=>{})
+  await upsertSubmission(env,row,{platform,status:'sent',route,providerId})
+  const fresh=await context.storageState();await saveBrowserState(env,platform,fresh,{lastUrl:page.url(),lastChecked:Date.now()})
+  await notifyCatalina(env,`✅ Carolina postuló en ${PLATFORM_CONFIG[platform].label}`,`${row.who||row.need||'Oportunidad'}\n\n${row.url}\n\nConfirmación visible de la plataforma. Evidencia interna: ${providerId}`).catch(()=>{})
+  return {status:'submitted',providerId,url:page.url()}
+}
+
+async function submitMarketplaceApplication(env,row,platform){
   const p=cfg(platform)
   const saved=await loadBrowserState(env,platform)
   if(!saved?.state)return {status:'missing_session'}
   let browser
   try{
-    browser=await launch(env.BROWSER,{keep_alive:120000})
+    browser=await launch(env.BROWSER,{keep_alive:180000})
     const context=await browser.newContext({storageState:saved.state})
     const page=await context.newPage()
     await page.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
-    await page.waitForTimeout(1200)
-    const state=await classifyPage(page,p)
-    if(state.status!=='ready')return state
-    const text=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,12000)
-    let action='unknown'
-    if(platform==='upwork'&&/submit a proposal|apply now|enviar una propuesta/i.test(text))action='proposal_available'
-    else if(platform==='workana'&&/enviar propuesta|postular|send proposal/i.test(text))action='proposal_available'
-    else if(/apply|postular|submit proposal|send proposal/i.test(text))action='application_available'
-    const questions=[...text.matchAll(/(?:required|obligatorio|question|pregunta)[^\n]{0,160}/gi)].slice(0,8).map(x=>x[0])
-    await upsertSubmission(env,row,{platform,status:'waiting_human_form',route:'browser_prefill',error:action})
-    return {status:'waiting_human_form',action,questions,url:page.url(),language:inferLanguage(row)}
-  }catch(e){return {status:'error',error:String(e?.message||e).slice(0,300)}}finally{if(browser)await browser.close().catch(()=>{})}
+    await page.waitForTimeout(1400)
+    const auth=await verifyAuthenticated(context,page,p)
+    if(auth.status!=='ready')return auth
+
+    let sourceText=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,16000)
+    const prepared=await prepareBrowserReply(env,row,sourceText)
+    if(!prepared.eligible){
+      await env.DB.prepare("UPDATE intent_leads SET status='language_hard_requirement',language=? WHERE url=?").bind(prepared.language,row.url).run().catch(()=>{})
+      await upsertSubmission(env,row,{platform,status:'language_hard_requirement',route:`browser_${platform}`,error:'spoken_english_hard_requirement'})
+      return {status:'language_hard_requirement',language:prepared.language}
+    }
+    row.reply=prepared.reply;row.language=prepared.language
+    await env.DB.prepare("UPDATE intent_leads SET reply=?,language=? WHERE url=?").bind(row.reply,row.language,row.url).run().catch(()=>{})
+
+    if(platform==='upwork'){
+      const m=sourceText.match(/(?:requires?|costs?|use|uses?)\s*(\d+)\s*connects?|(?:\b)(\d+)\s*connects?\s*(?:required|to submit|to apply)?/i)
+      const connects=Number(m?.[1]||m?.[2]||0)
+      const maxConnects=Math.max(0,Number(env.UPWORK_MAX_CONNECTS_PER_PROPOSAL||0))
+      if(connects>maxConnects || env.UPWORK_SUBMIT_PROPOSAL_ENABLED!=='true'){
+        await upsertSubmission(env,row,{platform,status:'waiting_human_cost',route:'browser_upwork',error:JSON.stringify({connects,maxConnects,enabled:env.UPWORK_SUBMIT_PROPOSAL_ENABLED==='true'})})
+        return {status:'waiting_human_cost',connects,maxConnects,url:page.url()}
+      }
+    }
+
+    const successRe=/proposal (?:was )?submitted|proposal sent|application (?:was )?submitted|application sent|successfully applied|you(?:'ve| have) applied|thank you for applying|propuesta enviada|solicitud enviada|candidatura enviada|postulaci[oó]n enviada/i
+    const applyRe=/submit a proposal|apply now|apply for (?:this|the) job|send proposal|submit proposal|enviar propuesta|postular(?:me)?|enviar solicitud|send application|make an offer|submit offer|place bid/i
+    if(successRe.test(sourceText))return await markBrowserSubmitted(env,row,platform,context,page,`browser_${platform}`)
+
+    let action=page.getByRole('button',{name:applyRe}).first()
+    if(!(await action.count()))action=page.getByRole('link',{name:applyRe}).first()
+    if(await action.count()){
+      await action.click().catch(()=>{})
+      await page.waitForTimeout(1000)
+    }
+
+    for(let step=0;step<8;step++){
+      const body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,18000)
+      if(/captcha|verify you are human|security check|checkpoint|unusual activity/i.test(body))return {status:'human_required',url:page.url()}
+      if(successRe.test(body))return await markBrowserSubmitted(env,row,platform,context,page,`browser_${platform}`)
+
+      const scope=(await page.locator('[role="dialog"]:visible').count())?page.locator('[role="dialog"]:visible').last():page
+      const unknown=await fillKnownApplicationFields(scope,env,row,prepared.language)
+      if(unknown.length){
+        await upsertSubmission(env,row,{platform,status:'waiting_human_form',route:`browser_${platform}`,error:JSON.stringify({questions:unknown}).slice(0,700)})
+        return {status:'waiting_human_form',action:'questions_require_human',questions:unknown,url:page.url()}
+      }
+
+      const bodyAfterFill=(await scope.innerText({timeout:5000}).catch(()=>'' )).slice(0,12000)
+      if(platform==='upwork'){
+        const m=bodyAfterFill.match(/(\d+)\s*connects?/i)
+        const connects=Number(m?.[1]||0),maxConnects=Math.max(0,Number(env.UPWORK_MAX_CONNECTS_PER_PROPOSAL||0))
+        if(connects>maxConnects){
+          await upsertSubmission(env,row,{platform,status:'waiting_human_cost',route:'browser_upwork',error:JSON.stringify({connects,maxConnects})})
+          return {status:'waiting_human_cost',connects,maxConnects,url:page.url()}
+        }
+      }
+
+      const submitRe=/submit (?:a )?proposal|send proposal|submit application|send application|apply now|enviar propuesta|enviar solicitud|enviar candidatura|submit offer|place bid|send bid/i
+      let submit=scope.getByRole('button',{name:submitRe}).last()
+      if(!(await submit.count()))submit=scope.locator('button[type="submit"]:visible').last()
+      if(await submit.count()){
+        await submit.click().catch(()=>{})
+        await page.waitForTimeout(1800)
+        const after=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(-16000)
+        if(successRe.test(after))return await markBrowserSubmitted(env,row,platform,context,page,`browser_${platform}`)
+        return {status:'waiting_human_form',action:'submission_confirmation_missing',url:page.url()}
+      }
+
+      let next=scope.getByRole('button',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
+      if(!(await next.count()))next=scope.getByRole('link',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
+      if(await next.count()){await next.click().catch(()=>{});await page.waitForTimeout(800);continue}
+
+      await upsertSubmission(env,row,{platform,status:'waiting_human_form',route:`browser_${platform}`,error:'application_controls_not_found'})
+      return {status:'waiting_human_form',action:'application_controls_not_found',url:page.url()}
+    }
+    return {status:'waiting_human_form',action:'too_many_steps',url:page.url()}
+  }catch(e){
+    return {status:'error',error:String(e?.message||e).slice(0,400)}
+  }finally{if(browser)await browser.close().catch(()=>{})}
 }
 
 export async function runBrowserApplicationQueue(env,{limit=2}={}){
@@ -786,7 +953,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     let result
     if(platform==='n8n'||platform==='make')result=await submitDiscourse(env,row,platform)
     else if(platform==='linkedin')result=await submitLinkedInEasyApply(env,row)
-    else result=await inspectPlatformApplication(env,row,platform)
+    else result=await submitMarketplaceApplication(env,row,platform)
     results.push({platform,url:row.url,...result})
     if(result.status==='expired'||result.status==='human_required'){
       await setting(env,'browser_session:'+platform,{status:result.status,lastChecked:Date.now(),lastUrl:result.url||row.url})
