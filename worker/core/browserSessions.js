@@ -599,18 +599,24 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
     ORDER BY i.found_at DESC LIMIT 25`).all()).results||[]
   const results=[]
+  const diagnostics={candidates:rows.length,unsupported:0,missingSession:0,blockedSession:0,blocked:[],eligible:0}
   for(const row of rows){
     if(results.length>=limit)break
     const platform=normalizePlatform(row.platform)
-    if(!platform)continue
+    if(!platform){diagnostics.unsupported++;continue}
     const saved=await loadBrowserState(env,platform)
-    if(!saved)continue
+    if(!saved){diagnostics.missingSession++;diagnostics.blocked.push({platform,url:row.url,reason:'missing_session'});continue}
     let sessionMeta={}
     try{
       const metaRow=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('browser_session:'+platform).first()
       sessionMeta=metaRow?.value?JSON.parse(metaRow.value):{}
     }catch{}
-    if(['expired','human_required','error','missing'].includes(sessionMeta.status)) continue
+    if(['expired','human_required','error','missing'].includes(sessionMeta.status)){
+      diagnostics.blockedSession++
+      diagnostics.blocked.push({platform,url:row.url,reason:'session_'+String(sessionMeta.status||'unknown')})
+      continue
+    }
+    diagnostics.eligible++
     let result
     if(platform==='n8n'||platform==='make')result=await submitDiscourse(env,row,platform)
     else if(platform==='linkedin')result=await submitLinkedInEasyApply(env,row)
@@ -621,5 +627,5 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
       await notifyCatalina(env,`🔐 Carolina necesita reautenticar ${PLATFORM_CONFIG[platform].label}`,`La sesión cloud ya no permite continuar. Carolina conservó la oportunidad y no la marcó como enviada.\n\n${row.url}`).catch(()=>{})
     }
   }
-  return {enabled:true,processed:results.length,results}
+  return {enabled:true,processed:results.length,diagnostics,results}
 }
