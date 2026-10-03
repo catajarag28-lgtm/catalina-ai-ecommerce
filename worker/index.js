@@ -246,8 +246,7 @@ export default {
       const result=await ops.checkBrowserSession(env,platform)
       return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
     }
-    if (url.pathname === '/browser/google-bootstrap/request' && request.method === 'GET') {
-      if(!(await rateLimit(env,request,'google-bootstrap-request',4))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
+    if (url.pathname === '/browser/google-bootstrap/request' && request.method === 'GET') {      if(!(await rateLimit(env,request,'google-bootstrap-request',4))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
       const nonce=crypto.randomUUID().replace(/-/g,'')
       const expiresAt=Date.now()+2*60*60*1000
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
@@ -349,8 +348,17 @@ export default {
         return new Response('No pude abrir Browser Run para '+platform+': '+String(e?.message||e),{status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}})
       }
       const saveUrl=`${url.origin}/browser/setup/save?token=${encodeURIComponent(setup.token)}`
-      const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}.status{margin-top:14px;padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #ead7a4}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. Carolina detectará el login y guardará la sesión cifrada automáticamente.</p><p>No necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar ahora</a></p><div id="status" class="status">Esperando que completes el inicio de sesión…</div><p>La ventana segura puede abrirse durante 60 minutos.</p><script>const u=${JSON.stringify(saveUrl)};let done=false;async function poll(){if(done)return;try{const r=await fetch(u,{cache:'no-store'});if(r.ok){done=true;const s=document.getElementById('status');s.textContent='✅ Sesión guardada. Carolina ya puede reutilizarla en la nube.';s.style.background='#eef8ef';}else{document.getElementById('status').textContent='Esperando autenticación… completa login/MFA en la ventana segura.';}}catch{}}setInterval(poll,4000);setTimeout(poll,2500);</script>`
+      const probeUrl=`${url.origin}/browser/setup/probe?token=${encodeURIComponent(setup.token)}`
+      const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}.status{margin-top:14px;padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #ead7a4}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. No cierres esta primera pestaña: Carolina mantendrá viva la sesión sin tocar tu formulario.</p><p>4. Cuando el login termine, Carolina guardará la sesión cifrada automáticamente.</p><p>No necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar ahora</a></p><div id="status" class="status">Esperando que completes el inicio de sesión…</div><p>Si la plataforma pide MFA/CAPTCHA, complétalo en la ventana segura.</p><script>const u=${JSON.stringify(probeUrl)};let done=false;async function poll(){if(done)return;try{const r=await fetch(u,{cache:'no-store'});const j=await r.json().catch(()=>({}));if(r.ok&&j.status==='saved'){done=true;const s=document.getElementById('status');s.textContent='✅ Sesión guardada. Carolina ya puede reutilizarla en la nube.';s.style.background='#eef8ef';}else if(j.status==='waiting'){document.getElementById('status').textContent='Esperando autenticación… completa login/MFA en la ventana segura. Carolina mantiene viva la sesión sin tocar el formulario.';}else if(j.error){document.getElementById('status').textContent='Conexión temporal: '+j.error;}}catch{}}setInterval(poll,30000);setTimeout(poll,5000);</script>`
       return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
+    if (url.pathname === '/browser/setup/probe' && request.method === 'GET') {
+      try{
+        const result=await (await browserOps()).probeBrowserSetup(env,url.searchParams.get('token'),{saveWhenReady:true})
+        return json(result,result.status==='error'?503:200)
+      }catch(e){
+        return json({status:'error',error:String(e?.message||e)},400)
+      }
     }
     if (url.pathname === '/browser/setup/save' && request.method === 'GET') {
       try{
@@ -546,8 +554,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('hot', () => runHotFollowup(env))
     const plan = cycle.revenuePlan || {}
     // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
-    await step('discovery', () => discoverProspects(env))
-    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
+    await step('discovery', () => discoverProspects(env))    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', () => runOutreach(env))
     // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
@@ -583,5 +590,4 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(clock).run()
   }
 }
-
 
