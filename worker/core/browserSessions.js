@@ -5,11 +5,11 @@ const enc=new TextEncoder()
 const dec=new TextDecoder()
 
 const PLATFORM_CONFIG={
-  linkedin:{label:'LinkedIn',home:'https://www.linkedin.com/feed/',login:'https://www.linkedin.com/login',domains:['linkedin.com'],loginPattern:/\/login|checkpoint|authwall/i},
+  linkedin:{label:'LinkedIn',home:'https://www.linkedin.com/feed/',login:'https://www.linkedin.com/login',domains:['linkedin.com'],authCookies:['li_at'],loginPattern:/\/login|checkpoint|authwall/i},
   upwork:{label:'Upwork',home:'https://www.upwork.com/nx/find-work/',login:'https://www.upwork.com/ab/account-security/login',domains:['upwork.com'],loginPattern:/login|account-security/i},
   workana:{label:'Workana',home:'https://www.workana.com/dashboard',login:'https://www.workana.com/login',domains:['workana.com'],loginPattern:/login|signin/i},
-  n8n:{label:'n8n Community',home:'https://community.n8n.io/latest',login:'https://community.n8n.io/login',domains:['community.n8n.io'],loginPattern:/\/login/i,forum:true},
-  make:{label:'Make Community',home:'https://community.make.com/latest',login:'https://community.make.com/login',domains:['community.make.com'],loginPattern:/\/login/i,forum:true},
+  n8n:{label:'n8n Community',home:'https://community.n8n.io/latest',login:'https://community.n8n.io/login',domains:['community.n8n.io'],authCookies:['_t'],loginPattern:/\/login/i,forum:true},
+  make:{label:'Make Community',home:'https://community.make.com/latest',login:'https://community.make.com/login',domains:['community.make.com'],authCookies:['_t'],loginPattern:/\/login/i,forum:true},
   contra:{label:'Contra',home:'https://contra.com/opportunities',login:'https://contra.com/login',domains:['contra.com'],loginPattern:/login|sign-in/i},
   wellfound:{label:'Wellfound',home:'https://wellfound.com/jobs',login:'https://wellfound.com/login',domains:['wellfound.com'],loginPattern:/login/i},
   twine:{label:'Twine',home:'https://www.twine.net/jobs',login:'https://www.twine.net/signin',domains:['twine.net'],loginPattern:/signin|login/i},
@@ -57,6 +57,34 @@ function cfg(platform){
   if(!id||!PLATFORM_CONFIG[id])throw new Error('unsupported_platform')
   return {id,...PLATFORM_CONFIG[id]}
 }
+function domainAllowed(domain,p){
+  const d=String(domain||'').replace(/^\./,'').toLowerCase()
+  return p.domains.some(x=>d===x||d.endsWith('.'+x))
+}
+function scopedStorageState(p,state={}){
+  const cookies=(state.cookies||[]).filter(c=>domainAllowed(c.domain,p))
+  const origins=(state.origins||[]).filter(o=>{
+    try{return domainAllowed(new URL(o.origin).hostname,p)}catch{return false}
+  })
+  return {cookies,origins}
+}
+async function authCookiePresent(context,p){
+  if(!p.authCookies?.length)return null
+  const cookies=await context.cookies(p.home).catch(()=>[])
+  return p.authCookies.some(name=>cookies.some(c=>c.name===name))
+}
+async function verifyAuthenticated(context,page,p,{navigateHome=false}={}){
+  if(navigateHome){
+    await page.goto(p.home,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+    await page.waitForTimeout(900)
+  }
+  const result=await classifyPage(page,p)
+  if(result.status!=='ready')return result
+  const hasAuth=await authCookiePresent(context,p)
+  if(hasAuth===false)return {status:'expired',url:page.url(),title:await page.title().catch(()=>''),reason:'auth_cookie_missing'}
+  return result
+}
+
 async function setting(env,key,value){
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(key,typeof value==='string'?value:JSON.stringify(value),Date.now()).run().catch(()=>{})
@@ -64,7 +92,7 @@ async function setting(env,key,value){
 export async function saveBrowserState(env,platform,state,meta={}){
   if(!env.BROWSER_SESSIONS)throw new Error('browser_sessions_binding_missing')
   const p=cfg(platform)
-  const record={platform:p.id,label:p.label,state,savedAt:Date.now(),...meta}
+  const record={platform:p.id,label:p.label,state:scopedStorageState(p,state),savedAt:Date.now(),...meta}
   await env.BROWSER_SESSIONS.put('session:'+p.id,await seal(env,record))
   await setting(env,'browser_session:'+p.id,{status:'saved',savedAt:record.savedAt,lastUrl:meta.lastUrl||null})
   return {platform:p.id,status:'saved',savedAt:record.savedAt}
@@ -116,9 +144,7 @@ export async function finishBrowserSetup(env,token){
   const context=contexts[0]||await browser.newContext()
   const pages=context.pages()
   let page=pages.find(x=>{const u=x.url();return u&&u!=='about:blank'})||pages[pages.length-1]||await context.newPage()
-  if(!page.url()||page.url()==='about:blank') await page.goto(p.home,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
-  await page.waitForTimeout(1000)
-  const verified=await classifyPage(page,p)
+  const verified=await verifyAuthenticated(context,page,p,{navigateHome:true})
   if(verified.status==='expired')throw new Error('still_on_login_page')
   if(verified.status==='human_required')throw new Error('human_verification_required')
   const state=await context.storageState()
@@ -148,7 +174,7 @@ export async function checkBrowserSession(env,platform,{persistFresh=true}={}){
     const page=await context.newPage()
     await page.goto(p.home,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
     await page.waitForTimeout(1200)
-    const result=await classifyPage(page,p)
+    const result=await verifyAuthenticated(context,page,p)
     if(result.status==='ready'&&persistFresh){
       const state=await context.storageState()
       await saveBrowserState(env,p.id,state,{lastUrl:result.url,lastChecked:Date.now()})
@@ -207,7 +233,7 @@ async function submitDiscourse(env,row,platform){
     const page=await context.newPage()
     await page.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
     await page.waitForTimeout(1200)
-    const state=await classifyPage(page,p)
+    const state=await verifyAuthenticated(context,page,p)
     if(state.status!=='ready')return state
     const body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,10000)
     if(/topic (?:has been |is )?closed|este tema.*cerrado|you cannot reply|no puedes responder/i.test(body))return {status:'closed'}
@@ -308,7 +334,7 @@ async function submitLinkedInDM(env,row){
     const postPage=await context.newPage()
     await postPage.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
     await postPage.waitForTimeout(1200)
-    const auth=await classifyPage(postPage,p)
+    const auth=await verifyAuthenticated(context,postPage,p)
     if(auth.status!=='ready')return auth
     const sourceText=(await postPage.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,12000)
     const prepared=await prepareBrowserReply(env,row,sourceText)
@@ -328,7 +354,7 @@ async function submitLinkedInDM(env,row){
     if(!profileUrl)return {status:'waiting_human_channel',reason:'author_profile_not_resolved',url:row.url}
     await postPage.goto(profileUrl,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
     await postPage.waitForTimeout(1200)
-    const profileState=await classifyPage(postPage,p)
+    const profileState=await verifyAuthenticated(context,postPage,p)
     if(profileState.status!=='ready')return profileState
     let message=postPage.getByRole('button',{name:/^(message|mensaje)$/i}).first()
     if(!(await message.count()))message=postPage.locator('button:has-text("Message"), button:has-text("Mensaje")').first()
@@ -368,7 +394,7 @@ async function submitLinkedInEasyApply(env,row){
     const page=await context.newPage()
     await page.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
     await page.waitForTimeout(1400)
-    const auth=await classifyPage(page,p)
+    const auth=await verifyAuthenticated(context,page,p)
     if(auth.status!=='ready')return auth
     const sourceText=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,12000)
     const prepared=await prepareBrowserReply(env,row,sourceText)
@@ -462,7 +488,7 @@ async function inspectPlatformApplication(env,row,platform){
     const page=await context.newPage()
     await page.goto(row.url,{waitUntil:'domcontentloaded',timeout:30000})
     await page.waitForTimeout(1200)
-    const state=await classifyPage(page,p)
+    const state=await verifyAuthenticated(context,page,p)
     if(state.status!=='ready')return state
     const text=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,12000)
     let action='unknown'
