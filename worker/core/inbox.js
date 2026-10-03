@@ -78,6 +78,14 @@ async function decide(env, history, incoming) {
       const second = parseDecision(retryData.choices?.[0]?.message?.content)
       if (second.category !== 'other') decision = second
     }
+    if (decision.category === 'other') {
+      const reply = obvious === 'meeting'
+        ? 'Sí. Podemos revisar el caso con Catalina en una videollamada de 30 minutos, en español. Antes de agendar, compárteme por favor tu nombre, empresa, web y en una frase qué proceso quieres resolver; con eso preparo el contexto para que la conversación sea útil desde el primer minuto. Soy Carolina, agente de IA de Catalina Jaramillo, y organizo la información antes de pasar cada oportunidad a Catalina.\n\nCarolina\nAgente de IA · Catalina Jaramillo\nsoycatalinajaramillo.com'
+        : obvious === 'question'
+          ? 'Sí, puedo orientarte. Catalina diseña sistemas de IA y automatización alrededor del proceso real del negocio; el alcance depende del canal, las integraciones y lo que hoy está fallando. Para darte una respuesta útil necesito entender primero tu empresa y el proceso concreto que quieres mejorar. Compárteme tu web y una breve descripción del problema actual, y te indico el siguiente paso. Soy Carolina, agente de IA de Catalina Jaramillo.\n\nCarolina\nAgente de IA · Catalina Jaramillo\nsoycatalinajaramillo.com'
+          : 'Sí. Ese tipo de problema encaja con los sistemas que Catalina diseña: primera respuesta, calificación, seguimiento y paso al equipo humano cuando existe intención real. Para saber qué conviene en tu caso, necesito entender el proceso actual antes de recomendar una solución. Compárteme por favor tu nombre, empresa o web, aproximadamente cuántas consultas reciben y qué ocurre hoy después del primer mensaje. Soy Carolina, agente de IA de Catalina Jaramillo y preparo el diagnóstico inicial antes de pasar el caso a Catalina.\n\nCarolina\nAgente de IA · Catalina Jaramillo\nsoycatalinajaramillo.com'
+      decision = { category: obvious, reply, summary: 'Intención comercial explícita detectada por regla de respaldo.', hot: obvious === 'prospect' || obvious === 'meeting' }
+    }
   }
   return decision
 }
