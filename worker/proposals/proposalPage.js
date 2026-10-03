@@ -6,6 +6,7 @@ export const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => 
 const e = escapeHtml
 const SITE = 'https://soycatalinajaramillo.com/'
 const PORTFOLIO = 'https://portfolio-nine-lovat-18.vercel.app/'
+const PROFILE = 'https://soycatalinajaramillo.com/perfil-catalina.html'
 const WHATSAPP = 'https://wa.me/17869299442'
 
 function validate(company, proposal, proposalUrl) {
@@ -90,7 +91,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
       '<p style="margin:24px 0 8px;font-weight:bold;color:#2f2921">Si esta situación se parece a lo que viven, aquí puede ver el recorrido completo y hablar con Carolina:</p>',
       cta('Ver la propuesta para ' + company),
       '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Si prefiere hablar conmigo directamente, escríbame por WhatsApp: <a href="' + WHATSAPP + '?text=' + encodeURIComponent('Hola Catalina, vi la propuesta para '+company+' y quiero conversar sobre ella.') + '" style="color:#7a5a30;font-weight:bold">+1 786 929 9442</a>. Solo WhatsApp, no llamadas. Carolina también puede validar el caso y orientar un rango de inversión.</p>',
-      '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e IA · 15+ años · soycatalinajaramillo.com</span></p>', ps,
+      '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e IA · 15+ años</span><br><a href="' + PROFILE + '" style="color:#7a5a30;font-weight:bold;text-decoration:none">Perfil ejecutivo</a> · <a href="' + PORTFOLIO + '" style="color:#7a5a30;font-weight:bold;text-decoration:none">Portafolio</a></p>', ps,
       '<p style="margin:26px 0 0;font:11px/1.5 Arial,sans-serif;color:#9a9186">', footer(opts.postal), '</p></td></tr></table></td></tr></table></body></html>'].join('')
   }
 
@@ -103,7 +104,7 @@ export function brandedProposal(company, proposal, proposalUrl = SITE + '#caroli
     '<p style="margin:0 0 22px;font-size:18px;line-height:1.5;color:#2f2921"><strong>', e(offerPitch), '</strong></p>',
     '<p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">POR QUÉ PENSÉ EN USTEDES</p><p style="margin:0 0 6px">', e(proposal.observation), '</p>', sourceLine,
     '<p style="margin:0 0 4px;font:bold 11px Arial,sans-serif;letter-spacing:2px;color:#947347">DÓNDE PODRÍA AYUDAR</p><p style="margin:0 0 20px">', e(proposal.hypothesis), '</p>', scene ? '' : '<p style="margin:0 0 20px;font-size:17px;color:#2f2921">' + e(proposal.example || '') + '</p>', emailProposal,
-    '<p style="margin:26px 0 8px;font-size:16px;color:#2f2921"><strong>Preparé una demostración específica para que vea cómo podría funcionar en ', e(company), '.</strong></p>', cta('Ver la propuesta para ' + company), '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Si prefiere hablar conmigo directamente, escríbame por WhatsApp: <a href="' + WHATSAPP + '?text=' + encodeURIComponent('Hola Catalina, vi la propuesta para '+company+' y quiero conversar sobre ella.') + '" style="color:#7a5a30;font-weight:bold">+1 786 929 9442</a>. Solo WhatsApp, no llamadas. Carolina también puede validar el caso y orientar un rango de inversión.</p>', '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e inteligencia artificial · 15+ años</span></p>', ps, '</td></tr>', '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr></table></td></tr></table></body></html>'].join('')
+    '<p style="margin:26px 0 8px;font-size:16px;color:#2f2921"><strong>Preparé una demostración específica para que vea cómo podría funcionar en ', e(company), '.</strong></p>', cta('Ver la propuesta para ' + company), '<p style="margin:10px 0 0;font:13px/1.5 Arial,sans-serif;color:#74695a">Si prefiere hablar conmigo directamente, escríbame por WhatsApp: <a href="' + WHATSAPP + '?text=' + encodeURIComponent('Hola Catalina, vi la propuesta para '+company+' y quiero conversar sobre ella.') + '" style="color:#7a5a30;font-weight:bold">+1 786 929 9442</a>. Solo WhatsApp, no llamadas. Carolina también puede validar el caso y orientar un rango de inversión.</p>', '<p style="margin:22px 0 0">Catalina Jaramillo<br><span style="color:#81786b;font-size:13px">Estrategia comercial, operación e inteligencia artificial · 15+ años</span><br><a href="' + PROFILE + '" style="color:#7a5a30;font-weight:bold;text-decoration:none">Perfil ejecutivo</a> · <a href="' + PORTFOLIO + '" style="color:#7a5a30;font-weight:bold;text-decoration:none">Portafolio</a></p>', ps, '</td></tr>', '<tr><td bgcolor="#f0e9df" style="background:#f0e9df;padding:18px 28px;border-radius:0 0 14px 14px;font:11px/1.5 Arial,sans-serif;color:#7d7366">', footer(opts.postal), '</td></tr></table></td></tr></table></body></html>'].join('')
 }
 
 const phases = [
