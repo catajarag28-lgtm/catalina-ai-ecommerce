@@ -259,12 +259,24 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
 
   for(const p of candidates.slice(0,12)) {
     if((count?.n||0)+out.freelancer.submitted>=limit) break
-    const prior=await env.DB.prepare("SELECT status FROM marketplace_submissions WHERE id=?").bind('freelancer:'+p.id).first()
-    if(prior) continue
+    const prior=await env.DB.prepare("SELECT status,error,updated_at FROM marketplace_submissions WHERE id=?").bind('freelancer:'+p.id).first()
+    const floor=Number(env.MARKETPLACE_MIN_USD||750)
+    const belowFloor=p.currency==='USD' && p.budgetMax!=null && p.budgetMax<floor
+    if(prior){
+      if(['submitted','submitting','blocked_account_requirement'].includes(prior.status)) continue
+      if(prior.status==='skipped' && !(prior.error==='budget_below_floor' && !belowFloor)) continue
+      if(prior.status==='failed' && Number(prior.updated_at||0)>now-6*60*60*1000) continue
+      if(!['failed','skipped'].includes(prior.status)) continue
+    }
     // Para USD, evita microproyectos incompatibles con una implementación profesional.
-    if(p.currency==='USD' && p.budgetMax!=null && p.budgetMax<Number(env.MARKETPLACE_MIN_USD||750)) {
-      await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped','budget_below_floor',?,?)")
-        .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,now,now).run()
+    if(belowFloor) {
+      if(prior){
+        await env.DB.prepare("UPDATE marketplace_submissions SET status='skipped',error='budget_below_floor',updated_at=? WHERE id=?")
+          .bind(now,'freelancer:'+p.id).run()
+      }else{
+        await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped','budget_below_floor',?,?)")
+          .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,now,now).run()
+      }
       if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='skipped_budget' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
       continue
     }
@@ -272,15 +284,24 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     out.freelancer.reviewed++
     const bid=validBid(p,j)
     if(!bid){
-      await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped',?,?,?)")
-        .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,safe(j?.reason||'low_fit').slice(0,500),now,now).run()
+      const reason=safe(j?.reason||'low_fit').slice(0,500)
+      if(prior){
+        await env.DB.prepare("UPDATE marketplace_submissions SET status='skipped',error=?,updated_at=? WHERE id=?")
+          .bind(reason,now,'freelancer:'+p.id).run()
+      }else{
+        await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,status,error,created_at,updated_at) VALUES (?,?,?,?,?,'skipped',?,?,?)")
+          .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,reason,now,now).run()
+      }
       if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='skipped_after_review' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
       continue
     }
 
     // Claim antes de enviar para evitar doble bid en crons concurrentes.
-    const claim=await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,amount,currency,proposal,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?, 'submitting',?,?)")
-      .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,bid.amount,p.currency,bid.proposal,now,now).run()
+    const claim=prior
+      ? await env.DB.prepare("UPDATE marketplace_submissions SET amount=?,currency=?,proposal=?,status='submitting',error=NULL,updated_at=? WHERE id=? AND status IN ('failed','skipped')")
+          .bind(bid.amount,p.currency,bid.proposal,now,'freelancer:'+p.id).run()
+      : await env.DB.prepare("INSERT OR IGNORE INTO marketplace_submissions(id,platform,external_id,url,title,amount,currency,proposal,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?, 'submitting',?,?)")
+          .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,bid.amount,p.currency,bid.proposal,now,now).run()
     if(!claim.meta.changes) continue
 
     const sent=await placeFreelancerBid(env,p,bid,bidderId)
@@ -301,12 +322,12 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       ].join('\n')).catch(()=>{})
     } else {
       const err=JSON.stringify(sent.data||{}).slice(0,700)
-      const premiumBlocked=/RESTRICTED_FROM_BIDDING_PREMIUM|at least 5 reviews|Plus, Professional or Premier|Verified by Freelancer/i.test(err)
-      const blockedStatus=premiumBlocked?'blocked_account_requirement':'failed'
+      const accountBlocked=/RESTRICTED_FROM_BIDDING_PREMIUM|BID_MINIMUM_REQUIREMENT_NOT_MET|PROFILE_INCOMPLETE|at least 5 reviews|Plus, Professional or Premier|Verified by Freelancer|complete the profile|account balance/i.test(err)
+      const blockedStatus=accountBlocked?'blocked_account_requirement':'failed'
       await env.DB.prepare("UPDATE marketplace_submissions SET status=?,error=?,updated_at=? WHERE id=?")
         .bind(blockedStatus,err,Date.now(),'freelancer:'+p.id).run()
       if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?")
-        .bind(premiumBlocked?'blocked_account_requirement':'submit_failed',p.intentUrl).run().catch(()=>{})
+        .bind(accountBlocked?'blocked_account_requirement':'submit_failed',p.intentUrl).run().catch(()=>{})
     }
   }
   return out
