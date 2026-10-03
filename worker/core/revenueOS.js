@@ -78,7 +78,12 @@ export async function manualApplicationQueue(env, now=Date.now()){
       AND lower(i.platform) IN ('linkedin','upwork','workana','contra','peopleperhour','people per hour','guru','malt','twine','wellfound')
     ORDER BY i.found_at DESC
     LIMIT 60`).all()).results||[]
-  return rows.map(r=>({
+  return rows.map(r=>{
+    const foundAt=Number(r.found_at||now)
+    const ageHours=Math.max(0,(now-foundAt)/3600000)
+    const dueAt=foundAt+2*3600000
+    const overdue=ageHours>=2
+    return {
     platform:String(r.platform||'').trim(),
     project:String(r.who||r.need||'Oportunidad').slice(0,180),
     url:r.url,
@@ -91,8 +96,13 @@ export async function manualApplicationQueue(env, now=Date.now()){
     cv:CV,
     visualProfile:PROFILE,
     englishProfile:PROFILE_EN,
-    portfolio:PORTFOLIO
-  }))
+    portfolio:PORTFOLIO,
+    foundAt,
+    ageHours:Number(ageHours.toFixed(1)),
+    dueAt:new Date(dueAt).toISOString(),
+    overdue,
+    nextAction:'Abrir la plataforma autenticada, revisar preguntas obligatorias y enviar. Si aparece CAPTCHA/MFA o una pregunta no verificable, escalar a Catalina sin inventar.'
+  }})
 }
 
 export async function sendManualApplicationQueue(env, now=Date.now(), force=false){
@@ -101,11 +111,16 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
   const signature=hash(rows.map(r=>r.platform+'|'+r.url+'|'+r.status).join('\n'))
   const prior=await env.DB.prepare("SELECT value FROM app_settings WHERE key='manual_queue_signature'").first().catch(()=>null)
   const lastDay=await env.DB.prepare("SELECT value FROM app_settings WHERE key='manual_queue_last_day'").first().catch(()=>null)
+  const lastAlert=await env.DB.prepare("SELECT value FROM app_settings WHERE key='manual_queue_last_alert_at'").first().catch(()=>null)
+  const overdueCount=rows.filter(r=>r.overdue).length
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]))
   const hour=Number(parts.hour||0)
   const day=parts.year+'-'+parts.month+'-'+parts.day
   if(!force && prior?.value===signature){
-    if(hour!==8 || lastDay?.value===day) return {sent:false,count:rows.length,unchanged:true}
+    const lastAlertAt=Number(lastAlert?.value||0)
+    const overdueReminder=overdueCount>0 && now-lastAlertAt>=4*3600000
+    const morningDigest=hour===8 && lastDay?.value!==day
+    if(!overdueReminder && !morningDigest) return {sent:false,count:rows.length,overdueCount,unchanged:true}
   }
   const lines=[
     'Estas oportunidades YA fueron calificadas, pero requieren una acción humana dentro de la plataforma.',
@@ -117,6 +132,8 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
       `   Qué pide: ${r.need}`,
       `   Link: ${r.url}`,
       `   Bloqueo: ${r.blocker}`,
+      `   SLA: ${r.overdue?'VENCIDA · '+r.ageHours+'h esperando':'vence '+r.dueAt}`,
+      `   Siguiente acción: ${r.nextAction}`,
       `   CV: ${r.cv}`,
       `   Perfil visual: ${r.visualProfile}`,
       `   Portafolio: ${r.portfolio}`,
@@ -130,11 +147,13 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
     .bind(signature,now).run()
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_last_day',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(day,now).run()
-  return {sent:true,count:rows.length}
+  await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_last_alert_at',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+    .bind(String(now),now).run()
+  return {sent:true,count:rows.length,overdueCount}
 }
 
 export async function revenueSnapshot(env,now=Date.now()){
   const plan=await buildRevenuePlan(env,now)
   const manual=await manualApplicationQueue(env,now)
-  return {plan,manualCount:manual.length,manual:manual.slice(0,12)}
+  return {plan,manualCount:manual.length,manualOverdue:manual.filter(x=>x.overdue).length,manual:manual.slice(0,12)}
 }
