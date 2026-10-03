@@ -1,6 +1,6 @@
-// Ejecuta postulaciones directas a oportunidades públicas con una vía explícita de aplicación.
-// No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
-// explícitamente que acepta aplicaciones por email y la dirección queda verificada.
+// Ejecuta postulaciones directas a oportunidades pÃºblicas con una vÃ­a explÃ­cita de aplicaciÃ³n.
+// No sustituye APIs de marketplaces. Solo envÃ­a email cuando la publicaciÃ³n/empresa indica
+// explÃ­citamente que acepta aplicaciones por email y la direcciÃ³n queda verificada.
 import { notifyCatalina } from '../core/notify.js'
 import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { queueIntentForDirectOutbound } from './intent.js'
@@ -39,7 +39,7 @@ const sameHost=(a,b)=>{const x=hostOf(a),y=hostOf(b);return !!x&&!!y&&(x===y||x.
 const allowedPlatform=p=>!/freelancer|upwork|workana|contra|peopleperhour|people per hour|guru|malt|twine|wellfound/i.test(safe(p))
 
 // Aplicaciones enviadas manualmente desde Gmail el 2026-10-02 mientras Codex/Cloudflare estaba bloqueado.
-// Se registran aquí para que Carolina no duplique candidaturas cuando vuelva a procesar el backfill.
+// Se registran aquÃ­ para que Carolina no duplique candidaturas cuando vuelva a procesar el backfill.
 const MANUAL_APPLICATIONS_SENT=new Set([
   'https://www.linkedin.com/posts/martin-xavier-udoh-930a52191_hiring-n8n-automation-activity-7505025442404487168-q03w',
   'https://www.linkedin.com/posts/robert-thomas-18661b218_seeking-ai-automation-crm-integration-activity-7469162704017170432-auO1',
@@ -86,22 +86,22 @@ async function resolveApplicationRoute(env,row){
       temperature:0,
       max_tokens:1200,
       response_format:{type:'json_object'},
-      plugins:[{id:'web',engine:'exa',max_results:6,search_prompt:'Abre la publicación exacta y, si hace falta, el sitio oficial de la empresa para verificar cómo aplicar.'}],
+      plugins:[{id:'web',engine:'exa',max_results:6,search_prompt:'Abre la publicaciÃ³n exacta y, si hace falta, el sitio oficial de la empresa para verificar cÃ³mo aplicar.'}],
       messages:[
-        {role:'system',content:`Eres un verificador de rutas de aplicación laboral/freelance. Debes decidir si una publicación pública es una solicitud REAL de contratación o proyecto y cómo pide recibir candidaturas.
+        {role:'system',content:`Eres un verificador de rutas de aplicaciÃ³n laboral/freelance. Debes decidir si una publicaciÃ³n pÃºblica es una solicitud REAL de contrataciÃ³n o proyecto y cÃ³mo pide recibir candidaturas.
 
 Devuelve SOLO JSON:
 {"realOpportunity":true|false,"activeNow":true|false,"publishedDate":"YYYY-MM-DD|","route":"email|official_form|community|none","email":"","contactUrl":"","evidence":"","company":"","opportunityType":"freelance_project|contract|job|community_request|content","asksCv":true|false,"asksRate":true|false,"asksAvailability":true|false,"hardRequirements":["..."],"confidence":"alta|media|baja","reason":"..."}
 
 REGLAS:
-- route=email SOLO si la publicación o una página oficial vinculada dice explícitamente que se puede aplicar/escribir por email.
-- Copia el email literalmente; no lo infieras por patrón.
-- evidence debe ser una cita breve que contenga la instrucción de aplicar/contactar y, para route=email, el email literal.
-- route=official_form si existe formulario oficial de aplicación.
+- route=email SOLO si la publicaciÃ³n o una pÃ¡gina oficial vinculada dice explÃ­citamente que se puede aplicar/escribir por email.
+- Copia el email literalmente; no lo infieras por patrÃ³n.
+- evidence debe ser una cita breve que contenga la instrucciÃ³n de aplicar/contactar y, para route=email, el email literal.
+- route=official_form si existe formulario oficial de aplicaciÃ³n.
 - route=community si pide DM, comentario o respuesta dentro de la comunidad/red.
-- realOpportunity=false para tutoriales, discusiones, proveedores promocionándose, feedback de producto, artículos o gente que NO está contratando.
-- activeNow=false si la oportunidad está cerrada/cancelada o es antigua (más de ~180 días) sin una señal reciente de que siga aceptando candidaturas. No revivas ofertas viejas solo porque la página siga indexada.
-- No conviertas un correo genérico encontrado al azar en "application email".
+- realOpportunity=false para tutoriales, discusiones, proveedores promocionÃ¡ndose, feedback de producto, artÃ­culos o gente que NO estÃ¡ contratando.
+- activeNow=false si la oportunidad estÃ¡ cerrada/cancelada o es antigua (mÃ¡s de ~180 dÃ­as) sin una seÃ±al reciente de que siga aceptando candidaturas. No revivas ofertas viejas solo porque la pÃ¡gina siga indexada.
+- No conviertas un correo genÃ©rico encontrado al azar en "application email".
 - No inventes requisitos, contactos ni empresas.`},
         {role:'user',content:JSON.stringify({sourceUrl:row.url,platform:row.platform,who:row.who,need:row.need})}
       ]
@@ -156,7 +156,7 @@ async function writeApplication(env,row,route){
       max_tokens:2200,
       response_format:{type:'json_object'},
       messages:[
-        {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
+        {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÃ“N:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
 
 APRENDIZAJE REAL DE POSTULACIONES:
 - Postulaciones enviadas registradas: ${learning.sent}
@@ -164,85 +164,85 @@ APRENDIZAJE REAL DE POSTULACIONES:
 - Tasa de respuesta observada: ${(learning.replyRate*100).toFixed(1)}%
 - Variante obligatoria para esta candidatura: ${learning.variant}
 - Asuntos recientes que NO debes copiar: ${learning.recentSubjects.join(' | ') || 'sin historial suficiente'}
-- Respuestas reales previas, si existen: ${learning.replyExamples.join(' || ') || 'ninguna todavía'}
-Si hay 20+ postulaciones y la tasa de respuesta es <5%, cambia de forma material el enfoque respecto a los asuntos recientes. Si hay 50+ y la tasa sigue <3%, reduce introducción, muestra prueba relevante antes y usa un CTA de paid test/piloto acotado cuando encaje. No esperes a 100 para aprender.
+- Respuestas reales previas, si existen: ${learning.replyExamples.join(' || ') || 'ninguna todavÃ­a'}
+Si hay 20+ postulaciones y la tasa de respuesta es <5%, cambia de forma material el enfoque respecto a los asuntos recientes. Si hay 50+ y la tasa sigue <3%, reduce introducciÃ³n, muestra prueba relevante antes y usa un CTA de paid test/piloto acotado cuando encaje. No esperes a 100 para aprender.
 VARIANTES:
-- proof-first: abre con el sistema/caso propio más parecido y luego conecta con el problema.
-- problem-first: abre con el fallo operativo concreto del anuncio y cómo lo estabilizarías.
+- proof-first: abre con el sistema/caso propio mÃ¡s parecido y luego conecta con el problema.
+- problem-first: abre con el fallo operativo concreto del anuncio y cÃ³mo lo estabilizarÃ­as.
 - paid-pilot-first: abre proponiendo una primera prueba pagada y acotada, sin regalar trabajo ni inventar precio si el anuncio no lo pide.
 
 IDENTIDAD PROFESIONAL REAL:
-Catalina es founder-operator, diseñadora de sistemas IA y automatización aplicada a negocio. Su ventaja es conectar estrategia comercial, customer experience, ecommerce y lógica técnica. No la presentes como senior software engineer, ML engineer ni especialista certificada en una herramienta.
+Catalina es founder-operator, diseÃ±adora de sistemas IA y automatizaciÃ³n aplicada a negocio. Su ventaja es conectar estrategia comercial, customer experience, ecommerce y lÃ³gica tÃ©cnica. No la presentes como senior software engineer, ML engineer ni especialista certificada en una herramienta.
 
-PRUEBA DE OPERACIÓN REAL:
+PRUEBA DE OPERACIÃ“N REAL:
 - Professional Glam / Piel y Glamour: ecommerce real operado por Catalina.
 - 9.296 pedidos digitales documentados.
 - COP 1.016B+ en ventas Shopify registradas.
-- 3 sedes físicas operadas.
-Estas métricas prueban experiencia operando negocio; NUNCA afirmes que fueron causadas por IA.
+- 3 sedes fÃ­sicas operadas.
+Estas mÃ©tricas prueban experiencia operando negocio; NUNCA afirmes que fueron causadas por IA.
 
-SISTEMAS Y AGENTES QUE PUEDE PRESENTAR COMO DISEÑADOS / DESARROLLADOS:
-1. LAURA - comercio conversacional y CX: ventas por WhatsApp, soporte, seguimiento, continuidad de pedido, confirmación, postventa y handoff humano.
-2. CAROLINA - desarrollo comercial: búsqueda pública de oportunidades, investigación de prospectos, fit scoring, propuestas personalizadas, tracking, follow-up y agenda.
-3. Ecommerce Operations - Shopify + COD + logística/Dropi + confirmación + postventa + continuidad operativa.
-4. Meta Growth Intelligence - análisis read-only de campañas, fatiga creativa, hooks/ángulos, testing, scaling intelligence y reporte ejecutivo.
-5. Creative Intelligence - forense creativo, señales virales, hook intelligence, angle discovery y lectura estructurada de mercado/competencia.
+SISTEMAS Y AGENTES QUE PUEDE PRESENTAR COMO DISEÃ‘ADOS / DESARROLLADOS:
+1. LAURA - comercio conversacional y CX: ventas por WhatsApp, soporte, seguimiento, continuidad de pedido, confirmaciÃ³n, postventa y handoff humano.
+2. CAROLINA - desarrollo comercial: bÃºsqueda pÃºblica de oportunidades, investigaciÃ³n de prospectos, fit scoring, propuestas personalizadas, tracking, follow-up y agenda.
+3. Ecommerce Operations - Shopify + COD + logÃ­stica/Dropi + confirmaciÃ³n + postventa + continuidad operativa.
+4. Meta Growth Intelligence - anÃ¡lisis read-only de campaÃ±as, fatiga creativa, hooks/Ã¡ngulos, testing, scaling intelligence y reporte ejecutivo.
+5. Creative Intelligence - forense creativo, seÃ±ales virales, hook intelligence, angle discovery y lectura estructurada de mercado/competencia.
 6. Content Studio - hooks, guiones, conceptos UGC, captions y workflows de contenido preservando voz de marca.
-7. Executive / CEO Orchestration - resúmenes cruzados, alertas, priorización, routing de casos y soporte estructurado a decisiones.
-8. Finance & Performance Ops - tracking de ventas por canal, lógica de reportes financieros/margen y métricas operativas.
-9. Monitoring & Diagnostics - monitoreo, lógica de incidentes, diagnóstico y salvaguardas para sistemas operativos.
-No digas que estos fueron para clientes externos si no está demostrado. Puedes decir "he diseñado/desarrollado" o "entre los sistemas que he construido/diseñado".
+7. Executive / CEO Orchestration - resÃºmenes cruzados, alertas, priorizaciÃ³n, routing de casos y soporte estructurado a decisiones.
+8. Finance & Performance Ops - tracking de ventas por canal, lÃ³gica de reportes financieros/margen y mÃ©tricas operativas.
+9. Monitoring & Diagnostics - monitoreo, lÃ³gica de incidentes, diagnÃ³stico y salvaguardas para sistemas operativos.
+No digas que estos fueron para clientes externos si no estÃ¡ demostrado. Puedes decir "he diseÃ±ado/desarrollado" o "entre los sistemas que he construido/diseÃ±ado".
 
 CAPACIDADES VERIFICADAS:
-- Ecommerce, Shopify, WhatsApp, atención, seguimiento, customer journey y postventa.
+- Ecommerce, Shopify, WhatsApp, atenciÃ³n, seguimiento, customer journey y postventa.
 - APIs, webhooks, workflows e integraciones.
 - n8n: nivel de trabajo / working proficiency. No "experta avanzada".
-- Product ownership, arquitectura funcional, pruebas, QA e iteración con herramientas técnicas.
-- Español nativo.
-- Inglés funcional para lectura, escritura preparada y trabajo asincrónico apoyado en herramientas.
+- Product ownership, arquitectura funcional, pruebas, QA e iteraciÃ³n con herramientas tÃ©cnicas.
+- EspaÃ±ol nativo.
+- InglÃ©s funcional para lectura, escritura preparada y trabajo asincrÃ³nico apoyado en herramientas.
 - Portfolio: ${PORTFOLIO}
 - Web: ${SITE}
 - Perfil visual ES (si existe): ${profileEs||'no configurado'}
 - Visual profile EN (if available): ${profileEn||'not configured'}
 
 NO PUEDES INVENTAR:
-Azure/Microsoft Graph, Airtable, PostgreSQL, GoHighLevel, HubSpot, Retell, Vapi, Dify, LangFlow, Make, Zapier, TimelinesAI, Zoho, certificaciones, años concretos, clientes externos, resultados de clientes o herramientas no verificadas.
-Si una de esas herramientas aparece en la vacante, habla de cómo abordarías la integración y de capacidades transferibles, no de experiencia previa ficticia.
+Azure/Microsoft Graph, Airtable, PostgreSQL, GoHighLevel, HubSpot, Retell, Vapi, Dify, LangFlow, Make, Zapier, TimelinesAI, Zoho, certificaciones, aÃ±os concretos, clientes externos, resultados de clientes o herramientas no verificadas.
+Si una de esas herramientas aparece en la vacante, habla de cÃ³mo abordarÃ­as la integraciÃ³n y de capacidades transferibles, no de experiencia previa ficticia.
 
 FILTRO DE FIT:
 Antes de escribir, decide si Catalina tiene una posibilidad razonable de competir.
-- Si el requisito central es experiencia profunda demostrable en una tecnología no verificada y no es transferible, send=false.
+- Si el requisito central es experiencia profunda demostrable en una tecnologÃ­a no verificada y no es transferible, send=false.
 - Si falta un dato obligatorio imposible de responder honestamente (salario exacto, disponibilidad obligatoria, permiso legal, etc.), send=false y explica missingRequired.
-- Si el requisito puede aprenderse/implementarse desde APIs, workflows o arquitectura y NO exige experiencia previa demostrable, sí puede competir con transparencia.
+- Si el requisito puede aprenderse/implementarse desde APIs, workflows o arquitectura y NO exige experiencia previa demostrable, sÃ­ puede competir con transparencia.
 
-MARCO FIJO DE CONVERSIÓN - PERSONALIZA SIEMPRE:
-A. Apertura de relevancia (1-2 frases): nombra SU problema, no digas "vi tu publicación y puedo encargarme".
-B. Prueba selectiva (2 sistemas máximo): elige los 1-2 sistemas de Catalina más parecidos. Explica qué parte es transferible a SU necesidad.
-C. Plan concreto (2-4 frases): cómo empezaría, qué protegería y cuál sería el primer resultado verificable. Sin regalar una consultoría completa.
-D. Razón para confiar (1 frase): founder-operator + negocio real + piensa en adopción/operación, no solo en conectar herramientas. Usa métricas solo si ayudan.
-E. CTA humano (1 pregunta): conversación de 15-20 min, revisión del workflow o paid test/piloto acotado.
+MARCO FIJO DE CONVERSIÃ“N - PERSONALIZA SIEMPRE:
+A. Apertura de relevancia (1-2 frases): nombra SU problema, no digas "vi tu publicaciÃ³n y puedo encargarme".
+B. Prueba selectiva (2 sistemas mÃ¡ximo): elige los 1-2 sistemas de Catalina mÃ¡s parecidos. Explica quÃ© parte es transferible a SU necesidad.
+C. Plan concreto (2-4 frases): cÃ³mo empezarÃ­a, quÃ© protegerÃ­a y cuÃ¡l serÃ­a el primer resultado verificable. Sin regalar una consultorÃ­a completa.
+D. RazÃ³n para confiar (1 frase): founder-operator + negocio real + piensa en adopciÃ³n/operaciÃ³n, no solo en conectar herramientas. Usa mÃ©tricas solo si ayudan.
+E. CTA humano (1 pregunta): conversaciÃ³n de 15-20 min, revisiÃ³n del workflow o paid test/piloto acotado.
 
 VOZ:
-- Debe sonar como Catalina: directa, cálida, comercial, práctica, cero humo.
+- Debe sonar como Catalina: directa, cÃ¡lida, comercial, prÃ¡ctica, cero humo.
 - Natural, no perfecta ni grandilocuente.
-- Evita lenguaje típico de IA: "he revisado los requerimientos", "mi enfoque se centra", "mis entregables iniciales serían", "llevarlo al siguiente nivel", "solución robusta y escalable", "puedo encargarme de esto" repetido.
+- Evita lenguaje tÃ­pico de IA: "he revisado los requerimientos", "mi enfoque se centra", "mis entregables iniciales serÃ­an", "llevarlo al siguiente nivel", "soluciÃ³n robusta y escalable", "puedo encargarme de esto" repetido.
 - No listes 8 capacidades. Selecciona.
-- Nada de párrafos gigantes ni manifiestos.
-- No abuses de bullets. Máximo 3 si realmente ayudan.
-- No uses emojis salvo que la publicación sea claramente informal.
-- No escribas como agencia si la contratación es individual. Habla en primera persona.
-- No afirmes un dominio técnico que no existe.
-- Mantén una pequeña variación de ritmo para que las propuestas no parezcan generadas por plantilla.
-- Español natural si la publicación está en español. Inglés profesional pero simple y claro si está en inglés.
+- Nada de pÃ¡rrafos gigantes ni manifiestos.
+- No abuses de bullets. MÃ¡ximo 3 si realmente ayudan.
+- No uses emojis salvo que la publicaciÃ³n sea claramente informal.
+- No escribas como agencia si la contrataciÃ³n es individual. Habla en primera persona.
+- No afirmes un dominio tÃ©cnico que no existe.
+- MantÃ©n una pequeÃ±a variaciÃ³n de ritmo para que las propuestas no parezcan generadas por plantilla.
+- EspaÃ±ol natural si la publicaciÃ³n estÃ¡ en espaÃ±ol. InglÃ©s profesional pero simple y claro si estÃ¡ en inglÃ©s.
 
 ASUNTO:
-Específico al problema/proyecto, no genérico "Application". Si la publicación obliga un subject, respétalo exactamente.
+EspecÃ­fico al problema/proyecto, no genÃ©rico "Application". Si la publicaciÃ³n obliga un subject, respÃ©talo exactamente.
 
 LONGITUD:
-- Email directo: 120-220 palabras; si el anuncio exige respuestas detalladas, puede ser más largo solo para cubrir lo obligatorio.
-- Si la oportunidad pide CV/portfolio, menciona portfolio y perfil visual si la URL está configurada; nunca digas "adjunto" si no hay archivo realmente adjunto.
+- Email directo: 120-220 palabras; si el anuncio exige respuestas detalladas, puede ser mÃ¡s largo solo para cubrir lo obligatorio.
+- Si la oportunidad pide CV/portfolio, menciona portfolio y perfil visual si la URL estÃ¡ configurada; nunca digas "adjunto" si no hay archivo realmente adjunto.
 - Si pide rate y no existe rate obligatorio definido, di que prefieres cotizar por alcance tras ver el workflow o paid test; no inventes una tarifa.
-- WhatsApp solo si la publicación lo pide explícitamente; no conviertas el email en un mensaje de WhatsApp.
+- WhatsApp solo si la publicaciÃ³n lo pide explÃ­citamente; no conviertas el email en un mensaje de WhatsApp.
 
 Devuelve SOLO JSON:
 {"send":true|false,"reason":"...","missingRequired":["..."],"language":"es|en","selectedSystems":["..."],"subject":"...","body":"..."}`},
@@ -266,19 +266,19 @@ async function sendApplication(env,row,route,draft,now){
   ].filter(Boolean).join('\n')
   const fullText=safe(draft.body)+'\n\n'+links
   const systemCopy={
-    'LAURA':draft.language==='en'?'WhatsApp sales, support, follow-up and human handoff.':'Ventas, atención, seguimiento y handoff humano en WhatsApp.',
-    'CAROLINA':draft.language==='en'?'Opportunity discovery, research, proposals, follow-up and pipeline.':'Búsqueda de oportunidades, investigación, propuestas, seguimiento y pipeline.',
-    'Ecommerce Operations':draft.language==='en'?'Shopify, COD, logistics, confirmation and post-sale workflows.':'Shopify, COD, logística, confirmación y postventa.',
-    'Meta Growth Intelligence':draft.language==='en'?'Creative-performance reading, hooks, angles, testing and scaling signals.':'Lectura creativa, hooks, ángulos, testing y señales de escalado.',
-    'Creative Intelligence':draft.language==='en'?'Creative forensics, viral signals, hooks and market/competitor reading.':'Forense creativo, señales virales, hooks y lectura de mercado/competencia.',
+    'LAURA':draft.language==='en'?'WhatsApp sales, support, follow-up and human handoff.':'Ventas, atenciÃ³n, seguimiento y handoff humano en WhatsApp.',
+    'CAROLINA':draft.language==='en'?'Opportunity discovery, research, proposals, follow-up and pipeline.':'BÃºsqueda de oportunidades, investigaciÃ³n, propuestas, seguimiento y pipeline.',
+    'Ecommerce Operations':draft.language==='en'?'Shopify, COD, logistics, confirmation and post-sale workflows.':'Shopify, COD, logÃ­stica, confirmaciÃ³n y postventa.',
+    'Meta Growth Intelligence':draft.language==='en'?'Creative-performance reading, hooks, angles, testing and scaling signals.':'Lectura creativa, hooks, Ã¡ngulos, testing y seÃ±ales de escalado.',
+    'Creative Intelligence':draft.language==='en'?'Creative forensics, viral signals, hooks and market/competitor reading.':'Forense creativo, seÃ±ales virales, hooks y lectura de mercado/competencia.',
     'Content Studio':draft.language==='en'?'UGC concepts, scripts, hooks and content workflows.':'Conceptos UGC, guiones, hooks y workflows de contenido.',
-    'Executive / CEO Orchestration':draft.language==='en'?'Cross-functional summaries, alerts, prioritization and routing.':'Resúmenes cruzados, alertas, priorización y routing.',
-    'Finance & Performance Ops':draft.language==='en'?'Channel tracking, finance/performance logic and operational metrics.':'Tracking por canal, lógica financiera y métricas operativas.',
-    'Monitoring & Diagnostics':draft.language==='en'?'Monitoring, incident logic, diagnostics and operational safeguards.':'Monitoreo, incidentes, diagnóstico y salvaguardas operativas.'
+    'Executive / CEO Orchestration':draft.language==='en'?'Cross-functional summaries, alerts, prioritization and routing.':'ResÃºmenes cruzados, alertas, priorizaciÃ³n y routing.',
+    'Finance & Performance Ops':draft.language==='en'?'Channel tracking, finance/performance logic and operational metrics.':'Tracking por canal, lÃ³gica financiera y mÃ©tricas operativas.',
+    'Monitoring & Diagnostics':draft.language==='en'?'Monitoring, incident logic, diagnostics and operational safeguards.':'Monitoreo, incidentes, diagnÃ³stico y salvaguardas operativas.'
   }
   const selected=(Array.isArray(draft.selectedSystems)?draft.selectedSystems:[]).slice(0,3)
   const selectedHtml=selected.length
-    ? '<div style="margin:26px 0 8px"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:10px">'+(draft.language==='en'?'Relevant systems I have built':'Sistemas míos relevantes para este proyecto')+'</div>'
+    ? '<div style="margin:26px 0 8px"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:10px">'+(draft.language==='en'?'Relevant systems I have built':'Sistemas mÃ­os relevantes para este proyecto')+'</div>'
       +selected.map(name=>'<div style="border:1px solid #e6d9cd;border-radius:12px;padding:12px 14px;margin:8px 0;background:#fbf7f3"><div style="font-weight:800;color:#1b1816;font-size:13px">'+escapeHtml(name)+'</div><div style="color:#726961;font-size:12px;line-height:1.45;margin-top:3px">'+escapeHtml(systemCopy[name]||'')+'</div></div>').join('')
       +'</div>'
     : ''
@@ -286,21 +286,21 @@ async function sendApplication(env,row,route,draft,now){
   const htmlBody='<!doctype html><html><body style="margin:0;background:#f4efe9;padding:22px 10px">'
     +'<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 34px rgba(55,42,33,.08);color:#201a17">'
     +'<div style="background:#171513;padding:26px 28px;display:flex;align-items:center">'
-    +'<div style="flex:1"><div style="width:42px;height:3px;background:#b59667;margin-bottom:14px"></div><div style="font-size:24px;line-height:1.05;font-weight:800;color:#fff">Catalina Jaramillo</div><div style="font-size:13px;color:#d9c9b8;margin-top:7px">AI Commerce & Automation Systems · Founder-Operator</div></div>'
+    +'<div style="flex:1"><div style="width:42px;height:3px;background:#b59667;margin-bottom:14px"></div><div style="font-size:24px;line-height:1.05;font-weight:800;color:#fff">Catalina Jaramillo</div><div style="font-size:13px;color:#d9c9b8;margin-top:7px">AI Commerce & Automation Systems Â· Founder-Operator</div></div>'
     +'<img src="'+SITE+'/catalina.jpg" alt="Catalina Jaramillo" width="92" height="92" style="display:block;width:92px;height:92px;object-fit:cover;object-position:center 25%;border-radius:50%;border:3px solid #b59667;margin-left:18px">'
     +'</div>'
     +'<div style="padding:28px 30px">'
-    +'<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:8px">'+(draft.language==='en'?'Tailored application':'Postulación personalizada')+'</div>'
+    +'<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8b7258;font-weight:800;margin-bottom:8px">'+(draft.language==='en'?'Tailored application':'PostulaciÃ³n personalizada')+'</div>'
     +'<div style="font-size:22px;line-height:1.2;font-weight:800;color:#1b1816;margin-bottom:20px">'+escapeHtml(safe(draft.subject))+'</div>'
     +'<div style="font-size:15px;line-height:1.68;color:#342e2a">'+bodyHtml+'</div>'
     +selectedHtml
-    +'<div style="margin:24px 0 0;padding:16px;border-radius:14px;background:#171513;color:white"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#d8c1a4;font-weight:800">'+(draft.language==='en'?'Operator perspective':'Perspectiva de operación')+'</div><div style="font-size:13px;line-height:1.55;margin-top:7px">'+(draft.language==='en'?'I have operated the business side myself: thousands of Shopify orders, customer operations, sales, post-sale and the systems around them. I build automation with adoption and day-to-day reality in mind.':'He operado el negocio del otro lado: miles de pedidos Shopify, atención, ventas, postventa y los sistemas alrededor. Diseño automatización pensando también en adopción y operación diaria.')+'</div></div>'
+    +'<div style="margin:24px 0 0;padding:16px;border-radius:14px;background:#171513;color:white"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#d8c1a4;font-weight:800">'+(draft.language==='en'?'Operator perspective':'Perspectiva de operaciÃ³n')+'</div><div style="font-size:13px;line-height:1.55;margin-top:7px">'+(draft.language==='en'?'I have operated the business side myself: thousands of Shopify orders, customer operations, sales, post-sale and the systems around them. I build automation with adoption and day-to-day reality in mind.':'He operado el negocio del otro lado: miles de pedidos Shopify, atenciÃ³n, ventas, postventa y los sistemas alrededor. DiseÃ±o automatizaciÃ³n pensando tambiÃ©n en adopciÃ³n y operaciÃ³n diaria.')+'</div></div>'
     +'<div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:9px">'
     +'<a href="'+PORTFOLIO+'" style="display:inline-block;background:#6b5548;color:#fff;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:13px;font-weight:800">'+(draft.language==='en'?'View portfolio':'Ver portafolio')+'</a>'
     +(profileUrl?'<a href="'+profileUrl+'" style="display:inline-block;background:#f7f2ec;color:#2c241f;text-decoration:none;padding:11px 15px;border-radius:10px;border:1px solid #e2d5c9;font-size:13px;font-weight:800">'+(draft.language==='en'?'Visual profile':'Perfil visual')+'</a>':'')
     +'<a href="'+SITE+'" style="display:inline-block;color:#6b5548;text-decoration:none;padding:11px 4px;font-size:13px;font-weight:800">soycatalinajaramillo.com</a>'
     +'</div>'
-    +'<div style="margin-top:26px;padding-top:16px;border-top:1px solid #eadfd5;font-size:11.5px;line-height:1.5;color:#81776f">Catalina Jaramillo · '+escapeHtml(replyTo)+' · WhatsApp +1 786 929 9442<br>'+(draft.language==='en'?'Business track record is from Professional Glam / Piel y Glamour and is not attributed to AI.':'La trayectoria de negocio corresponde a Professional Glam / Piel y Glamour y no se atribuye a la IA.')+'</div>'
+    +'<div style="margin-top:26px;padding-top:16px;border-top:1px solid #eadfd5;font-size:11.5px;line-height:1.5;color:#81776f">Catalina Jaramillo Â· '+escapeHtml(replyTo)+' Â· WhatsApp +1 786 929 9442<br>'+(draft.language==='en'?'Business track record is from Professional Glam / Piel y Glamour and is not attributed to AI.':'La trayectoria de negocio corresponde a Professional Glam / Piel y Glamour y no se atribuye a la IA.')+'</div>'
     +'</div></div></body></html>'
   const payload={
     from,
@@ -324,8 +324,8 @@ async function sendApplication(env,row,route,draft,now){
   await env.DB.prepare("UPDATE intent_leads SET status='direct_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
   await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
     .bind(route.email,'out',from,route.email,payload.subject,payload.text,String(data.id),'direct_application',now).run().catch(()=>{})
-  await notifyCatalina(env,`🎯 POSTULACIÓN REAL ENVIADA · ${route.company||row.who||row.platform}`,[
-    'Carolina encontró la oportunidad, verificó una vía explícita de aplicación por email y envió la candidatura.',
+  await notifyCatalina(env,`ðŸŽ¯ POSTULACIÃ“N REAL ENVIADA Â· ${route.company||row.who||row.platform}`,[
+    'Carolina encontrÃ³ la oportunidad, verificÃ³ una vÃ­a explÃ­cita de aplicaciÃ³n por email y enviÃ³ la candidatura.',
     `Fuente: ${row.url}`,
     `Destino: ${route.email}`,
     `Asunto: ${payload.subject}`,
@@ -382,7 +382,7 @@ export async function runDirectApplications(env,now=Date.now()){
   const rows=(await env.DB.prepare(`SELECT i.* FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit='alto'
-      AND coalesce(i.explicit_demand,1)=1
+      AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
       AND coalesce(d.terminal,0)=0
       AND i.status IN (
@@ -444,8 +444,8 @@ export async function runDirectApplications(env,now=Date.now()){
     }
 
     if(route.route!=='email'){
-      // Si la publicación solo permite DM/comentario, Carolina intenta primero identificar
-      // de forma independiente la empresa y un correo empresarial público mediante el
+      // Si la publicaciÃ³n solo permite DM/comentario, Carolina intenta primero identificar
+      // de forma independiente la empresa y un correo empresarial pÃºblico mediante el
       // pipeline normal. No usa ni deriva datos privados de la comunidad.
       let fallback={queued:false}
       if(route.route==='community' && route.company){
@@ -506,7 +506,7 @@ export async function applicationCoverageAudit(env,now=Date.now(),notify=true){
     FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit='alto'
-      AND coalesce(i.explicit_demand,0)=1
+      AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
     ORDER BY i.found_at DESC
     LIMIT 300`).all()).results||[]
@@ -530,14 +530,14 @@ export async function applicationCoverageAudit(env,now=Date.now(),notify=true){
     const once=await env.DB.prepare("INSERT OR IGNORE INTO app_settings(key,value,updated_at) VALUES (?,?,?)").bind(key,String(stale.length),now).run().catch(()=>({meta:{changes:0}}))
     if(once?.meta?.changes){
       const top=stale.slice(0,20).map((r,i)=>[
-        `${i+1}. ${safe(r.platform)||'web'} · ${safe(r.who)||safe(r.need).slice(0,80)}`,
-        `   intent=${r.intent_status||'new'} · application=${r.application_status||'sin registro'} · route=${r.application_route||'unknown'}`,
+        `${i+1}. ${safe(r.platform)||'web'} Â· ${safe(r.who)||safe(r.need).slice(0,80)}`,
+        `   intent=${r.intent_status||'new'} Â· application=${r.application_status||'sin registro'} Â· route=${r.application_route||'unknown'}`,
         r.blocker?`   bloqueo: ${safe(r.blocker).slice(0,180)}`:'',
         `   ${r.url}`
       ].filter(Boolean).join('\n')).join('\n')
-      await notifyCatalina(env,`⚠️ ${stale.length} contratos todavía sin postulación confirmada`,[
-        'Este aviso NO cuenta encontrados como postulados. Son oportunidades explícitas activas sin provider_id/bid_id/confirmación final.',
-        `Directos pendientes: ${directPending} · marketplaces pendientes: ${marketplacePending} · huérfanos sin registro de aplicación: ${orphaned}`,
+      await notifyCatalina(env,`âš ï¸ ${stale.length} contratos todavÃ­a sin postulaciÃ³n confirmada`,[
+        'Este aviso NO cuenta encontrados como postulados. Son oportunidades explÃ­citas activas sin provider_id/bid_id/confirmaciÃ³n final.',
+        `Directos pendientes: ${directPending} Â· marketplaces pendientes: ${marketplacePending} Â· huÃ©rfanos sin registro de aplicaciÃ³n: ${orphaned}`,
         '',
         top
       ].join('\n')).catch(()=>{})

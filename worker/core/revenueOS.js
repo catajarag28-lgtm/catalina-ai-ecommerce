@@ -17,22 +17,23 @@ export function revenueTargets(paused){
 
 export async function buildRevenuePlan(env, now=Date.now()){
   const since=now-DAY
-  const [control,outbound,direct,market,intent,partners,followups,meetings]=await Promise.all([
+  const [control,outbound,direct,market,intent,partners,abm,followups,meetings]=await Promise.all([
     env.DB.prepare('SELECT paused,reason,daily_cap FROM outreach_control WHERE id=1').first().catch(()=>({paused:0,reason:''})),
     one(env,"SELECT COUNT(*) n FROM outreach WHERE kind!='partner' AND sent_at>=?",since),
     one(env,"SELECT COUNT(*) n FROM direct_applications WHERE status IN ('sent','external_email_sent','replied') AND COALESCE(sent_at,updated_at)>=?",since),
     one(env,"SELECT COUNT(*) n FROM marketplace_submissions WHERE status='submitted' AND provider_id IS NOT NULL AND updated_at>=?",since),
     one(env,"SELECT COUNT(*) n FROM intent_leads WHERE found_at>=?",since),
     one(env,"SELECT COUNT(*) n FROM outreach WHERE kind='partner' AND sent_at>=?",since),
+    one(env,"SELECT COUNT(*) n FROM outreach_events WHERE type='contact.listed' AND occurred_at>=?",since),
     one(env,"SELECT COUNT(*) n FROM outreach_events WHERE type IN ('followup.sent','hot.followup') AND occurred_at>=?",since),
     one(env,"SELECT COUNT(*) n FROM meetings WHERE created_at>=?",since)
   ])
   const paused=!!control?.paused
-  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legítimas.
+  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legÃ­timas.
   const targets=revenueTargets(paused)
   const actual={
     outbound:n(outbound),directApplications:n(direct),marketplaces:n(market),intent:n(intent),
-    partners:n(partners),followups:n(followups),meetings:n(meetings)
+    partners:n(partners),abm:n(abm),followups:n(followups),meetings:n(meetings)
   }
   const deficits=Object.fromEntries(Object.entries(targets).map(([k,v])=>[k,Math.max(0,v-(actual[k]||0))]))
   const plan={
@@ -44,7 +45,9 @@ export async function buildRevenuePlan(env, now=Date.now()){
     boostIntent:paused || deficits.intent>=3,
     boostMarketplaces:paused || deficits.marketplaces>=3,
     boostApplications:paused || deficits.directApplications>=3,
-    boostPartners:paused || deficits.partners>=3
+    boostPartners:paused || deficits.partners>=3,
+    boostABM:deficits.abm>=2,
+    boostFollowups:deficits.followups>=2
   }
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('revenue_plan',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(JSON.stringify(plan).slice(0,8000),now).run()
@@ -64,7 +67,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
     FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit='alto'
-      AND coalesce(i.explicit_demand,1)=1
+      AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
       AND (
         i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review')
@@ -83,7 +86,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
     need:String(r.need||'').slice(0,500),
     route:r.application_route||'unknown',
     status:r.application_status||r.intent_status||'WAITING_HUMAN',
-    blocker:String(r.blocker||'La plataforma requiere acción humana/autenticada.').slice(0,400),
+    blocker:String(r.blocker||'La plataforma requiere acciÃ³n humana/autenticada.').slice(0,400),
     proposal:String(r.body||r.reply||'').slice(0,2200),
     cv:CV,
     visualProfile:PROFILE,
@@ -105,24 +108,24 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
     if(hour!==8 || lastDay?.value===day) return {sent:false,count:rows.length,unchanged:true}
   }
   const lines=[
-    'Estas oportunidades YA fueron calificadas, pero requieren una acción humana dentro de la plataforma.',
-    'No están contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
+    'Estas oportunidades YA fueron calificadas, pero requieren una acciÃ³n humana dentro de la plataforma.',
+    'No estÃ¡n contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
     '',
     ...rows.slice(0,20).flatMap((r,i)=>[
       `${i+1}. [${r.platform}] ${r.project}`,
-      `   FIT: ${r.fit} · ESTADO: ${r.status} · RUTA: ${r.route}`,
-      `   Qué pide: ${r.need}`,
+      `   FIT: ${r.fit} Â· ESTADO: ${r.status} Â· RUTA: ${r.route}`,
+      `   QuÃ© pide: ${r.need}`,
       `   Link: ${r.url}`,
       `   Bloqueo: ${r.blocker}`,
       `   CV: ${r.cv}`,
       `   Perfil visual: ${r.visualProfile}`,
       `   Portafolio: ${r.portfolio}`,
-      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacción final dentro de la plataforma.',
-      '   QUÉ HACES TÚ: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
+      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacciÃ³n final dentro de la plataforma.',
+      '   QUÃ‰ HACES TÃš: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
       ''
     ])
   ]
-  await notifyCatalina(env,`🖱️ POSTULACIONES MANUALES PENDIENTES · ${rows.length}`,lines.join('\n')).catch(()=>{})
+  await notifyCatalina(env,`ðŸ–±ï¸ POSTULACIONES MANUALES PENDIENTES Â· ${rows.length}`,lines.join('\n')).catch(()=>{})
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_signature',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(signature,now).run()
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_last_day',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
