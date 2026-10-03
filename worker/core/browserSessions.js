@@ -157,9 +157,12 @@ export async function finishBrowserSetup(env,token){
 async function classifyPage(page,p){
   const url=page.url()
   const title=await page.title().catch(()=>'')
-  const body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,5000)
-  if(p.loginPattern.test(url)||/sign in|log in|iniciar sesi[oó]n|acceder a tu cuenta/i.test(body)&&/password|contrase/i.test(body))return {status:'expired',url,title}
-  if(/captcha|verify you are human|security check|checkpoint|unusual activity/i.test(body))return {status:'human_required',url,title}
+  const body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,8000)
+  if(/captcha|verify you are human|security check|unusual activity/i.test(body))return {status:'human_required',url,title}
+  if(p.loginPattern.test(url))return {status:/checkpoint/i.test(url)?'human_required':'expired',url,title}
+  const passwordVisible=await page.locator('input[type="password"]:visible').count().catch(()=>0)
+  const loginFormVisible=await page.locator('form').filter({has:page.locator('input[type="password"]')}).count().catch(()=>0)
+  if(passwordVisible||loginFormVisible)return {status:'expired',url,title}
   return {status:'ready',url,title}
 }
 export async function checkBrowserSession(env,platform,{persistFresh=true}={}){
