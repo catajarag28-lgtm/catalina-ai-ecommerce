@@ -28,8 +28,10 @@ export function freelancerReady(env={}) {
     env.FREELANCER_BID_SCOPE_VERIFIED==='true' &&
     !!env.FREELANCER_OAUTH_TOKEN
 }
-export function freelancerBidAllowance(env={},hasSubmitted=false) {
-  if(env.FREELANCER_FIRST_BID_VERIFIED!=='true') return hasSubmitted ? 0 : 1
+export function freelancerBidAllowance(env={},hasVerifiedSubmission=false) {
+  // A real provider_id stored in D1 is stronger evidence than a manual flag.
+  // Until the first verified submission exists, allow attempts until one succeeds.
+  if(env.FREELANCER_FIRST_BID_VERIFIED!=='true' && !hasVerifiedSubmission) return 1
   return Math.max(1,Math.min(15,Number(env.FREELANCER_DAILY_BID_LIMIT||8)))
 }
 export function upworkReady(env={}) {
@@ -232,8 +234,8 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   if(env.FREELANCER_BID_SCOPE_VERIFIED!=='true') { out.freelancer.reason='bid_management_scope_not_verified'; return out }
   if(!freelancerReady(env)||!env.OPENROUTER_API_KEY) return out
 
-  const firstSubmission=await env.DB.prepare("SELECT 1 FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' LIMIT 1").first()
-  const limit=freelancerBidAllowance(env,!!firstSubmission)
+  const firstSubmission=await env.DB.prepare("SELECT provider_id FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' AND provider_id IS NOT NULL AND provider_id<>'' LIMIT 1").first()
+  const limit=freelancerBidAllowance(env,!!firstSubmission?.provider_id)
   if(!limit){out.freelancer.reason='first_bid_pending_verification';return out}
   const since=Date.parse(bogotaDay(now)+'T00:00:00-05:00')
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' AND created_at>=?").bind(since).first()
@@ -299,9 +301,12 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       ].join('\n')).catch(()=>{})
     } else {
       const err=JSON.stringify(sent.data||{}).slice(0,700)
-      await env.DB.prepare("UPDATE marketplace_submissions SET status='failed',error=?,updated_at=? WHERE id=?")
-        .bind(err,Date.now(),'freelancer:'+p.id).run()
-      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status='submit_failed' WHERE url=?").bind(p.intentUrl).run().catch(()=>{})
+      const premiumBlocked=/RESTRICTED_FROM_BIDDING_PREMIUM|at least 5 reviews|Plus, Professional or Premier|Verified by Freelancer/i.test(err)
+      const blockedStatus=premiumBlocked?'blocked_account_requirement':'failed'
+      await env.DB.prepare("UPDATE marketplace_submissions SET status=?,error=?,updated_at=? WHERE id=?")
+        .bind(blockedStatus,err,Date.now(),'freelancer:'+p.id).run()
+      if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?")
+        .bind(premiumBlocked?'blocked_account_requirement':'submit_failed',p.intentUrl).run().catch(()=>{})
     }
   }
   return out
