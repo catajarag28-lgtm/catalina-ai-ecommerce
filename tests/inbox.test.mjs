@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shouldSkip, isUnsubscribe, parseDecision } from '../worker/core/inbox.js'
+import { shouldSkip, isUnsubscribe, parseDecision, obviousInboundCategory } from '../worker/core/inbox.js'
 
 test('Carolina never answers automated mail, lists or her own domain', () => {
   assert.equal(shouldSkip({ from: 'ana@clinica.com' }), null)
@@ -15,6 +15,13 @@ test('unsubscribe requests are detected', () => {
   assert.ok(isUnsubscribe('BAJA', ''))
   assert.ok(isUnsubscribe('Re: propuesta', 'Baja por favor'))
   assert.ok(!isUnsubscribe('Re: propuesta', 'Me interesa, ¿cuándo hablamos?'))
+})
+
+test('obvious inbound commercial intent is detected before giving up as other', () => {
+  assert.equal(obviousInboundCategory('Consulta', 'Tenemos prospectos sin seguimiento y quiero saber si Catalina puede ayudarnos a automatizar WhatsApp. ¿Cuál sería el siguiente paso?'), 'prospect')
+  assert.equal(obviousInboundCategory('Reunión', '¿Podemos agendar una videollamada para el martes?'), 'meeting')
+  assert.equal(obviousInboundCategory('Información', '¿Cuánto cuesta y qué incluye el servicio?'), 'question')
+  assert.equal(obviousInboundCategory('Hola', 'Gracias por compartir el artículo.'), null)
 })
 
 test('model decisions are sanitized: no reply for spam or vendors', () => {

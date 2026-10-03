@@ -27,6 +27,15 @@ export function isUnsubscribe(subject, text) {
   return /^\s*(baja|unsubscribe|remove|stop)\b/i.test(subject || '') || /^\s*(baja|unsubscribe|no me escriban|no me contacten)\b/i.test((text || '').trim())
 }
 
+export function obviousInboundCategory(subject, text) {
+  const s = (String(subject || '') + '\n' + String(text || '')).toLowerCase()
+  if (/\b(agendar|agenda|reuni[oó]n|videollamada|calendar|disponibilidad|horario para hablar|cu[aá]ndo hablamos)\b/i.test(s)) return 'meeting'
+  if (/\b(quiero|queremos|necesito|necesitamos|busco|buscamos|me interesa|nos interesa)\b.{0,80}\b(contratar|automatiz|agente|sistema|chatbot|crm|whatsapp|seguimiento|servicio|propuesta|ayuda)\b/i.test(s) ||
+      /\b(puede[n]? ayudarnos|puede[n]? ayudarme|trabajan este tipo|trabajan con|cu[aá]l ser[ií]a el siguiente paso|quiero saber si catalina)\b/i.test(s)) return 'prospect'
+  if (/\b(precio|cu[aá]nto cuesta|cotizaci[oó]n|c[oó]mo funciona|qu[eé] incluye|qu[eé] servicios|qu[eé] hacen)\b/i.test(s)) return 'question'
+  return null
+}
+
 export function parseDecision(raw) {
   try {
     const d = JSON.parse(String(raw || '').replace(/^```(?:json)?\s*|\s*```$/g, ''))
@@ -52,7 +61,25 @@ async function decide(env, history, incoming) {
   })
   if (!res.ok) throw new Error(`model_${res.status}`)
   const data = await res.json()
-  return parseDecision(data.choices?.[0]?.message?.content)
+  let decision = parseDecision(data.choices?.[0]?.message?.content)
+  const obvious = obviousInboundCategory(incoming.subject, incoming.text)
+  if (decision.category === 'other' && obvious) {
+    const retry = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json', 'X-Title': 'Carolina - Inbox Retry' },
+      body: JSON.stringify({ model: env.OPENROUTER_MODEL || 'google/gemini-3.1-flash-lite', temperature: 0.1, max_tokens: 900, messages: [
+        { role: 'system', content: `${salesStrategy}\n\n${constitution}\n\n${knowledge}\n\n${instructions}\n\nLa clasificación determinista detectó que este mensaje es ${obvious}. Si no existe evidencia fuerte de vendor/spam, usa esa categoría y redacta una respuesta útil.` },
+        { role: 'user', content: `CORREO NUEVO\nDe: ${incoming.from}\nAsunto: ${incoming.subject}\n\n${incoming.text.slice(0, 6000)}` },
+      ] }),
+      signal: AbortSignal.timeout(25000),
+    }).catch(() => null)
+    if (retry?.ok) {
+      const retryData = await retry.json().catch(() => ({}))
+      const second = parseDecision(retryData.choices?.[0]?.message?.content)
+      if (second.category !== 'other') decision = second
+    }
+  }
+  return decision
 }
 
 export async function handleInbound(message, env) {
