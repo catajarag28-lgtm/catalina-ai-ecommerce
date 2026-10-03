@@ -33,6 +33,10 @@ export const intentQueries = [
   'site:remoteok.com "AI automation" OR n8n OR "AI agent"',
   'site:weworkremotely.com automation AI integrations contract',
   'site:builtin.com/jobs remote AI automation integrations contractor',
+  'site:linkedin.com/jobs/view remote "AI automation" n8n contractor',
+  'site:linkedin.com/jobs/view remote "AI agent" automation engineer',
+  'site:linkedin.com/jobs/view Shopify automation AI ecommerce operations remote',
+  'site:linkedin.com/jobs/view Spanish bilingual AI automation CRM remote',
 
   // Comunidades donde ya preguntan cómo resolver un problema.
   'site:community.n8n.io looking for n8n expert freelance automation',
