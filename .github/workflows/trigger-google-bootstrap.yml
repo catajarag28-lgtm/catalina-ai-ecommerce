@@ -1,0 +1,17 @@
+name: Trigger Carolina Google Bootstrap
+
+on:
+  push:
+    paths:
+      - '.github/workflows/trigger-google-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request secure Google bootstrap
+        run: |
+          curl --fail --silent --show-error --max-time 30 "https://soycatalinajaramillo.com/browser/google-bootstrap/request" >/dev/null
