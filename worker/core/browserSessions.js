@@ -162,7 +162,7 @@ export async function createBrowserSetup(env,platform){
   // El usuario elige manualmente el método de acceso disponible en cada plataforma.
   const cdp=await context.newCDPSession(page)
   const live=await cdp.send('Cloudflare.getLiveView',{mode:'tab',expiresInMs:3600000})
-  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión directamente en ${p.label} con el método que esa plataforma permita. No es obligatorio usar Google. Si aparece MFA/CAPTCHA, complétalo tú. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:1800000}).catch(()=>null)
+  await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión directamente en ${p.label} con el método que esa plataforma permita. No es obligatorio usar Google. Si aparece MFA/CAPTCHA, complétalo tú. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`}).catch(()=>null)
   const token=crypto.randomUUID().replace(/-/g,'')
   const setup={platform:p.id,sessionId:browser.sessionId(),targetId:live.id,createdAt:Date.now()}
   await env.BROWSER_SESSIONS.put('setup:'+token,await seal(env,setup),{expirationTtl:7200})
@@ -171,27 +171,46 @@ export async function createBrowserSetup(env,platform){
   return {platform:p.id,label:p.label,token,liveViewUrl:live.devtoolsFrontendUrl,expiresInSeconds:3600}
 }
 
-export async function finishBrowserSetup(env,token){
+export async function probeBrowserSetup(env,token,{saveWhenReady=true}={}){
   if(!env.BROWSER||!env.BROWSER_SESSIONS)throw new Error('browser_binding_missing')
   const raw=await env.BROWSER_SESSIONS.get('setup:'+String(token||''))
   if(!raw)throw new Error('setup_token_expired')
   const setup=await unseal(env,raw)
   const p=cfg(setup.platform)
-  const browser=await connect(env.BROWSER,{sessionId:setup.sessionId})
-  const contexts=browser.contexts()
-  const context=contexts[0]||await browser.newContext()
-  const pages=context.pages()
-  let page=pages.find(x=>{const u=x.url();return u&&u!=='about:blank'})||pages[pages.length-1]||await context.newPage()
-  const verified=await verifyAuthenticated(context,page,p,{navigateHome:true})
-  if(verified.status==='expired')throw new Error('still_on_login_page')
-  if(verified.status==='human_required')throw new Error('human_verification_required')
-  const state=await context.storageState()
-  await saveBrowserState(env,p.id,state,{lastUrl:verified.url,lastChecked:Date.now()})
-  await env.BROWSER_SESSIONS.delete('setup:'+String(token||''))
-  await browser.close().catch(()=>{})
-  return {platform:p.id,status:'saved',lastUrl:verified.url}
+  let browser
+  try{
+    browser=await connect(env.BROWSER,{sessionId:setup.sessionId})
+    const contexts=browser.contexts()
+    const context=contexts[0]||await browser.newContext()
+    const pages=context.pages()
+    const page=pages.find(x=>{const u=x.url();return u&&u!=='about:blank'})||pages[pages.length-1]||await context.newPage()
+
+    // IMPORTANT: do not navigate while the human is typing credentials/MFA.
+    // Reading the current page and auth cookies also acts as a harmless heartbeat.
+    const verified=await verifyAuthenticated(context,page,p,{navigateHome:false})
+    if(verified.status!=='ready'){
+      await page.title().catch(()=>null)
+      return {platform:p.id,status:'waiting',authStatus:verified.status,url:verified.url||page.url()}
+    }
+
+    if(!saveWhenReady)return {platform:p.id,status:'ready',url:verified.url||page.url()}
+
+    const state=await context.storageState()
+    await saveBrowserState(env,p.id,state,{lastUrl:verified.url||page.url(),lastChecked:Date.now()})
+    await env.BROWSER_SESSIONS.delete('setup:'+String(token||''))
+    await browser.close().catch(()=>{})
+    return {platform:p.id,status:'saved',lastUrl:verified.url||page.url()}
+  }catch(e){
+    return {platform:p.id,status:'error',error:String(e?.message||e).slice(0,500)}
+  }
 }
 
+export async function finishBrowserSetup(env,token){
+  const result=await probeBrowserSetup(env,token,{saveWhenReady:true})
+  if(result.status==='saved')return result
+  if(result.status==='waiting')throw new Error(result.authStatus==='human_required'?'human_verification_required':'still_on_login_page')
+  throw new Error(result.error||'browser_setup_probe_failed')
+}
 
 const GOOGLE_BOOTSTRAP_PLATFORMS=['linkedin','upwork','workana','n8n','make','contra','wellfound','twine','guru','malt','peopleperhour']
 
