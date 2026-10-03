@@ -320,13 +320,15 @@ export default {
         startUrl,
         '',
         '1. Pulsa «Abrir '+platform+' seguro».',
-        '2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.',
-        '3. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa «Guardar sesión».',
+        '2. Inicia sesión directamente en la plataforma con el método que funcione. No es obligatorio usar Google.',
+        '3. Completa MFA/CAPTCHA si aparece.',
+        '4. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa «Guardar sesión».',
         '',
         'Carolina guarda únicamente el estado de sesión cifrado. No necesita guardar tu contraseña.',
         'El enlace vence en 2 horas.'
       ].join('\n')).catch(()=>{})
-      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#f7f2eb;border:1px solid #ddcfbf;padding:22px;border-radius:14px}</style><div><h1>Revisa tu correo</h1><p>Carolina te envió un enlace seguro para conectar <b>'+platform+'</b>. El enlace vence en 2 horas.</p><p>No compartas contraseñas en el chat.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+      const safeStart=startUrl.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:760px;margin:60px auto;padding:24px;background:#f7f2eb;color:#1c1c1c}.card{background:white;border:1px solid #ddcfbf;padding:24px;border-radius:14px}a{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;font-weight:700;margin:10px 0}.copy{word-break:break-all;background:#f6f6f6;border:1px solid #ddd;padding:12px;border-radius:8px}</style><div class="card"><h1>Conectar '+platform+' con Carolina</h1><p>Usa el enlace de abajo ahora. No necesitas esperar el correo.</p><p><a href="'+safeStart+'">Abrir conexión segura</a></p><p class="copy">'+safeStart+'</p><p>Inicia sesión directamente en '+platform+' con el método que funcione. Google es opcional. Si aparece MFA/CAPTCHA, complétalo tú.</p><p>El enlace vence en 2 horas.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
     }
     if (url.pathname === '/browser/setup/start' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
