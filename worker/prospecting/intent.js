@@ -196,7 +196,7 @@ export async function runIntentScan(env, now = Date.now(), options = {}) {
   for (let k = 0; k < searchesPerSlot; k++) {
     const q = queryPool[(start + k) % queryPool.length]
     for (const p of await searchIntent(env, q)) {
-      const r = await env.DB.prepare("INSERT OR IGNORE INTO intent_leads(url,platform,who,need,fit,reply,query,found_at,status,explicit_demand,active_now,application_route,evidence) VALUES (?,?,?,?,?,?,?,?,'new',1,?,?,?)").bind(
+      const r = await env.DB.prepare("INSERT OR IGNORE INTO intent_leads(url,platform,who,need,fit,reply,query,found_at,status,explicit_demand,active_now,application_route,evidence,language) VALUES (?,?,?,?,?,?,?,?,'new',1,?,?,?,?)").bind(
         p.url,
         String(p.platform || '').slice(0, 60),
         String(p.who || '').slice(0, 200),
@@ -207,7 +207,8 @@ export async function runIntentScan(env, now = Date.now(), options = {}) {
         now,
         p.activeNow === false ? 0 : 1,
         String(p.applicationRoute || 'unknown').slice(0, 30),
-        String(p.evidence || '').slice(0, 280)
+        String(p.evidence || '').slice(0, 280),
+        p.language === 'en' ? 'en' : 'es'
       ).run()
       if (r.meta.changes) {
         fresh.push(p)

@@ -4,7 +4,7 @@ const DAY=86400000
 const PROFILE='https://soycatalinajaramillo.com/perfil-catalina.html'
 const PROFILE_EN='https://soycatalinajaramillo.com/catalina-profile.html'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app'
-const CV='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
+const CV_ES='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
 const CV_EN='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf'
 
 function detectLanguage(text=''){
@@ -70,7 +70,7 @@ function hash(text){
 
 export async function manualApplicationQueue(env, now=Date.now()){
   const rows=(await env.DB.prepare(`SELECT
-      i.url,i.platform,i.who,i.need,i.fit,i.reply,i.application_route,i.status AS intent_status,i.found_at,
+      i.url,i.platform,i.who,i.need,i.fit,i.reply,i.application_route,i.language,i.evidence,i.status AS intent_status,i.found_at,
       d.status AS application_status,d.blocker,d.body,d.subject,d.recipient
     FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
@@ -92,7 +92,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
     const dueAt=foundAt+2*3600000
     const overdue=ageHours>=2
     const proposal=String(r.body||r.reply||'').slice(0,2200)
-    const language=detectLanguage(proposal||r.need||r.who)
+    const language=r.language==='en'||r.language==='es'?r.language:detectLanguage(r.evidence||proposal||r.need||r.who)
     return {
     platform:String(r.platform||'').trim(),
     project:String(r.who||r.need||'Oportunidad').slice(0,180),
@@ -104,10 +104,10 @@ export async function manualApplicationQueue(env, now=Date.now()){
     blocker:String(r.blocker||'La plataforma requiere acción humana/autenticada.').slice(0,400),
     proposal,
     language,
-    cv:language==='en'?CV_EN:CV,
-    visualProfile:language==='en'?PROFILE_EN:PROFILE,
-    englishProfile:PROFILE_EN,
-    spanishProfile:PROFILE,
+    cv:language==='en'?(env.CV_EN_URL||CV_EN):(env.CV_ES_URL||CV_ES),
+    visualProfile:language==='en'?(env.PROFILE_EN_URL||PROFILE_EN):(env.PROFILE_ES_URL||PROFILE),
+    englishProfile:env.PROFILE_EN_URL||PROFILE_EN,
+    spanishProfile:env.PROFILE_ES_URL||PROFILE,
     portfolio:PORTFOLIO,
     foundAt,
     ageHours:Number(ageHours.toFixed(1)),
