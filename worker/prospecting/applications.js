@@ -391,7 +391,7 @@ export async function runDirectApplications(env,now=Date.now()){
 
   const rows=(await env.DB.prepare(`SELECT i.* FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
-    WHERE i.fit='alto'
+    WHERE i.fit IN ('alto','medio')
       AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
       AND coalesce(d.terminal,0)=0
@@ -402,6 +402,7 @@ export async function runDirectApplications(env,now=Date.now()){
       )
       AND (d.next_attempt_at IS NULL OR d.next_attempt_at<=?)
     ORDER BY
+      CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END,
       CASE coalesce(i.application_route,'unknown')
         WHEN 'email' THEN 0
         WHEN 'official_form' THEN 1
@@ -515,7 +516,7 @@ export async function applicationCoverageAudit(env,now=Date.now(),notify=true){
       d.status AS application_status,d.provider_id,d.blocker,d.attempt_count,d.next_attempt_at,d.terminal
     FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
-    WHERE i.fit='alto'
+    WHERE i.fit IN ('alto','medio')
       AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
     ORDER BY i.found_at DESC
