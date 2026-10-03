@@ -89,6 +89,33 @@ async function setting(env,key,value){
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(key,typeof value==='string'?value:JSON.stringify(value),Date.now()).run().catch(()=>{})
 }
+async function reconnectLink(env,platform,reason='session_missing'){
+  const p=cfg(platform)
+  const key='browser_reconnect_alert:'+p.id
+  const prior=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind(key).first().catch(()=>null)
+  let last=0
+  try{last=Number(JSON.parse(prior?.value||'{}').sentAt||0)}catch{}
+  if(Date.now()-last<12*3600000)return {sent:false,reason:'recently_notified'}
+  const nonce=crypto.randomUUID().replace(/-/g,'')
+  const expiresAt=Date.now()+30*60*1000
+  await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+    .bind('browser_setup_request:'+p.id,JSON.stringify({platform:p.id,nonce,expiresAt}),Date.now()).run()
+  const url='https://soycatalinajaramillo.com/browser/setup/start?platform='+encodeURIComponent(p.id)+'&nonce='+encodeURIComponent(nonce)
+  await notifyCatalina(env,'🔐 Conecta '+p.label+' con Carolina',[
+    'Carolina necesita una sesión autenticada para seguir trabajando en '+p.label+'.',
+    'Motivo: '+reason,
+    '',
+    'Abre este enlace:',
+    url,
+    '',
+    'Usa «Continuar con Google» si la plataforma lo ofrece. Completa MFA/CAPTCHA si aparece y luego pulsa «Guardar sesión».',
+    'Carolina no guarda tu contraseña; guarda únicamente el estado de sesión cifrado.',
+    'El enlace vence en 30 minutos.'
+  ].join('\n')).catch(()=>{})
+  await setting(env,key,{sentAt:Date.now(),reason})
+  return {sent:true,url}
+}
+
 export async function saveBrowserState(env,platform,state,meta={}){
   if(!env.BROWSER_SESSIONS)throw new Error('browser_sessions_binding_missing')
   const p=cfg(platform)
@@ -122,6 +149,13 @@ export async function createBrowserSetup(env,platform){
   const context=await browser.newContext()
   const page=await context.newPage()
   await page.goto(p.login,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+  await page.waitForTimeout(700)
+  // Si la plataforma ofrece SSO con Google, deja al usuario directamente en ese camino.
+  const googleButton=page.getByRole('button',{name:/google/i}).first()
+  const googleLink=page.getByRole('link',{name:/google/i}).first()
+  if(await googleButton.count()) await googleButton.click().catch(()=>{})
+  else if(await googleLink.count()) await googleLink.click().catch(()=>{})
+  await page.waitForTimeout(500)
   const cdp=await context.newCDPSession(page)
   const live=await cdp.send('Cloudflare.getLiveView',{mode:'tab',expiresInMs:3600000})
   await cdp.send('Cloudflare.handoff',{targetId:live.id,instructions:`Inicia sesión en ${p.label}. Completa MFA/CAPTCHA si aparece. No cambies otras configuraciones. Cuando veas tu cuenta abierta, vuelve a la primera pestaña y pulsa Guardar sesión.`,timeout:3600000}).catch(()=>null)
@@ -199,6 +233,9 @@ export async function runBrowserSessionHealth(env){
   const saved=await loadBrowserState(env,platform)
   let result={platform,status:'missing'}
   if(saved)result=await checkBrowserSession(env,platform)
+  if(['missing','expired','human_required','error'].includes(result.status)){
+    await reconnectLink(env,platform,result.status).catch(()=>{})
+  }
   await setting(env,'browser_health_index',String((idx+1)%browserPlatforms.length))
   return result
 }
@@ -608,7 +645,11 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     const platform=normalizePlatform(row.platform)
     if(!platform){diagnostics.unsupported++;continue}
     const saved=await loadBrowserState(env,platform)
-    if(!saved){diagnostics.missingSession++;diagnostics.blocked.push({platform,url:row.url,reason:'missing_session'});continue}
+    if(!saved){
+      diagnostics.missingSession++;diagnostics.blocked.push({platform,url:row.url,reason:'missing_session'})
+      await reconnectLink(env,platform,'missing_session').catch(()=>{})
+      continue
+    }
     let sessionMeta={}
     try{
       const metaRow=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('browser_session:'+platform).first()
@@ -617,6 +658,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(['expired','human_required','error','missing'].includes(sessionMeta.status)){
       diagnostics.blockedSession++
       diagnostics.blocked.push({platform,url:row.url,reason:'session_'+String(sessionMeta.status||'unknown')})
+      await reconnectLink(env,platform,'session_'+String(sessionMeta.status||'unknown')).catch(()=>{})
       continue
     }
     diagnostics.eligible++
