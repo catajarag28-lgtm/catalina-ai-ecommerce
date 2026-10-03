@@ -32,9 +32,16 @@ const b64ToBytes=s=>{
   return out
 }
 async function cryptoKey(env){
-  if(!env.BROWSER_SESSION_KEY)throw new Error('browser_session_key_missing')
-  const raw=b64ToBytes(env.BROWSER_SESSION_KEY)
-  if(raw.length!==32)throw new Error('browser_session_key_invalid')
+  const secret=String(env.BROWSER_SESSION_KEY||'').trim()
+  if(!secret)throw new Error('browser_session_key_missing')
+  let raw=null
+  try{
+    const decoded=b64ToBytes(secret)
+    if(decoded.length===32) raw=decoded
+  }catch{}
+  if(!raw){
+    raw=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(secret)))
+  }
   return crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt'])
 }
 async function seal(env,value){
