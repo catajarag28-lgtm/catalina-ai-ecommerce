@@ -9,7 +9,7 @@
   "preview_urls": false,
   "observability":{ "enabled": true, "head_sampling_rate": 0.1 },
   // La web se sirve desde este mismo Worker en soycatalinajaramillo.com (build con `npm run deploy`).
-  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/health", "/session", "/chat", "/event", "/lead", "/propuesta/*", "/webhooks/resend", "/webhooks/instagram", "/ops/*"] },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/health", "/session", "/chat", "/event", "/lead", "/propuesta/*", "/webhooks/resend", "/webhooks/instagram", "/ops/*", "/browser/*"] },
   "routes": [
     { "pattern": "soycatalinajaramillo.com", "custom_domain": true },
     { "pattern": "www.soycatalinajaramillo.com", "custom_domain": true }
