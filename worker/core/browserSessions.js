@@ -5,6 +5,7 @@ const enc=new TextEncoder()
 const dec=new TextDecoder()
 
 const PLATFORM_CONFIG={
+  google:{label:'Google',home:'https://myaccount.google.com/',login:'https://accounts.google.com/signin',domains:['google.com','accounts.google.com'],loginPattern:/accounts\.google\.com\/v3\/signin|accounts\.google\.com\/signin|challenge/i},
   linkedin:{label:'LinkedIn',home:'https://www.linkedin.com/feed/',login:'https://www.linkedin.com/login',domains:['linkedin.com'],authCookies:['li_at'],loginPattern:/\/login|checkpoint|authwall/i},
   upwork:{label:'Upwork',home:'https://www.upwork.com/nx/find-work/',login:'https://www.upwork.com/ab/account-security/login',domains:['upwork.com'],loginPattern:/login|account-security/i},
   workana:{label:'Workana',home:'https://www.workana.com/dashboard',login:'https://www.workana.com/login',domains:['workana.com'],loginPattern:/login|signin/i},
@@ -52,7 +53,7 @@ async function unseal(env,payload){
 }
 function cfg(platform){
   const key=String(platform||'').toLowerCase().replace(/[^a-z0-9]/g,'')
-  const aliases={peopleperhour:'peopleperhour',pph:'peopleperhour',linkedin:'linkedin',upwork:'upwork',workana:'workana',n8n:'n8n',make:'make',contra:'contra',wellfound:'wellfound',twine:'twine',guru:'guru',malt:'malt'}
+  const aliases={google:'google',peopleperhour:'peopleperhour',pph:'peopleperhour',linkedin:'linkedin',upwork:'upwork',workana:'workana',n8n:'n8n',make:'make',contra:'contra',wellfound:'wellfound',twine:'twine',guru:'guru',malt:'malt'}
   const id=aliases[key]
   if(!id||!PLATFORM_CONFIG[id])throw new Error('unsupported_platform')
   return {id,...PLATFORM_CONFIG[id]}
