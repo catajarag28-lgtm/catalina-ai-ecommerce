@@ -17,6 +17,7 @@ import { handleInbound } from './core/inbox.js'
 import { isMeetingMail, handleMeetingMail, learnedPlaybook } from './core/meetings.js'
 import { instagramReady, verifyInstagramChallenge, receiveInstagramWebhook } from './core/instagram.js'
 import { runAcquisitionDirector } from './core/acquisitionStrategy.js'
+import { buildRevenuePlan, sendManualApplicationQueue, revenueSnapshot } from './core/revenueOS.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -280,7 +281,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const allowed = (env.ALLOWED_ORIGIN || '').split(',').map(x => x.trim()).includes(origin)
     const cors = allowed ? { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' } : {}
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors })
-    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })), applications: await directApplicationSnapshot(env).catch(()=>({ enabled:false, stats:[], coverage:null })) }, 200, cors)
+    if (url.pathname === '/health') return json({ status: 'ok', modelReady: !!env.OPENROUTER_API_KEY, calendarReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) || !!schedulingUrl(env), calendarApiReady: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN), bookingPageReady: !!schedulingUrl(env), emailReady: !!(env.RESEND_API_KEY && env.EMAIL_FROM), metricsReady: !!(await webhookSecret(env)), outreachEnabled: env.OUTREACH_ENABLED === 'true', postalReady: !!env.SENDER_POSTAL_ADDRESS, notifyReady: !!(env.NOTIFY && env.NOTIFY_FROM && env.NOTIFY_TO), instagramEnabled: env.INSTAGRAM_ENABLED === 'true', instagramReady: instagramReady(env), marketplaces: await marketplaceSnapshot(env).catch(()=>({ freelancerReady:false, upworkReady:false, stats:[] })), applications: await directApplicationSnapshot(env).catch(()=>({ enabled:false, stats:[], coverage:null })), revenue: await revenueSnapshot(env).catch(()=>({ plan:null,manualCount:null,manual:[] })) }, 200, cors)
     if (!allowed) return json({ error: 'Origen no permitido.' }, 403)
     try {
       if (url.pathname === '/session' && request.method === 'POST') {
@@ -357,19 +358,27 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const step = async (name, fn) => { try { cycle[name] = await fn() } catch (e) { cycle[name] = { error: e?.message }; console.error(name + '_failure', e?.message) } }
     await step('queue', () => queueQualifiedLeads(env))
     await step('health', () => checkOutreachHealth(env))
+    await step('revenuePlan', () => buildRevenuePlan(env))
     await step('acquisitionDirector', () => runAcquisitionDirector(env))
     await step('angles', () => evolveAngles(env))
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))
     await step('contactList', () => sendDailyContactList(env))
     await step('hot', () => runHotFollowup(env))
-    // Discover first so candidates found in this invocation can be sent immediately.
+    const plan = cycle.revenuePlan || {}
+    // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
     await step('discovery', () => discoverProspects(env))
+    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', () => runOutreach(env))
+    // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
     await step('intent', () => runIntentScan(env))
+    if (plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
+    if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     await step('applications', () => runDirectApplications(env))
+    if (plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
+    await step('manualQueue', () => sendManualApplicationQueue(env))
     await step('applicationCoverage', () => applicationCoverageAudit(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
     await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})

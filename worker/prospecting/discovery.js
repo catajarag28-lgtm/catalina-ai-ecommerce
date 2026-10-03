@@ -111,11 +111,13 @@ export async function segmentWeights(env, now = Date.now()) {
     return [r.segment,Math.min(3.5,Math.max(0.2,rate/baseline))]
   }))
 }
-export function pickSegment(factors = {}, rnd = Math.random()) {
-  const w = segments.map(s => s.weight * (factors[s.id] ?? 1))
+export function pickSegment(factors = {}, rnd = Math.random(), predicate = () => true) {
+  const pool = segments.filter(predicate)
+  if (!pool.length) return segments[0]
+  const w = pool.map(s => s.weight * (factors[s.id] ?? 1))
   let x = rnd * w.reduce((a, b) => a + b, 0)
-  for (let k = 0; k < segments.length; k++) { x -= w[k]; if (x <= 0) return segments[k] }
-  return segments[segments.length - 1]
+  for (let k = 0; k < pool.length; k++) { x -= w[k]; if (x <= 0) return pool[k] }
+  return pool[pool.length - 1]
 }
 
 // Alterna fuentes: Google Maps → búsqueda web → OpenStreetMap. Si una fuente no aplica o falla, usa la búsqueda web.
@@ -198,24 +200,31 @@ async function alreadyKnown(env, email, host) {
   return false
 }
 
-export async function discoverProspects(env) {
+export async function discoverProspects(env, options = {}) {
   if (env.OUTREACH_ENABLED !== 'true') return { enabled: false }
   if (env.OUTREACH_TEST_TO) return { testOnly: true }
   if (!env.OPENROUTER_API_KEY) return { reason: 'model_missing' }
+  const mode = options.kind === 'partner' ? 'partner' : 'outbound'
   const cap = await currentDailyCap(env)
-  const pending = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE authorized=1 AND status='pending'").first())?.n || 0
-  if (pending >= cap * 2) return { reason: 'queue_full', pending }
+  const pending = mode === 'partner'
+    ? ((await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE authorized=1 AND status='pending' AND kind='partner'").first())?.n || 0)
+    : ((await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE authorized=1 AND status='pending' AND kind!='partner'").first())?.n || 0)
+  const queueLimit = mode === 'partner' ? Math.max(12, Math.floor(cap / 2)) : cap * 2
+  if (pending >= queueLimit) return { reason: 'queue_full', pending, mode }
   // Fuentes fijas verificadas (PROSPECT_SOURCES) entran como candidatos una sola vez.
   let fixed = []
   try { fixed = JSON.parse(env.PROSPECT_SOURCES || '[]') } catch {}
   for (const s of fixed) { const h = hostOf(s.url); if (h && !excludedHosts.test(h) && s.region !== 'España') await env.DB.prepare("INSERT OR IGNORE INTO prospect_candidates(website,company,segment,status,created_at,updated_at) VALUES (?,?,?,'new',?,?)").bind('https://' + h + '/', null, 'fuente:' + (s.region || '') + ':' + (s.sector || ''), Date.now(), Date.now()).run() }
   let searched = null
-  const fresh = (await env.DB.prepare("SELECT COUNT(*) n FROM prospect_candidates WHERE status='new'").first())?.n || 0
+  const fresh = mode === 'partner'
+    ? ((await env.DB.prepare("SELECT COUNT(*) n FROM prospect_candidates WHERE status='new' AND segment LIKE 'aliados-%'").first())?.n || 0)
+    : ((await env.DB.prepare("SELECT COUNT(*) n FROM prospect_candidates WHERE status='new' AND segment NOT LIKE 'aliados-%'").first())?.n || 0)
   if (fresh < 6) {
-    const i = await state(env, '__segment__')
+    const stateKey = mode === 'partner' ? '__segment_partner__' : '__segment__'
+    const i = await state(env, stateKey)
     const weights = await segmentWeights(env).catch(() => ({}))
-    const segment = pickSegment(weights)
-    await setState(env, '__segment__', i + 1)
+    const segment = pickSegment(weights, Math.random(), s => mode === 'partner' ? s.kind === 'partner' : s.kind !== 'partner')
+    await setState(env, stateKey, i + 1)
     const { source, items } = await findCandidates(env, segment, i)
     let added = 0
     for (const c of items.filter(c => !excludedHosts.test(hostOf(c.website)))) {
@@ -224,7 +233,10 @@ export async function discoverProspects(env) {
     }
     searched = { segment: segment.id, source, found: items.length, added }
   }
-  const batch = (await env.DB.prepare("SELECT * FROM prospect_candidates WHERE status='new' ORDER BY score DESC, created_at LIMIT 3").all()).results || []
+  const batchSql = mode === 'partner'
+    ? "SELECT * FROM prospect_candidates WHERE status='new' AND segment LIKE 'aliados-%' ORDER BY score DESC, created_at LIMIT 3"
+    : "SELECT * FROM prospect_candidates WHERE status='new' AND segment NOT LIKE 'aliados-%' ORDER BY score DESC, created_at LIMIT 3"
+  const batch = (await env.DB.prepare(batchSql).all()).results || []
   let queued = 0
   for (const cand of batch) {
     await env.DB.prepare("UPDATE prospect_candidates SET status='checking',updated_at=? WHERE website=?").bind(Date.now(), cand.website).run()
@@ -240,5 +252,5 @@ export async function discoverProspects(env) {
     }
     await env.DB.prepare('UPDATE prospect_candidates SET status=?,company=coalesce(company,?),reason=?,updated_at=? WHERE website=?').bind(v.ok ? 'queued' : 'rejected', v.company || null, v.ok ? null : String(v.reason).slice(0, 200), Date.now(), cand.website).run()
   }
-  return { searched, checked: batch.length, queued }
+  return { searched, checked: batch.length, queued, mode }
 }

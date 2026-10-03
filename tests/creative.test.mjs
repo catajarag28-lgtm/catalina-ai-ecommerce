@@ -186,3 +186,24 @@ test('Carolina includes a real-estate sector playbook and prioritized real-estat
     assert.ok(segments.some(s => s.id === id), id)
   }
 })
+
+
+import { revenueTargets } from '../worker/core/revenueOS.js'
+
+test('Revenue OS redistributes capacity when cold outreach is paused', () => {
+  const paused = revenueTargets(true)
+  const active = revenueTargets(false)
+  assert.equal(paused.outbound, 0)
+  assert.ok(paused.directApplications > active.directApplications)
+  assert.ok(paused.marketplaces > active.marketplaces)
+  assert.ok(paused.intent > active.intent)
+  assert.ok(paused.partners > active.partners)
+  assert.equal(Object.values(paused).reduce((a,b)=>a+b,0), 50)
+})
+
+test('Partner discovery can select only partner segments', () => {
+  for (let i=0;i<50;i++) {
+    const selected = pickSegment({}, Math.random(), s => s.kind === 'partner')
+    assert.equal(selected.kind, 'partner')
+  }
+})

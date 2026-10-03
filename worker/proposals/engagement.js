@@ -1,4 +1,5 @@
 import { notifyCatalina } from '../core/notify.js'
+import { buildRevenuePlan, manualApplicationQueue } from '../core/revenueOS.js'
 import { webhookSecret } from './creative.js'
 
 const allowedEvents = new Set(['email.sent','email.delivered','email.delivery_delayed','email.opened','email.clicked','email.bounced','email.complained','email.failed','email.suppressed'])
@@ -100,6 +101,11 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
   const bookings=await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) AS n FROM outreach_events WHERE type='booking.opened' AND outreach_id NOT LIKE 'test-%' AND occurred_at>=?").bind(start).first()
   const meetings=await env.DB.prepare("SELECT COUNT(*) AS n FROM meetings WHERE created_at>=?").bind(start).first().catch(()=>({n:0}))
   const control=await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
+  const revenuePlan=await buildRevenuePlan(env,now).catch(()=>null)
+  const manualQueue=await manualApplicationQueue(env,now).catch(()=>[])
+  const partnerSent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE kind='partner' AND sent_at>=?").bind(start).first().catch(()=>({n:0}))
+  const followups=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events WHERE type IN ('followup.sent','hot.followup') AND occurred_at>=?").bind(start).first().catch(()=>({n:0}))
+  const partnerPending=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE kind='partner' AND status='pending'").first().catch(()=>({n:0}))
 
   const sentRows=(await env.DB.prepare("SELECT id,company,email,subject,status,sent_at FROM outreach WHERE sent_at>=? AND id NOT LIKE 'test-%' ORDER BY sent_at DESC LIMIT 40").bind(start).all()).results||[]
   const proposals=sentRows.map((x,i)=>[
@@ -144,6 +150,22 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     `   Borrador: ${String(x.reply||'').slice(0,900)}`,
   ].join('\n')):['Ninguna oportunidad por intención encontrada hoy.']
 
+  const manualLines=manualQueue.length?manualQueue.slice(0,15).map((x,i)=>[
+    `${i+1}. ${String(x.platform||'').toUpperCase()} · ${x.project||''}`,
+    `   Estado: ${x.status} · ruta ${x.route}`,
+    `   Link: ${x.url}`,
+    `   CV: ${x.cv}`,
+    `   Perfil: ${x.visualProfile}`,
+    x.proposal?`   Propuesta lista: ${String(x.proposal).slice(0,850)}`:null,
+  ].filter(Boolean).join('\n')):['No hay postulaciones manuales pendientes.']
+
+  const revenueLines=revenuePlan?[
+    `Meta de acciones calificadas: ${revenuePlan.targetQualifiedActions}`,
+    `Cold outreach pausado: ${revenuePlan.coldOutreachPaused?'SÍ':'NO'}${revenuePlan.pauseReason?' · '+revenuePlan.pauseReason:''}`,
+    `Objetivos actuales: outbound ${revenuePlan.targets.outbound} · directas ${revenuePlan.targets.directApplications} · marketplaces ${revenuePlan.targets.marketplaces} · intent ${revenuePlan.targets.intent} · partners ${revenuePlan.targets.partners} · ABM ${revenuePlan.targets.abm} · follow-ups ${revenuePlan.targets.followups}`,
+    `Ejecutado 24h: outbound ${revenuePlan.actual.outbound} · directas ${revenuePlan.actual.directApplications} · marketplaces ${revenuePlan.actual.marketplaces} · intent ${revenuePlan.actual.intent} · partners ${revenuePlan.actual.partners} · follow-ups ${revenuePlan.actual.followups}`,
+  ]:['Plan de redistribución no disponible.']
+
   const lines=[
     'CAROLINA · REPORTE DIARIO DE ADQUISICIÓN · '+day,
     '',
@@ -161,6 +183,16 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     'Rebotes: '+stats.bounced+' · Quejas: '+stats.complained,
     'Estado outreach: '+(control?.paused?'PAUSADO · '+control.reason:(env.OUTREACH_ENABLED==='true'?'ACTIVO':'DESACTIVADO')),
     '',
+    'REVENUE BALANCER · REDISTRIBUCIÓN DE CAPACIDAD',
+    ...revenueLines,
+    '',
+    'PARTNERS / WHITE-LABEL',
+    'Partners enviados hoy: '+(partnerSent?.n||0),
+    'Partners preparados en cola: '+(partnerPending?.n||0),
+    '',
+    'FOLLOW-UPS',
+    'Seguimientos enviados hoy: '+(followups?.n||0),
+    '',
     'COLD OUTREACH · PROPUESTAS COMERCIALES',
     ...(proposals.length?proposals:['Ninguna propuesta comercial fría nueva enviada hoy.']),
     '',
@@ -171,6 +203,10 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     'MARKETPLACES · POSTULACIONES REALES',
     'Enviadas reales con provider_id: '+marketplaceSubmitted,
     ...marketplaceLines,
+    '',
+    'POSTULACIONES MANUALES PENDIENTES',
+    'Requieren acción humana dentro de plataforma: '+manualQueue.length,
+    ...manualLines,
     '',
     'OPORTUNIDADES ENCONTRADAS · TODAVÍA NO EQUIVALEN A POSTULACIÓN',
     ...intentLines,

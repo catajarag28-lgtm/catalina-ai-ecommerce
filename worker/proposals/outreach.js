@@ -160,7 +160,12 @@ export async function runOutreach(env, now = Date.now()) {
   if (env.OUTREACH_ENABLED !== 'true') return { enabled: false }
   if (!env.RESEND_API_KEY || !env.OPENROUTER_API_KEY || !env.EMAIL_FROM?.includes('clientes@soycatalinajaramillo.com')) return { reason: 'connections_missing' }
   const control = await env.DB.prepare('SELECT paused,reason FROM outreach_control WHERE id=1').first()
-  if (control?.paused) return { reason: 'paused', detail: control.reason }
+  if (control?.paused) {
+    // La pausa protege NUEVOS correos fríos. No abandona oportunidades ya entregadas:
+    // follow-up solo considera contactos no suprimidos y filas que siguen en estado sent.
+    const followed = await runFollowup(env, now).catch(e => ({ sent:false, reason:e?.message }))
+    return { reason: 'paused_new_outreach', detail: control.reason, followup: !!followed?.sent, followupStage: followed?.stage || null }
+  }
   // Recover legacy opportunities that were rejected only by the old 110-word ceiling.
   await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE status='review' AND sent_at IS NULL AND provider_id IS NULL AND error LIKE 'copy_rejected:%110 palabras%'").bind(Date.now()).run().catch(()=>{})
   const cap = await currentDailyCap(env)

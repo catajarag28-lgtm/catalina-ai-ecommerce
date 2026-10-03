@@ -166,7 +166,7 @@ async function setIntentStatus(env,url,status) {
   await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?").bind(status,url).run().catch(()=>{})
 }
 
-export async function runIntentScan(env, now = Date.now()) {
+export async function runIntentScan(env, now = Date.now(), options = {}) {
   if (env.OUTREACH_ENABLED !== 'true' || !env.OPENROUTER_API_KEY) return { enabled: false }
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]))
   const hour = Number(parts.hour)
@@ -175,14 +175,20 @@ export async function runIntentScan(env, now = Date.now()) {
   // Ocho ventanas diarias (aprox. 07, 09, 11, 13, 15, 17, 19 y 21 Colombia).
   // Más cobertura global sin buscar de forma continua ni perder control de costo.
   const slot = Math.min(7, Math.max(0, Math.floor((hour - 7) / 2)))
-  const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('intent-' + day + '-' + slot, 'system', 'intent.scanned', now).run()
-  if (!mark.meta.changes) return { due: false, slot }
+  const suffix = String(options.suffix || '').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,24)
+  const markKey = 'intent-' + day + '-' + slot + (suffix ? '-' + suffix : '')
+  const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind(markKey, 'system', suffix ? 'intent.boosted' : 'intent.scanned', now).run()
+  if (!mark.meta.changes) return { due: false, slot, suffix }
   const dayNumber = Math.floor(now / 86400000)
-  const searchesPerSlot = Math.max(3, Math.min(8, Number(env.INTENT_SEARCHES_PER_SLOT || 4)))
-  const start = (dayNumber * searchesPerSlot + slot * searchesPerSlot) % intentQueries.length
+  const searchesPerSlot = Math.max(2, Math.min(8, Number(options.searches || env.INTENT_SEARCHES_PER_SLOT || 4)))
+  const offset = Number(options.offset || 0)
+  const queryPool = options.partnerOnly
+    ? intentQueries.filter(q => /white label|agency looking|CRM agency|Shopify agency|automation agency/i.test(q))
+    : intentQueries
+  const start = (dayNumber * searchesPerSlot + slot * searchesPerSlot + offset) % queryPool.length
   const fresh = []
   for (let k = 0; k < searchesPerSlot; k++) {
-    const q = intentQueries[(start + k) % intentQueries.length]
+    const q = queryPool[(start + k) % queryPool.length]
     for (const p of await searchIntent(env, q)) {
       const r = await env.DB.prepare("INSERT OR IGNORE INTO intent_leads(url,platform,who,need,fit,reply,query,found_at,status,explicit_demand,active_now,application_route,evidence) VALUES (?,?,?,?,?,?,?,?,'new',1,?,?,?)").bind(
         p.url,
@@ -222,5 +228,5 @@ export async function runIntentScan(env, now = Date.now()) {
     'IMPORTANTE: encontrada ≠ postulada. Una propuesta fría a una empresa tampoco es una postulación a un contrato.', '',
     ...fresh.map((p, i) => `${i + 1}. [${p.fit === 'alto' ? '🔥 alto' : 'medio'}] ${p.platform || ''} ${p.date ? '· ' + p.date : ''}\n   Tipo: ${p.kind || 'oportunidad'} · Acción: ${actionModeForIntent(p)} · Ruta publicada: ${p.applicationRoute || 'unknown'}\n   Evidencia de demanda: ${p.evidence || 's/d'}\n   Quién: ${p.who || 's/d'}\n   Qué pide: ${p.need}\n   Enlace: ${p.url}\n   Respuesta sugerida:\n   ${String(p.reply).replace(/\n/g, '\n   ')}\n`),
   ].join('\n')).catch(() => {})
-  return { due: true, found: fresh.length }
+  return { due: true, found: fresh.length, suffix: suffix || null }
 }
