@@ -246,6 +246,27 @@ export default {
       const result=await ops.checkBrowserSession(env,platform)
       return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
     }
+    if (url.pathname === '/browser/google-bootstrap/request' && request.method === 'GET') {
+      if(!(await rateLimit(env,request,'google-bootstrap-request',4))) return new Response('Demasiadas solicitudes. Inténtalo más tarde.',{status:429})
+      const nonce=crypto.randomUUID().replace(/-/g,'')
+      const expiresAt=Date.now()+2*60*60*1000
+      await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+        .bind('google_bootstrap_request:'+nonce,JSON.stringify({nonce,expiresAt}),Date.now()).run()
+      const startUrl='https://soycatalinajaramillo.com/browser/google-bootstrap/start?nonce='+encodeURIComponent(nonce)
+      await notifyCatalina(env,'🔐 Conectar TODAS las plataformas con Carolina',[
+        'Abre este enlace seguro:',
+        startUrl,
+        '',
+        '1. Pulsa «Abrir Google seguro».',
+        '2. Inicia sesión con tu cuenta de Google y completa MFA/CAPTCHA si aparece.',
+        '3. Vuelve a la pestaña de Carolina y pulsa «Conectar plataformas».',
+        '',
+        'Carolina intentará enlazar LinkedIn, Upwork, Workana, n8n, Make, Contra, Wellfound, Twine, Guru, Malt y PeoplePerHour usando Google SSO cuando esté disponible.',
+        'No guarda tu contraseña; solo conserva sesiones cifradas por plataforma.',
+        'El enlace vence en 2 horas.'
+      ].join('\n')).catch(()=>{})
+      return new Response('<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#f7f2eb;border:1px solid #ddcfbf;padding:22px;border-radius:14px}</style><div><h1>Revisa tu correo</h1><p>Carolina te envió un único enlace para conectar todas las plataformas con Google.</p><p>El enlace vence en 2 horas.</p></div>',{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
     if (url.pathname === '/browser/google-bootstrap/start' && request.method === 'GET') {
       const nonce=String(url.searchParams.get('nonce')||'')
       if(!(await consumeGoogleBootstrapRequest(env,nonce))) return new Response('Enlace vencido o inválido',{status:403})
