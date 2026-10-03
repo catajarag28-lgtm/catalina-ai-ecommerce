@@ -218,6 +218,14 @@ export default {
     if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
     if (url.pathname === '/ops/resend-webhook' && request.method === 'POST') return json(await setupResendWebhook(env))
+    if (url.pathname === '/browser/check' && request.method === 'GET') {
+      const platform=String(url.searchParams.get('platform')||'').toLowerCase()
+      const ops=await browserOps()
+      if(!ops.browserPlatforms.includes(platform)) return json({error:'unsupported_platform'},400)
+      if(!(await rateLimit(env,request,'browser-check:'+platform,8))) return json({error:'rate_limited'},429)
+      const result=await ops.checkBrowserSession(env,platform)
+      return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
+    }
     if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
       const ops=await browserOps()
