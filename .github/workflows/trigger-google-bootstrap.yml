@@ -14,4 +14,4 @@ jobs:
     steps:
       - name: Request secure Google bootstrap
         run: |
-          curl --fail --silent --show-error --max-time 30 "https://soycatalinajaramillo.com/browser/google-bootstrap/request" >/dev/null
+          curl --fail --silent --show-error --max-time 30 "https://carolina-portfolio-api.catajaragpyg.workers.dev/browser/google-bootstrap/request" >/dev/null
