@@ -304,6 +304,13 @@ export default {
       const applications=await ops.runBrowserApplicationQueue(env,{limit:6}).catch(e=>({enabled:true,error:e?.message}))
       return json({sessions,applications})
     }
+    if (url.pathname === '/browser/connect' && request.method === 'GET') {
+      const platforms=['linkedin','upwork','workana','n8n','make','contra','wellfound','twine','guru','malt','peopleperhour']
+      const labels={linkedin:'LinkedIn',upwork:'Upwork',workana:'Workana',n8n:'n8n Community',make:'Make Community',contra:'Contra',wellfound:'Wellfound',twine:'Twine',guru:'Guru',malt:'Malt',peopleperhour:'PeoplePerHour'}
+      const buttons=platforms.map(p=>'<a href="/browser/setup/request?platform='+encodeURIComponent(p)+'">'+labels[p]+'</a>').join('')
+      const html='<!doctype html><meta charset="utf-8"><title>Carolina · Conectar plataformas</title><style>body{font-family:Arial;max-width:820px;margin:50px auto;padding:24px;background:#f7f2eb;color:#1c1c1c}.card{background:white;border:1px solid #ddcfbf;padding:24px;border-radius:14px}a{display:inline-block;padding:12px 16px;border-radius:10px;background:#161616;color:white;text-decoration:none;font-weight:700;margin:7px}.note{padding:12px 14px;background:#fff8e8;border:1px solid #ead7a4;border-radius:10px;margin-bottom:16px}</style><div class="card"><h1>Conectar Carolina a tus plataformas</h1><div class="note">No es obligatorio usar Google. Abre cada plataforma, inicia sesión con el método que te funcione y completa MFA/CAPTCHA si aparece. Luego guarda la sesión.</div>'+buttons+'</div>'
+      return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
     if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
       const ops=await browserOps()
@@ -314,7 +321,7 @@ export default {
       const key='browser_setup_request:'+platform
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
         .bind(key,JSON.stringify({platform,nonce,expiresAt}),Date.now()).run()
-      const startUrl='https://soycatalinajaramillo.com/browser/setup/start?platform='+encodeURIComponent(platform)+'&nonce='+encodeURIComponent(nonce)
+      const startUrl=url.origin+'/browser/setup/start?platform='+encodeURIComponent(platform)+'&nonce='+encodeURIComponent(nonce)
       await notifyCatalina(env,'🔐 Conectar '+platform+' con Carolina',[
         'Abre este enlace desde tu navegador:',
         startUrl,
