@@ -419,7 +419,7 @@ export async function runDirectApplications(env,now=Date.now()){
     out.reviewed++
     const route=await resolveApplicationRoute(env,row)
     if(!route?.verified || !route.realOpportunity){
-      const status=route?.realOpportunity===false?'not_hiring':'route_unverified'
+      const status=route?.realOpportunity===false?'not_hiring':'waiting_human_submit'
       const reason=safe(route?.reason||'application route not verified').slice(0,600)
       await scheduleRetry(env,row.url,{
         status,
