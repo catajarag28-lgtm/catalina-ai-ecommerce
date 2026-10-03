@@ -5,6 +5,14 @@ const PROFILE='https://soycatalinajaramillo.com/perfil-catalina.html'
 const PROFILE_EN='https://soycatalinajaramillo.com/catalina-profile.html'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app'
 const CV='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
+const CV_EN='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf'
+
+function detectLanguage(text=''){
+  const s=' '+String(text).toLowerCase().replace(/[^a-záéíóúñü\s]/g,' ')+' '
+  const en=(s.match(/\b(the|and|with|for|your|you|we|our|role|project|automation|experience|team|work|looking|hiring)\b/g)||[]).length
+  const es=(s.match(/\b(el|la|los|las|y|con|para|tu|usted|equipo|proyecto|automatización|experiencia|trabajo|busca|buscando|contratar)\b/g)||[]).length
+  return en>es?'en':'es'
+}
 
 const n = x => Number(x?.n || 0)
 const one = async (env,sql,...args) => env.DB.prepare(sql).bind(...args).first().catch(()=>({n:0}))
@@ -83,6 +91,8 @@ export async function manualApplicationQueue(env, now=Date.now()){
     const ageHours=Math.max(0,(now-foundAt)/3600000)
     const dueAt=foundAt+2*3600000
     const overdue=ageHours>=2
+    const proposal=String(r.body||r.reply||'').slice(0,2200)
+    const language=detectLanguage(proposal||r.need||r.who)
     return {
     platform:String(r.platform||'').trim(),
     project:String(r.who||r.need||'Oportunidad').slice(0,180),
@@ -92,10 +102,12 @@ export async function manualApplicationQueue(env, now=Date.now()){
     route:r.application_route||'unknown',
     status:r.application_status||r.intent_status||'WAITING_HUMAN',
     blocker:String(r.blocker||'La plataforma requiere acción humana/autenticada.').slice(0,400),
-    proposal:String(r.body||r.reply||'').slice(0,2200),
-    cv:CV,
-    visualProfile:PROFILE,
+    proposal,
+    language,
+    cv:language==='en'?CV_EN:CV,
+    visualProfile:language==='en'?PROFILE_EN:PROFILE,
     englishProfile:PROFILE_EN,
+    spanishProfile:PROFILE,
     portfolio:PORTFOLIO,
     foundAt,
     ageHours:Number(ageHours.toFixed(1)),
