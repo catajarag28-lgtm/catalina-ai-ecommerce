@@ -117,7 +117,7 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
   let directApps=[]
   try { directApps=(await env.DB.prepare("SELECT platform,recipient,subject,status,provider_id,source_url,error FROM direct_applications WHERE created_at>=? ORDER BY created_at DESC LIMIT 40").bind(start).all()).results||[] } catch {}
 
-  const directSent=directApps.filter(x=>x.status==='sent'&&x.provider_id).length
+  const directSent=directApps.filter(x=>['sent','external_email_sent'].includes(x.status)&&x.provider_id).length
   const marketplaceSubmitted=market.filter(x=>x.status==='submitted'&&x.provider_id).length
   const directLines=directApps.length?directApps.map((x,i)=>[
     `${i+1}. ${String(x.platform||'WEB').toUpperCase()} · ${x.subject||x.source_url||''}`,
