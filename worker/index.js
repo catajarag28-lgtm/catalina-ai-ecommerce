@@ -270,8 +270,15 @@ export default {
     if (url.pathname === '/browser/google-bootstrap/start' && request.method === 'GET') {
       const nonce=String(url.searchParams.get('nonce')||'')
       if(!(await consumeGoogleBootstrapRequest(env,nonce))) return new Response('Enlace vencido o inválido',{status:403})
-      const setup=await (await browserOps()).createGoogleBootstrap(env)
-      const finishUrl='https://soycatalinajaramillo.com/browser/google-bootstrap/finish?token='+encodeURIComponent(setup.token)
+      let setup
+      try{
+        setup=await (await browserOps()).createGoogleBootstrap(env)
+      }catch(e){
+        console.error('google_bootstrap_start_failed',e)
+        return new Response('No pude abrir Browser Run: '+String(e?.message||e),{status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}})
+      }
+      const base=url.origin
+      const finishUrl=base+'/browser/google-bootstrap/finish?token='+encodeURIComponent(setup.token)
       const html='<!doctype html><meta charset="utf-8"><title>Carolina · Conectar plataformas</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;font-weight:700;margin:8px 8px 8px 0}.go{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}</style><h1>Conectar plataformas con Carolina</h1><div class="note"><p>1. Abre Google seguro e inicia sesión una sola vez.</p><p>2. Completa MFA/CAPTCHA si aparece.</p><p>3. Cuando veas tu cuenta de Google abierta, vuelve aquí y pulsa <b>Conectar plataformas</b>.</p><p>Carolina intentará conectar LinkedIn, Upwork, Workana, n8n, Make, Contra, Wellfound, Twine, Guru, Malt y PeoplePerHour. Solo guardará la sesión propia de cada plataforma.</p></div><p><a href="'+setup.liveViewUrl+'" target="_blank" rel="noopener">Abrir Google seguro</a><a class="go" href="'+finishUrl+'">Conectar plataformas</a></p><p>La ventana segura permanece activa hasta 1 hora.</p>'
       return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
     }
@@ -325,8 +332,14 @@ export default {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
       const nonce=String(url.searchParams.get('nonce')||'')
       if(!(await consumeBrowserSetupRequest(env,platform,nonce))) return new Response('Enlace vencido o inválido',{status:403})
-      const setup=await (await browserOps()).createBrowserSetup(env,platform)
-      const saveUrl=`https://soycatalinajaramillo.com/browser/setup/save?token=${encodeURIComponent(setup.token)}`
+      let setup
+      try{
+        setup=await (await browserOps()).createBrowserSetup(env,platform)
+      }catch(e){
+        console.error('browser_setup_start_failed',platform,e)
+        return new Response('No pude abrir Browser Run para '+platform+': '+String(e?.message||e),{status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}})
+      }
+      const saveUrl=`${url.origin}/browser/setup/save?token=${encodeURIComponent(setup.token)}`
       const html=`<!doctype html><meta charset="utf-8"><title>Carolina · ${setup.label}</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a,button{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;border:0;font-weight:700;margin:8px 8px 8px 0}.save{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}.status{margin-top:14px;padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #ead7a4}</style><h1>Conectar ${setup.label} con Carolina</h1><div class="note"><p>1. Abre la ventana segura.</p><p>2. Inicia sesión normalmente y completa MFA/CAPTCHA si aparece.</p><p>3. Carolina detectará el login y guardará la sesión cifrada automáticamente.</p><p>No necesita almacenar tu contraseña.</p></div><p><a href="${setup.liveViewUrl}" target="_blank" rel="noopener">Abrir ${setup.label} seguro</a><a class="save" href="${saveUrl}">Guardar ahora</a></p><div id="status" class="status">Esperando que completes el inicio de sesión…</div><p>La ventana segura puede abrirse durante 60 minutos.</p><script>const u=${JSON.stringify(saveUrl)};let done=false;async function poll(){if(done)return;try{const r=await fetch(u,{cache:'no-store'});if(r.ok){done=true;const s=document.getElementById('status');s.textContent='✅ Sesión guardada. Carolina ya puede reutilizarla en la nube.';s.style.background='#eef8ef';}else{document.getElementById('status').textContent='Esperando autenticación… completa login/MFA en la ventana segura.';}}catch{}}setInterval(poll,4000);setTimeout(poll,2500);</script>`
       return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
     }
