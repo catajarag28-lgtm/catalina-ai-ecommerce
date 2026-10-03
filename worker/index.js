@@ -26,6 +26,16 @@ const EVENTS = ['conversation_started', 'meaningful_conversation', 'abandoned', 
 const LEAD_FIELDS = ['source', 'name', 'company', 'email', 'phone', 'business', 'goal', 'problem', 'volume', 'timing', 'budget', 'recommendation', 'note']
 const browserAdminAllowed=(request,env)=>!!env.BROWSER_ADMIN_TOKEN && request.headers.get('authorization')===`Bearer ${env.BROWSER_ADMIN_TOKEN}`
 const browserOps=()=>import('./core/browserSessions.js')
+async function consumeGoogleBootstrapRequest(env,nonce){
+  const key='google_bootstrap_request:'+String(nonce||'')
+  const row=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind(key).first().catch(()=>null)
+  if(!row?.value)return false
+  let data={};try{data=JSON.parse(row.value)}catch{return false}
+  if(Number(data.expiresAt||0)<Date.now())return false
+  await env.DB.prepare('DELETE FROM app_settings WHERE key=?').bind(key).run().catch(()=>{})
+  return true
+}
+
 async function consumeBrowserRunRequest(env,nonce){
   const key='browser_run_once:'+String(nonce||'')
   const row=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind(key).first().catch(()=>null)
@@ -235,6 +245,24 @@ export default {
       if(!(await rateLimit(env,request,'browser-check:'+platform,8))) return json({error:'rate_limited'},429)
       const result=await ops.checkBrowserSession(env,platform)
       return json({platform:result.platform,label:result.label||platform,status:result.status,url:result.url||null,title:result.title||null})
+    }
+    if (url.pathname === '/browser/google-bootstrap/start' && request.method === 'GET') {
+      const nonce=String(url.searchParams.get('nonce')||'')
+      if(!(await consumeGoogleBootstrapRequest(env,nonce))) return new Response('Enlace vencido o inválido',{status:403})
+      const setup=await (await browserOps()).createGoogleBootstrap(env)
+      const finishUrl='https://soycatalinajaramillo.com/browser/google-bootstrap/finish?token='+encodeURIComponent(setup.token)
+      const html='<!doctype html><meta charset="utf-8"><title>Carolina · Conectar plataformas</title><style>body{font-family:Arial;background:#f7f2eb;color:#1c1c1c;max-width:760px;margin:60px auto;padding:30px}a{display:inline-block;padding:14px 18px;border-radius:10px;background:#161616;color:white;text-decoration:none;font-weight:700;margin:8px 8px 8px 0}.go{background:#9b7653}.note{background:white;border:1px solid #ddcfbf;border-radius:14px;padding:18px}</style><h1>Conectar plataformas con Carolina</h1><div class="note"><p>1. Abre Google seguro e inicia sesión una sola vez.</p><p>2. Completa MFA/CAPTCHA si aparece.</p><p>3. Cuando veas tu cuenta de Google abierta, vuelve aquí y pulsa <b>Conectar plataformas</b>.</p><p>Carolina intentará conectar LinkedIn, Upwork, Workana, n8n, Make, Contra, Wellfound, Twine, Guru, Malt y PeoplePerHour. Solo guardará la sesión propia de cada plataforma.</p></div><p><a href="'+setup.liveViewUrl+'" target="_blank" rel="noopener">Abrir Google seguro</a><a class="go" href="'+finishUrl+'">Conectar plataformas</a></p><p>La ventana segura permanece activa hasta 1 hora.</p>'
+      return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow'}})
+    }
+    if (url.pathname === '/browser/google-bootstrap/finish' && request.method === 'GET') {
+      try{
+        const result=await (await browserOps()).finishGoogleBootstrap(env,url.searchParams.get('token'))
+        const rows=(result.results||[]).map(x=>'<li><b>'+x.platform+':</b> '+x.status+(x.reason?' · '+x.reason:'')+'</li>').join('')
+        const html='<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:760px;margin:60px auto;padding:30px}div{background:#eef8ef;border:1px solid #b9ddb9;padding:22px;border-radius:14px}li{margin:8px 0}</style><div><h1>Conexión terminada</h1><p>Sesiones guardadas: <b>'+result.saved.length+'</b></p><ul>'+rows+'</ul><p>Carolina seguirá trabajando automáticamente con las que quedaron guardadas y te avisará solo por las que necesiten intervención.</p></div>'
+        return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}})
+      }catch(e){
+        return new Response('No pude terminar la conexión: '+String(e?.message||e),{status:400,headers:{'content-type':'text/plain; charset=utf-8'}})
+      }
     }
     if (url.pathname === '/browser/run-once' && request.method === 'GET') {
       const nonce=String(url.searchParams.get('nonce')||'')
