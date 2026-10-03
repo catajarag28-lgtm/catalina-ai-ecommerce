@@ -188,6 +188,104 @@ export async function finishBrowserSetup(env,token){
   return {platform:p.id,status:'saved',lastUrl:verified.url}
 }
 
+
+const GOOGLE_BOOTSTRAP_PLATFORMS=['linkedin','upwork','workana','n8n','make','contra','wellfound','twine','guru','malt','peopleperhour']
+
+export async function createGoogleBootstrap(env){
+  if(!env.BROWSER||!env.BROWSER_SESSIONS)throw new Error('browser_binding_missing')
+  const browser=await launch(env.BROWSER,{keep_alive:3600000})
+  const context=await browser.newContext()
+  const page=await context.newPage()
+  await page.goto('https://accounts.google.com/',{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+  const cdp=await context.newCDPSession(page)
+  const live=await cdp.send('Cloudflare.getLiveView',{mode:'tab',expiresInMs:3600000})
+  await cdp.send('Cloudflare.handoff',{
+    targetId:live.id,
+    instructions:'Inicia sesión UNA sola vez en la cuenta de Google que usas para tus plataformas. Completa MFA/CAPTCHA si aparece. Cuando veas tu cuenta de Google abierta, vuelve a la pestaña de Carolina y pulsa Conectar plataformas.',
+    timeout:3600000
+  }).catch(()=>null)
+  const token=crypto.randomUUID().replace(/-/g,'')
+  await env.BROWSER_SESSIONS.put('google-bootstrap:'+token,await seal(env,{sessionId:browser.sessionId(),createdAt:Date.now()}),{expirationTtl:7200})
+  return {token,liveViewUrl:live.devtoolsFrontendUrl,expiresInSeconds:3600}
+}
+
+async function googleSignedIn(context){
+  const page=await context.newPage()
+  try{
+    await page.goto('https://myaccount.google.com/',{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+    await page.waitForTimeout(900)
+    const url=page.url()
+    const password=await page.locator('input[type="password"]:visible').count().catch(()=>0)
+    const email=await page.locator('input[type="email"]:visible').count().catch(()=>0)
+    if(/accounts\.google\.com\/.*(?:signin|identifier|challenge)/i.test(url)||password||email)return false
+    return /myaccount\.google\.com/i.test(url)
+  }finally{await page.close().catch(()=>{})}
+}
+
+async function tryGoogleSso(context,p,env){
+  const page=await context.newPage()
+  let popup=null
+  try{
+    await page.goto(p.login,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+    await page.waitForTimeout(900)
+    let trigger=page.getByRole('button',{name:/google/i}).first()
+    if(!(await trigger.count()))trigger=page.getByRole('link',{name:/google/i}).first()
+    if(!(await trigger.count()))trigger=page.locator('button, a').filter({hasText:/google/i}).first()
+    if(!(await trigger.count()))return {platform:p.id,status:'manual_required',reason:'google_sso_button_not_found',url:page.url()}
+    const popupPromise=context.waitForEvent('page',{timeout:3500}).catch(()=>null)
+    await trigger.click().catch(()=>{})
+    popup=await popupPromise
+    await page.waitForTimeout(900)
+    let authPage=popup||context.pages().find(x=>/accounts\.google\.com/i.test(x.url()))||page
+    if(/accounts\.google\.com/i.test(authPage.url())){
+      await authPage.waitForTimeout(700)
+      const email=String(env.CATALINA_EMAIL||'').trim()
+      if(email){
+        let acct=authPage.getByText(email,{exact:false}).first()
+        if(!(await acct.count()))acct=authPage.locator('[data-identifier="'+email.replace(/"/g,'')+'"]').first()
+        if(await acct.count()){await acct.click().catch(()=>{});await authPage.waitForTimeout(700)}
+      }
+      const authText=(await authPage.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,9000)
+      if(/gmail|google drive|calendar|contacts|youtube/i.test(authText)&&/access|acceso|permiso|permission/i.test(authText)){
+        return {platform:p.id,status:'manual_required',reason:'google_consent_needs_review',url:authPage.url()}
+      }
+      let cont=authPage.getByRole('button',{name:/^(continue|continuar|allow|permitir|aceptar)$/i}).last()
+      if(!(await cont.count()))cont=authPage.getByRole('button',{name:/continue|continuar/i}).last()
+      if(await cont.count()){await cont.click().catch(()=>{});await authPage.waitForTimeout(1200)}
+    }
+    await page.waitForTimeout(800)
+    const verified=await verifyAuthenticated(context,page,p,{navigateHome:true})
+    if(verified.status!=='ready')return {platform:p.id,status:'manual_required',reason:'platform_auth_not_completed',url:verified.url||page.url()}
+    const state=await context.storageState()
+    await saveBrowserState(env,p.id,state,{lastUrl:verified.url,lastChecked:Date.now()})
+    return {platform:p.id,status:'saved',url:verified.url}
+  }catch(e){
+    return {platform:p.id,status:'error',error:String(e?.message||e).slice(0,300),url:page.url()}
+  }finally{
+    if(popup&&popup!==page)await popup.close().catch(()=>{})
+    await page.close().catch(()=>{})
+  }
+}
+
+export async function finishGoogleBootstrap(env,token){
+  if(!env.BROWSER||!env.BROWSER_SESSIONS)throw new Error('browser_binding_missing')
+  const raw=await env.BROWSER_SESSIONS.get('google-bootstrap:'+String(token||''))
+  if(!raw)throw new Error('google_bootstrap_token_expired')
+  const setup=await unseal(env,raw)
+  const browser=await connect(env.BROWSER,{sessionId:setup.sessionId})
+  const contexts=browser.contexts()
+  const context=contexts[0]||await browser.newContext()
+  if(!(await googleSignedIn(context)))throw new Error('google_login_not_completed')
+  const results=[]
+  for(const id of GOOGLE_BOOTSTRAP_PLATFORMS){
+    const p={id,...PLATFORM_CONFIG[id]}
+    results.push(await tryGoogleSso(context,p,env))
+  }
+  await env.BROWSER_SESSIONS.delete('google-bootstrap:'+String(token||''))
+  await browser.close().catch(()=>{})
+  return {googleLogin:true,results,saved:results.filter(x=>x.status==='saved').map(x=>x.platform),manual:results.filter(x=>x.status!=='saved')}
+}
+
 async function classifyPage(page,p){
   const url=page.url()
   const title=await page.title().catch(()=>'')
