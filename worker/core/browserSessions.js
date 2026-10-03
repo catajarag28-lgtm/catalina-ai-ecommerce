@@ -605,6 +605,12 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(!platform)continue
     const saved=await loadBrowserState(env,platform)
     if(!saved)continue
+    let sessionMeta={}
+    try{
+      const metaRow=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('browser_session:'+platform).first()
+      sessionMeta=metaRow?.value?JSON.parse(metaRow.value):{}
+    }catch{}
+    if(['expired','human_required','error','missing'].includes(sessionMeta.status)) continue
     let result
     if(platform==='n8n'||platform==='make')result=await submitDiscourse(env,row,platform)
     else if(platform==='linkedin')result=await submitLinkedInEasyApply(env,row)
