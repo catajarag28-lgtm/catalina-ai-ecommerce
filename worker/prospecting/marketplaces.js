@@ -134,7 +134,7 @@ async function judgeFreelancer(env,p) {
   const budgetText=[p.currency,p.budgetMin!=null?p.budgetMin:'',p.budgetMax!=null?'– '+p.budgetMax:''].filter(x=>x!=='').join(' ')
   const system=`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Eres Carolina, directora de desarrollo comercial de Catalina Jaramillo. Evalúas proyectos REALES de Freelancer.com para decidir si Catalina debe postularse.
 Catalina diseña e implementa agentes de IA, automatizaciones, CRM, WhatsApp, Shopify/ecommerce, workflows, software personalizado y sistemas multiagente.
-Solo fit=alto cuando el proyecto encaja claramente con esas capacidades, el comprador parece buscar implementación real y el alcance puede generar una relación comercial valiosa.
+Usa fit=alto cuando el proyecto encaja claramente con las capacidades verificadas de Catalina y el comprador busca implementación real. NO exijas que el proyecto sea de largo plazo ni que Catalina ya haya usado exactamente todas las herramientas nombradas: capacidades transferibles como APIs, webhooks, workflows, ecommerce, WhatsApp, CRM y agentes de IA cuentan cuando el núcleo del problema coincide. Usa fit=medio cuando existe encaje parcial pero faltan piezas importantes. Usa fit=bajo solo cuando el alcance es realmente ajeno, el presupuesto es incompatible o exige experiencia especializada que Catalina no puede afirmar.
 La propuesta debe ser MUY específica al texto del proyecto, profesional y comercial, 110-190 palabras. Debe:
 1) abrir diciendo claramente que Catalina puede encargarse del proyecto;
 2) demostrar en 1-2 frases que entendió la necesidad concreta;
@@ -269,10 +269,15 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     const prior=await env.DB.prepare("SELECT status,error,updated_at FROM marketplace_submissions WHERE id=?").bind('freelancer:'+p.id).first()
     const floor=Number(env.MARKETPLACE_MIN_USD||750)
     const belowFloor=p.currency==='USD' && p.budgetMax!=null && p.budgetMax<floor
+    const relevance=freelancerRelevance(p)
     if(prior){
       if(['submitted','submitting','blocked_account_requirement'].includes(prior.status)) continue
-      if(prior.status==='skipped' && !(prior.error==='budget_below_floor' && !belowFloor)) continue
-      if(prior.status==='failed' && Number(prior.updated_at||0)>now-6*60*60*1000) continue
+      if(prior.status==='skipped'){
+        const budgetRecovered=prior.error==='budget_below_floor' && !belowFloor
+        const strongFitRetry=(prior.error==='low_fit' || /^fit_(medio|bajo|unknown)$/.test(String(prior.error||''))) && relevance>=2000 && Number(prior.updated_at||0)<=now-60*60*1000
+        if(!budgetRecovered && !strongFitRetry) continue
+      }
+      if(prior.status==='failed' && Number(prior.updated_at||0)>now-60*60*1000) continue
       if(!['failed','skipped'].includes(prior.status)) continue
     }
     // Para USD, evita microproyectos incompatibles con una implementación profesional.
