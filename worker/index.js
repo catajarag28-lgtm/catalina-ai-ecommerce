@@ -241,9 +241,7 @@ export default {
       if(!(await consumeBrowserRunRequest(env,nonce))) return json({error:'invalid_or_expired_nonce'},403)
       const ops=await browserOps()
       const linkedin=await ops.checkBrowserSession(env,'linkedin').catch(e=>({status:'error',error:e?.message}))
-      const applications=linkedin.status==='ready'
-        ? await ops.runBrowserApplicationQueue(env,{limit:4}).catch(e=>({enabled:true,error:e?.message}))
-        : {enabled:true,processed:0,reason:'linkedin_not_ready'}
+      const applications=await ops.runBrowserApplicationQueue(env,{limit:6}).catch(e=>({enabled:true,error:e?.message}))
       return json({linkedin,applications})
     }
     if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
