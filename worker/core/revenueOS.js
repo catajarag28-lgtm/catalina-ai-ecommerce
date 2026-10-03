@@ -11,6 +11,7 @@ function detectLanguage(text=''){
   const s=' '+String(text).toLowerCase().replace(/[^a-záéíóúñü\s]/g,' ')+' '
   const en=(s.match(/\b(the|and|with|for|your|you|we|our|role|project|automation|experience|team|work|looking|hiring)\b/g)||[]).length
   const es=(s.match(/\b(el|la|los|las|y|con|para|tu|usted|equipo|proyecto|automatización|experiencia|trabajo|busca|buscando|contratar)\b/g)||[]).length
+  if(en===es)return null
   return en>es?'en':'es'
 }
 
@@ -92,7 +93,8 @@ export async function manualApplicationQueue(env, now=Date.now()){
     const dueAt=foundAt+2*3600000
     const overdue=ageHours>=2
     const proposal=String(r.body||r.reply||'').slice(0,2200)
-    const language=r.language==='en'||r.language==='es'?r.language:detectLanguage(r.evidence||proposal||r.need||r.who)
+    const detectedLanguage=detectLanguage([r.evidence,proposal,r.need,r.who].filter(Boolean).join(' '))
+    const language=detectedLanguage||(r.language==='en'||r.language==='es'?r.language:'es')
     return {
     platform:String(r.platform||'').trim(),
     project:String(r.who||r.need||'Oportunidad').slice(0,180),
