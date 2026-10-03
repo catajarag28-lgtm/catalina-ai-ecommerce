@@ -114,6 +114,18 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
   try { intent=(await env.DB.prepare("SELECT platform,who,need,fit,status,url,reply FROM intent_leads WHERE found_at>=? ORDER BY found_at DESC LIMIT 30").bind(start).all()).results||[] } catch {}
   let market=[]
   try { market=(await env.DB.prepare("SELECT platform,title,status,amount,currency,url,proposal,provider_id,error FROM marketplace_submissions WHERE created_at>=? ORDER BY created_at DESC LIMIT 30").bind(start).all()).results||[] } catch {}
+  let directApps=[]
+  try { directApps=(await env.DB.prepare("SELECT platform,recipient,subject,status,provider_id,source_url,error FROM direct_applications WHERE created_at>=? ORDER BY created_at DESC LIMIT 40").bind(start).all()).results||[] } catch {}
+
+  const directSent=directApps.filter(x=>x.status==='sent'&&x.provider_id).length
+  const marketplaceSubmitted=market.filter(x=>x.status==='submitted'&&x.provider_id).length
+  const directLines=directApps.length?directApps.map((x,i)=>[
+    `${i+1}. ${String(x.platform||'WEB').toUpperCase()} · ${x.subject||x.source_url||''}`,
+    `   Estado REAL: ${x.status}${x.provider_id?' · ID confirmado: '+x.provider_id:''}`,
+    x.recipient?`   Destino: ${x.recipient}`:null,
+    x.source_url?`   Fuente: ${x.source_url}`:null,
+    x.error?`   Nota: ${String(x.error).slice(0,300)}`:null,
+  ].filter(Boolean).join('\n')):['Ninguna aplicación directa registrada hoy.']
 
   const marketplaceLines=market.length?market.map((x,i)=>[
     `${i+1}. ${String(x.platform||'').toUpperCase()} · ${x.title||''}`,
@@ -135,8 +147,8 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
   const lines=[
     'CAROLINA · REPORTE DIARIO DE ADQUISICIÓN · '+day,
     '',
-    'EMAIL OUTBOUND',
-    'Propuestas nuevas enviadas: '+stats.sent,
+    'EMAIL OUTBOUND · COLD OUTREACH',
+    'Correos fríos nuevos enviados: '+stats.sent,
     'Entregadas confirmadas: '+stats.delivered,
     'Aperturas registradas: '+(tracked?stats.opened:'sin webhook verificado'),
     'Clics registrados: '+(tracked?stats.clicked:'sin webhook verificado'),
@@ -149,10 +161,15 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     'Rebotes: '+stats.bounced+' · Quejas: '+stats.complained,
     'Estado outreach: '+(control?.paused?'PAUSADO · '+control.reason:(env.OUTREACH_ENABLED==='true'?'ACTIVO':'DESACTIVADO')),
     '',
-    'PROPUESTAS ENVIADAS HOY',
-    ...(proposals.length?proposals:['Ninguna propuesta nueva enviada hoy.']),
+    'COLD OUTREACH · PROPUESTAS COMERCIALES',
+    ...(proposals.length?proposals:['Ninguna propuesta comercial fría nueva enviada hoy.']),
+    '',
+    'DIRECT APPLICATIONS · POSTULACIONES POR EMAIL',
+    'Enviadas reales con provider_id: '+directSent,
+    ...directLines,
     '',
     'MARKETPLACES · POSTULACIONES REALES',
+    'Enviadas reales con provider_id: '+marketplaceSubmitted,
     ...marketplaceLines,
     '',
     'OPORTUNIDADES ENCONTRADAS · TODAVÍA NO EQUIVALEN A POSTULACIÓN',
