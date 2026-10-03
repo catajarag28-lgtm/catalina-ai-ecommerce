@@ -240,9 +240,13 @@ export default {
       const nonce=String(url.searchParams.get('nonce')||'')
       if(!(await consumeBrowserRunRequest(env,nonce))) return json({error:'invalid_or_expired_nonce'},403)
       const ops=await browserOps()
-      const linkedin=await ops.checkBrowserSession(env,'linkedin').catch(e=>({status:'error',error:e?.message}))
+      const summary=await ops.browserSessionSummary(env).catch(()=>[])
+      const sessions={}
+      for(const s of summary.filter(x=>x.saved).slice(0,6)){
+        sessions[s.platform]=await ops.checkBrowserSession(env,s.platform).catch(e=>({status:'error',error:e?.message}))
+      }
       const applications=await ops.runBrowserApplicationQueue(env,{limit:6}).catch(e=>({enabled:true,error:e?.message}))
-      return json({linkedin,applications})
+      return json({sessions,applications})
     }
     if (url.pathname === '/browser/setup/request' && request.method === 'GET') {
       const platform=String(url.searchParams.get('platform')||'').toLowerCase()
