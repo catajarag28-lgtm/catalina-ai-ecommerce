@@ -1,4 +1,5 @@
 import { notifyCatalina } from '../core/notify.js'
+import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 const FL_BASE='https://www.freelancer.com'
 const FL_QUERIES=[
@@ -129,8 +130,9 @@ function freelancerRelevance(p) {
 }
 
 async function judgeFreelancer(env,p) {
+  const acquisitionStrategy=await acquisitionStrategyContext(env).catch(()=> '')
   const budgetText=[p.currency,p.budgetMin!=null?p.budgetMin:'',p.budgetMax!=null?'– '+p.budgetMax:''].filter(x=>x!=='').join(' ')
-  const system=`Eres Carolina, directora de desarrollo comercial de Catalina Jaramillo. Evalúas proyectos REALES de Freelancer.com para decidir si Catalina debe postularse.
+  const system=`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Eres Carolina, directora de desarrollo comercial de Catalina Jaramillo. Evalúas proyectos REALES de Freelancer.com para decidir si Catalina debe postularse.
 Catalina diseña e implementa agentes de IA, automatizaciones, CRM, WhatsApp, Shopify/ecommerce, workflows, software personalizado y sistemas multiagente.
 Solo fit=alto cuando el proyecto encaja claramente con esas capacidades, el comprador parece buscar implementación real y el alcance puede generar una relación comercial valiosa.
 La propuesta debe ser MUY específica al texto del proyecto, profesional y comercial, 110-190 palabras. Debe:

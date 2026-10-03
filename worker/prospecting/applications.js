@@ -4,6 +4,7 @@
 import { notifyCatalina } from '../core/notify.js'
 import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { queueIntentForDirectOutbound } from './intent.js'
+import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 const SITE='https://soycatalinajaramillo.com'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app/'
@@ -143,6 +144,7 @@ async function applicationLearning(env){
 
 async function writeApplication(env,row,route){
   const learning=await applicationLearning(env)
+  const acquisitionStrategy=await acquisitionStrategyContext(env).catch(()=> '')
   const profileEs=safe(env.PROFILE_ES_URL)
   const profileEn=safe(env.PROFILE_EN_URL)
   const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
@@ -154,7 +156,7 @@ async function writeApplication(env,row,route){
       max_tokens:2200,
       response_format:{type:'json_object'},
       messages:[
-        {role:'system',content:`Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
+        {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
 
 APRENDIZAJE REAL DE POSTULACIONES:
 - Postulaciones enviadas registradas: ${learning.sent}

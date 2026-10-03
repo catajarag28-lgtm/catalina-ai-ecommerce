@@ -16,6 +16,7 @@ import { notifyCatalina, leadEmail } from './core/notify.js'
 import { handleInbound } from './core/inbox.js'
 import { isMeetingMail, handleMeetingMail, learnedPlaybook } from './core/meetings.js'
 import { instagramReady, verifyInstagramChallenge, receiveInstagramWebhook } from './core/instagram.js'
+import { runAcquisitionDirector } from './core/acquisitionStrategy.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -356,6 +357,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const step = async (name, fn) => { try { cycle[name] = await fn() } catch (e) { cycle[name] = { error: e?.message }; console.error(name + '_failure', e?.message) } }
     await step('queue', () => queueQualifiedLeads(env))
     await step('health', () => checkOutreachHealth(env))
+    await step('acquisitionDirector', () => runAcquisitionDirector(env))
     await step('angles', () => evolveAngles(env))
     await step('ramp', () => adjustDailyCap(env))
     await step('report', () => sendDailyOutreachReport(env))

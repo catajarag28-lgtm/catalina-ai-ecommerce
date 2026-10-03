@@ -7,6 +7,7 @@ import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachab
 import { brandedProposal, escapeHtml } from './proposalPage.js'
 import { catalog } from '../../src/offers.js'
 import { notifyCatalina } from '../core/notify.js'
+import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 export { brandedProposal, escapeHtml }
 const SITE = 'https://soycatalinajaramillo.com'
@@ -67,7 +68,8 @@ fit=bajo si el negocio parece inactivo, es un directorio/proveedor, no tiene dem
 async function prepare(env, row, research, angle) {
   const learning = await learningExamples(env).catch(() => ({ good: [], bad: [] }))
   const playbook = await learnedPlaybook(env, 15).catch(() => '')
-  const system = [salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'mapa-de-oportunidades', ...(String(row.segment||'').includes('realestate') || String(row.dossier||'').includes('inmobiliaria') ? ['playbook-inmobiliario'] : []), 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
+  const acquisitionStrategy = await acquisitionStrategyContext(env).catch(() => '')
+  const system = [acquisitionConstitution, acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy : '', salesStrategy, skillsPrompt(['mision-y-principios', 'posicionamiento-senior', 'investigacion-de-negocio', 'mapa-de-oportunidades', ...(String(row.segment||'').includes('realestate') || String(row.dossier||'').includes('inmobiliaria') ? ['playbook-inmobiliario'] : []), 'copywriting-email', 'propuesta-senior', 'aprendizaje-continuo', ...(row.kind === 'partner' ? ['aliados'] : [])]),
     `ENFOQUE ASIGNADO (${angle.id}, formato ${angle.format}): ${angle.brief}\nLos ejemplos entre « » son ilustrativos: NUNCA los copies ni los parafrasees de cerca; crea asunto y hook desde los datos de ESTE negocio.`,
     playbook,
     learning.good.length ? 'Asuntos que SÍ generaron interés (aprende el patrón, no los copies): ' + learning.good.join(' | ') : '',
