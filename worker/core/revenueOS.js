@@ -75,7 +75,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
       d.status AS application_status,d.blocker,d.body,d.subject,d.recipient
     FROM intent_leads i
     LEFT JOIN direct_applications d ON d.source_url=i.url
-    WHERE i.fit='alto'
+    WHERE i.fit IN ('alto','medio')
       AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
       AND (
@@ -85,7 +85,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
       AND i.status NOT IN ('submitted','external_email_sent','direct_email_sent','not_hiring')
       AND lower(i.platform) IN ('linkedin','upwork','workana','contra','peopleperhour','people per hour','guru','malt','twine','wellfound')
-    ORDER BY i.found_at DESC
+    ORDER BY CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END, i.found_at DESC
     LIMIT 60`).all()).results||[]
   return rows.map(r=>{
     const foundAt=Number(r.found_at||now)
