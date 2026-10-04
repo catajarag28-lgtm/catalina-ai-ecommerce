@@ -904,7 +904,8 @@ async function submitGenericApplicationForm(env,row){
       let submit=scope.getByRole('button',{name:submitRe}).last()
       if(!(await submit.count()))submit=scope.locator('button[type="submit"]:visible,input[type="submit"]:visible').last()
       if(await submit.count()){
-        const label=String(await submit.innerText().catch(()=>await submit.getAttribute('value').catch(()=>''))).trim()
+        let label=String(await submit.innerText().catch(()=>'' )).trim()
+        if(!label) label=String(await submit.getAttribute('value').catch(()=>'' )).trim()
         if(/pay|purchase|buy|checkout|subscribe|upgrade|membership/i.test(label))return {status:'waiting_human_cost',reason:'payment_button_detected',url:page.url(),target}
         await submit.click().catch(()=>{})
         await page.waitForTimeout(1800)
