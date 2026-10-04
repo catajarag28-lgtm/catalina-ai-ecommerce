@@ -17,6 +17,7 @@
     "carolina:opportunities": "node scripts/carolina-opportunity-engine.js",
     "carolina:apply:safe": "node scripts/safe-auto-apply.js",
     "carolina:business": "node scripts/business-prospecting-engine.js",
+    "carolina:targets": "node scripts/carolina-revenue-planner.js",
     "carolina:report": "node scripts/carolina-daily-report.js"
   },
   "dependencies": {
