@@ -1,0 +1,57 @@
+{
+  "goal": "Make every proposal feel specific, commercial, useful and human, not generic or AI-written.",
+  "voice": {
+    "spanish": "directa, cercana, comercial, experta sin sonar arrogante, concreta y humana",
+    "english": "warm, specific, business-minded, concise, confident without overclaiming"
+  },
+  "never_use": [
+    "I hope this message finds you well",
+    "I am writing to express my interest",
+    "As an AI language model",
+    "I can help you with your project",
+    "Dear hiring manager",
+    "generic long biography before addressing the problem"
+  ],
+  "proposal_rules": [
+    "Start from the client's problem, not Catalina's biography.",
+    "Mention the exact opportunity signal when available: WhatsApp, CRM, Shopify, ecommerce, leads, follow-up, Meta Ads, automation, content or support.",
+    "Use one short proof point from Catalina's experience only after the problem is framed.",
+    "Offer a clear first step, not a vague promise.",
+    "Keep the first version short enough to be read on mobile.",
+    "Do not claim senior full-stack engineering as the main position; position Catalina as AI Commerce Systems & Multi-Agent Operations Lead.",
+    "If the role asks for heavy code, frame Catalina as business automation/operator with AI-assisted implementation and technical collaborators/tools when needed.",
+    "Always include a soft call-to-action: quick audit, first workflow map, or 20-minute call."
+  ],
+  "angles": {
+    "whatsapp_crm": {
+      "signals": ["whatsapp", "crm", "lead", "follow-up", "customer support", "sales pipeline", "inbox"],
+      "hook_es": "Veo que el punto crítico no es solo automatizar, sino evitar que los leads se enfríen por falta de respuesta y seguimiento.",
+      "hook_en": "The main issue here seems less about automation itself and more about preventing leads from getting cold because response and follow-up are not systematic."
+    },
+    "ecommerce_operations": {
+      "signals": ["shopify", "ecommerce", "order", "fulfillment", "post-sale", "customer experience", "dtc"],
+      "hook_es": "Esto se parece mucho a un problema real de operación ecommerce: pedidos, clientes, seguimiento y métricas viviendo en piezas separadas.",
+      "hook_en": "This looks like a real ecommerce operations problem: orders, customers, follow-up and metrics living in separate pieces."
+    },
+    "ai_agents": {
+      "signals": ["ai agent", "agent", "chatbot", "llm", "assistant", "openai", "automation"],
+      "hook_es": "Aquí no conviene construir solo un bot; conviene diseñar un flujo con contexto, reglas, seguimiento y métricas de negocio.",
+      "hook_en": "This should not be built as just a bot; it needs a workflow with context, rules, follow-up and business metrics."
+    },
+    "growth_meta_ads": {
+      "signals": ["meta ads", "facebook ads", "ads", "creative", "ugc", "growth", "funnel", "conversion"],
+      "hook_es": "El problema parece estar en conectar adquisición con seguimiento: pauta, mensajes, objeciones, CRM y cierre.",
+      "hook_en": "The opportunity seems to be connecting acquisition with follow-up: ads, messaging, objections, CRM and closing."
+    },
+    "no_code_automation": {
+      "signals": ["n8n", "make", "zapier", "workflow", "integration", "api", "automation"],
+      "hook_es": "El valor no está solo en conectar herramientas, sino en que el flujo quede útil para ventas, operación y seguimiento.",
+      "hook_en": "The value is not just connecting tools; it is making the workflow useful for sales, operations and follow-up."
+    }
+  },
+  "learning_memory": {
+    "positive_signals": ["reply", "meeting", "call booked", "interested", "shortlisted", "viewed profile", "opened", "clicked"],
+    "negative_signals": ["no response", "rejected", "too expensive", "not relevant", "requires senior full-stack only", "membership required"],
+    "update_rule": "Increase usage of angles/hooks that generate replies or calls; reduce repeated angles that generate silence or rejection."
+  }
+}
