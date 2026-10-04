@@ -1,0 +1,88 @@
+{
+  "mission": "Generate enough qualified demand to create 5-6 real sales calls per day and 3 closed contracts per week without paid applications until revenue is flowing.",
+  "rules": {
+    "auto_submit_free_only": true,
+    "block_if_cost": true,
+    "block_if_connects": true,
+    "block_if_membership": true,
+    "block_if_checkout": true,
+    "block_if_captcha_or_mfa": true,
+    "block_if_email_or_identity_verification": true,
+    "never_claim_sent_without_visible_confirmation": true
+  },
+  "daily_targets": {
+    "real_calls_target_min": 5,
+    "real_calls_target_max": 6,
+    "qualified_replies_target": 12,
+    "qualified_proposals_target": 30,
+    "applications_free_target": 15,
+    "b2b_outreach_target": 80,
+    "followups_due_target": 40
+  },
+  "weekly_targets": {
+    "contracts_target": 3,
+    "real_calls_target": 30,
+    "qualified_proposals_target": 150,
+    "b2b_outreach_target": 400,
+    "minimum_pipeline_value_usd": 25000
+  },
+  "conversion_assumptions": {
+    "cold_b2b_reply_rate": 0.05,
+    "reply_to_call_rate": 0.35,
+    "call_to_contract_rate": 0.20,
+    "platform_application_reply_rate": 0.04,
+    "platform_reply_to_call_rate": 0.35,
+    "proposal_to_contract_rate": 0.10
+  },
+  "offer_catalog": [
+    {
+      "name": "AI Automation Quick Win",
+      "price_usd_min": 500,
+      "price_usd_max": 900,
+      "timeline_days": "3-7",
+      "best_for": "Simple automation, audit, CRM cleanup, one workflow, proposal automation, lead routing.",
+      "deliverables": ["business diagnosis", "1 automation/workflow", "basic documentation", "handoff video"]
+    },
+    {
+      "name": "WhatsApp / CRM Sales Agent Starter",
+      "price_usd_min": 900,
+      "price_usd_max": 1800,
+      "timeline_days": "7-14",
+      "best_for": "Local businesses, ecommerce, medspas, clinics, service businesses that need lead qualification and follow-up.",
+      "deliverables": ["AI-assisted sales flow", "CRM stages", "lead qualification", "follow-up templates", "basic reporting"]
+    },
+    {
+      "name": "Ecommerce Growth Operations System",
+      "price_usd_min": 1800,
+      "price_usd_max": 4000,
+      "timeline_days": "14-28",
+      "best_for": "Shopify / DTC brands with WhatsApp, email, Meta Ads, order confirmation, fulfillment and post-sale gaps.",
+      "deliverables": ["sales and CX journey map", "CRM/follow-up workflow", "content/ad intelligence workflow", "operations dashboard", "QA checklist"]
+    },
+    {
+      "name": "Multi-Agent Commercial OS",
+      "price_usd_min": 4000,
+      "price_usd_max": 10000,
+      "timeline_days": "30-60",
+      "best_for": "Companies that need several connected agents for sales, acquisition, customer support, reporting and operations.",
+      "deliverables": ["multi-agent architecture", "agent prompts/rules", "workflow orchestration", "CRM/reporting", "testing and optimization"]
+    },
+    {
+      "name": "Monthly Growth Automation Retainer",
+      "price_usd_min": 1000,
+      "price_usd_max": 4000,
+      "timeline_days": "monthly",
+      "best_for": "Ongoing monitoring, improvements, new automations, proposal engine, content/ad intelligence and CRM optimization.",
+      "deliverables": ["monthly roadmap", "weekly improvements", "metrics review", "new automations", "support"]
+    }
+  ],
+  "market_segments": [
+    "Shopify and DTC ecommerce brands",
+    "beauty, haircare, medspa and aesthetics businesses",
+    "service businesses selling via WhatsApp",
+    "marketing agencies needing automation delivery partners",
+    "coaches and consultants with high manual follow-up",
+    "local businesses that lose leads after first contact",
+    "small SaaS and startups needing AI ops/helpdesk/CRM automation"
+  ]
+}
