@@ -5,9 +5,9 @@
  *
  * Runs the Carolina acquisition system in a strict order:
  * 1. Open/refresh local platform sessions.
- * 2. Scan opportunities.
- * 3. Apply only to free/no-risk opportunities.
- * 4. Generate B2B prospecting drafts.
+ * 2. Prepare intelligence and B2B prospecting queues.
+ * 3. Scan/compose platform and B2B opportunities.
+ * 4. Apply only to free/no-risk opportunities.
  * 5. Produce a local evidence report.
  *
  * It never stores passwords, never exports cookies, never bypasses CAPTCHA/MFA,
@@ -47,18 +47,20 @@ steps.push(run('runner', ['scripts/runner-local.js', 'run'], {
   CAROLINA_LOCAL_MAX_PLATFORMS: process.env.CAROLINA_LOCAL_MAX_PLATFORMS || '11',
   CAROLINA_LOCAL_PLATFORMS: process.env.CAROLINA_LOCAL_PLATFORMS || 'linkedin,upwork,workana,n8n,make,contra,wellfound,twine,guru,malt,peopleperhour'
 }))
+steps.push(run('proposal-intelligence', ['scripts/carolina-proposal-intelligence.js']))
+steps.push(run('business-prospecting', ['scripts/business-prospecting-engine.js']))
 steps.push(run('opportunity-engine', ['scripts/carolina-opportunity-engine.js']))
 steps.push(run('safe-auto-apply', ['scripts/safe-auto-apply.js'], {
   CAROLINA_SAFE_APPLY_LIMIT: DEFAULT_MAX_APPLY,
   CAROLINA_SAFE_APPLY_PLATFORMS: process.env.CAROLINA_SAFE_APPLY_PLATFORMS || 'linkedin,workana,twine,guru,peopleperhour'
 }))
-steps.push(run('business-prospecting', ['scripts/business-prospecting-engine.js']))
 
 const summary = [`# Carolina Machine Status`, `Updated: ${stamp()}`, '', '## Steps']
 for (const s of steps) summary.push(`- ${s.ok ? '✅' : '⚠️'} ${s.label}: exit=${s.status}, ms=${s.ms}, log=${s.logfile}`)
 summary.push('', '## Rules')
 summary.push('- Auto-submit is allowed only when the platform flow is free and has no CAPTCHA/MFA/payment/Connects/membership barrier.')
 summary.push('- Upwork Connects, paid certifications, memberships, checkout pages and ambiguous final submits remain WAITING_HUMAN.')
+summary.push('- Every proposal must include a specific observation, leakage/opportunity, first step, metrics/follow-up and the portfolio link.')
 summary.push('- Evidence is kept in the local CarolinaLocalRunner data/log folders.')
 fs.writeFileSync(REPORT, summary.join('\n'))
 console.log(summary.join('\n'))
