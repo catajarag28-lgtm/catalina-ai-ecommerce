@@ -828,6 +828,105 @@ async function markBrowserSubmitted(env,row,platform,context,page,route){
   return {status:'submitted',providerId,url:page.url()}
 }
 
+
+const GENERIC_APPLICATION_HOST_RE=/(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com|weworkremotely\.com|remoteok\.com|builtin\.com|gofractional\.com|stardex\.com)$/i
+
+function genericApplicationTarget(row){
+  const route=String(row?.resolved_route||row?.application_route||'').toLowerCase()
+  if(route!=='form'&&String(row?.status||'')!=='waiting_human_form')return ''
+  for(const raw of [row?.blocker,row?.url]){
+    try{
+      const u=new URL(String(raw||''))
+      if(u.protocol==='https:'&&GENERIC_APPLICATION_HOST_RE.test(u.hostname))return u.toString()
+    }catch{}
+  }
+  return ''
+}
+
+async function markGenericSubmitted(env,row,context,page,target){
+  let host='generic'
+  try{host=new URL(target).hostname.replace(/^www\./,'').slice(0,60)}catch{}
+  const providerId=`browser:generic:${host}:${Date.now()}`
+  const platform=String(row.platform||host||'web').slice(0,80)
+  await env.DB.prepare("UPDATE intent_leads SET status='submitted' WHERE url=?").bind(row.url).run().catch(()=>{})
+  await upsertSubmission(env,row,{platform,status:'sent',route:'browser_generic_form',providerId})
+  await notifyCatalina(env,`✅ Carolina postuló vía formulario · ${platform}`,`${row.who||row.need||'Oportunidad'}\n\n${row.url}\n\nConfirmación visible del formulario. Evidencia interna: ${providerId}`).catch(()=>{})
+  return {status:'submitted',providerId,url:page.url(),target}
+}
+
+async function submitGenericApplicationForm(env,row){
+  const target=genericApplicationTarget(row)
+  if(!target)return {status:'unsupported',reason:'generic_form_host_not_allowed'}
+  let browser
+  try{
+    browser=await launch(env.BROWSER,{keep_alive:180000})
+    const context=await browser.newContext()
+    const page=await context.newPage()
+    await page.goto(target,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+    await page.waitForTimeout(1200)
+
+    const successRe=/application (?:was )?(?:submitted|received|sent)|successfully applied|thank you for applying|thanks for applying|we(?:'ve| have) received your application|solicitud enviada|candidatura enviada|postulaci[oó]n enviada|hemos recibido tu (?:solicitud|candidatura)/i
+    const blockedRe=/captcha|verify you are human|security check|unusual activity|sign in to apply|log in to apply|inicia sesi[oó]n para (?:postular|aplicar)|checkout|credit card|payment required|membership required/i
+    let body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,18000)
+    if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
+    if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
+
+    const prepared=await prepareBrowserReply(env,row,body)
+    if(!prepared.eligible){
+      await env.DB.prepare("UPDATE intent_leads SET status='language_hard_requirement',language=? WHERE url=?").bind(prepared.language,row.url).run().catch(()=>{})
+      await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'language_hard_requirement',route:'browser_generic_form',error:'spoken_english_hard_requirement'})
+      return {status:'language_hard_requirement',language:prepared.language,url:page.url(),target}
+    }
+    row.reply=prepared.reply;row.language=prepared.language
+    await env.DB.prepare("UPDATE intent_leads SET reply=?,language=? WHERE url=?").bind(row.reply,row.language,row.url).run().catch(()=>{})
+
+    const applyRe=/apply now|apply for (?:this|the) (?:job|position|role)|start application|submit application|enviar solicitud|enviar candidatura|postular(?:me)?|apply/i
+    let action=page.getByRole('button',{name:applyRe}).first()
+    if(!(await action.count()))action=page.getByRole('link',{name:applyRe}).first()
+    if(await action.count()){
+      await action.click().catch(()=>{})
+      await page.waitForTimeout(900)
+    }
+
+    for(let step=0;step<7;step++){
+      body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,20000)
+      if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
+      if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
+
+      const scope=(await page.locator('[role="dialog"]:visible').count())?page.locator('[role="dialog"]:visible').last():page
+      const unknown=await fillKnownApplicationFields(scope,env,row,prepared.language)
+      if(unknown.length){
+        await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:JSON.stringify({questions:unknown,target}).slice(0,700)})
+        return {status:'waiting_human_form',action:'questions_require_human',questions:unknown,url:page.url(),target}
+      }
+
+      const submitRe=/submit application|send application|apply now|submit|enviar solicitud|enviar candidatura|enviar postulaci[oó]n|postular(?:me)?/i
+      let submit=scope.getByRole('button',{name:submitRe}).last()
+      if(!(await submit.count()))submit=scope.locator('button[type="submit"]:visible,input[type="submit"]:visible').last()
+      if(await submit.count()){
+        const label=String(await submit.innerText().catch(()=>await submit.getAttribute('value').catch(()=>''))).trim()
+        if(/pay|purchase|buy|checkout|subscribe|upgrade|membership/i.test(label))return {status:'waiting_human_cost',reason:'payment_button_detected',url:page.url(),target}
+        await submit.click().catch(()=>{})
+        await page.waitForTimeout(1800)
+        const after=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(-18000)
+        if(successRe.test(after))return await markGenericSubmitted(env,row,context,page,target)
+        await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:'submission_confirmation_missing'})
+        return {status:'waiting_human_form',action:'submission_confirmation_missing',url:page.url(),target}
+      }
+
+      let next=scope.getByRole('button',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
+      if(!(await next.count()))next=scope.getByRole('link',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
+      if(await next.count()){await next.click().catch(()=>{});await page.waitForTimeout(700);continue}
+
+      await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:'application_controls_not_found'})
+      return {status:'waiting_human_form',action:'application_controls_not_found',url:page.url(),target}
+    }
+    return {status:'waiting_human_form',action:'too_many_steps',url:page.url(),target}
+  }catch(e){
+    return {status:'error',error:String(e?.message||e).slice(0,400),target}
+  }finally{if(browser)await browser.close().catch(()=>{})}
+}
+
 async function submitMarketplaceApplication(env,row,platform){
   const p=cfg(platform)
   const saved=await loadBrowserState(env,platform)
@@ -921,7 +1020,7 @@ async function submitMarketplaceApplication(env,row,platform){
 
 export async function runBrowserApplicationQueue(env,{limit=2}={}){
   if(env.BROWSER_AUTOMATION_ENABLED!=='true'||!env.BROWSER)return {enabled:false}
-  const rows=(await env.DB.prepare(`SELECT i.url,i.platform,i.who,i.need,i.fit,i.reply,i.language,i.application_route,i.status
+  const rows=(await env.DB.prepare(`SELECT i.url,i.platform,i.who,i.need,i.fit,i.reply,i.language,i.application_route,i.status,d.blocker,d.route AS resolved_route
     FROM intent_leads i LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit IN ('alto','medio') AND i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review')
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
@@ -931,7 +1030,14 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
   for(const row of rows){
     if(results.length>=limit)break
     const platform=normalizePlatform(row.platform)
-    if(!platform){diagnostics.unsupported++;continue}
+    if(!platform){
+      const target=genericApplicationTarget(row)
+      if(!target){diagnostics.unsupported++;continue}
+      diagnostics.eligible++
+      const result=await submitGenericApplicationForm(env,row)
+      results.push({platform:'generic',sourcePlatform:row.platform,url:row.url,...result})
+      continue
+    }
     const saved=await loadBrowserState(env,platform)
     if(!saved){
       diagnostics.missingSession++;diagnostics.blocked.push({platform,url:row.url,reason:'missing_session'})
