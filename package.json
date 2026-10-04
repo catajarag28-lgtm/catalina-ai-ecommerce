@@ -14,6 +14,7 @@
     "carolina:runner": "node scripts/runner-local.js run",
     "carolina:connect": "node scripts/runner-local.js connect-all",
     "carolina:audit": "node scripts/runner-local.js audit",
+    "carolina:intelligence": "node scripts/carolina-proposal-intelligence.js",
     "carolina:opportunities": "node scripts/carolina-opportunity-engine.js",
     "carolina:apply:safe": "node scripts/safe-auto-apply.js",
     "carolina:business": "node scripts/business-prospecting-engine.js",
