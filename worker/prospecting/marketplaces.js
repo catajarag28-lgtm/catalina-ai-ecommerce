@@ -1,5 +1,6 @@
 import { notifyCatalina } from '../core/notify.js'
-import { parseModelJson } from '../core/integrations.js'
+import { callModel } from '../core/modelRouter.js'
+import { setChannelStatus, channelLimited } from '../core/channels.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 const FL_BASE='https://www.freelancer.com'
@@ -149,27 +150,20 @@ Para precio: respeta el presupuesto publicado. Si no hay datos suficientes o el 
 Devuelve SOLO JSON:
 {"fit":"alto|medio|bajo","reason":"...","proposal":"...","amount":numero,"periodDays":numero}
 amount debe estar dentro del presupuesto cuando exista; periodDays entre 2 y 30.`
-  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Marketplace'},
-    body:JSON.stringify({model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,temperature:0.25,max_tokens:2000,reasoning:{effort:'low',exclude:true},response_format:{type:'json_object'},messages:[
+  // Freelancer es un canal opcional con bids gratuitos escasos: DeepSeek basta; el valor del proyecto decide si escala.
+  const r=await callModel(env,{task:'freelancer.judge',json:true,temperature:0.25,maxTokens:2000,
+    dealValue:p.currency==='USD'?Number(p.budgetMax||0):0,
+    validate:d=>['alto','medio','bajo'].includes(d?.fit)||'fit_missing',
+    messages:[
       {role:'system',content:system},
       {role:'user',content:JSON.stringify({title:p.title,description:p.description,type:p.type,budget:budgetText,jobs:p.jobs})}
-    ]}),
-    signal:AbortSignal.timeout(45000)
-  }).catch(e=>{console.error('freelancer_judge_fetch',e?.message);return null})
-  if(!res?.ok){console.error('freelancer_judge_http',res?.status||'no_response');return null}
-  const data=await res.json().catch(()=>({}))
-  return parseModelJson(data,'freelancer_judge')
+    ]})
+  return r.ok?r.data:null
 }
 
 function validBid(p,j) {
-  if(!j) return null
-  const mediumBootstrap=j.fit==='medio' &&
-    p.currency==='USD' &&
-    p.budgetMax!=null && p.budgetMax>=Number(250) &&
-    freelancerRelevance(p)>=4000
-  if(j.fit!=='alto' && !mediumBootstrap) return null
+  // Solo encaje MUY alto: los bids gratuitos son pocos y no se gastan en proyectos dudosos.
+  if(!j || j.fit!=='alto') return null
   let amount=num(j.amount), period=Math.round(num(j.periodDays)||7)
   if(amount==null||amount<=0) return null
   if(p.budgetMin!=null) amount=Math.max(amount,p.budgetMin)
@@ -248,8 +242,8 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   const since=Date.parse(bogotaDay(now)+'T00:00:00-05:00')
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' AND created_at>=?").bind(since).first()
   if((count?.n||0)>=limit){out.freelancer.reason='daily_cap';return out}
-  const noBids=await env.DB.prepare("SELECT value FROM app_settings WHERE key='freelancer_out_of_bids'").first().catch(()=>null)
-  if(noBids?.value===bogotaDay(now)){out.freelancer.reason='bid_limit_exceeded';return out}
+  const limited=await channelLimited(env,'freelancer',now)
+  if(limited){out.freelancer.reason='CHANNEL_LIMITED: '+limited.reason;return out}
 
   const bidderId=await freelancerSelf(env)
   if(!bidderId){out.freelancer.reason='oauth_invalid_or_self_lookup_failed';return out}
@@ -355,9 +349,13 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
         .bind(blockedStatus,outOfBids?'bid_limit_exceeded':err,Date.now(),'freelancer:'+p.id).run()
       if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?")
         .bind(accountBlocked?'blocked_account_requirement':outOfBids?'official_api_pending':'submit_failed',p.intentUrl).run().catch(()=>{})
-      if(outOfBids){
-        await env.DB.prepare("INSERT OR REPLACE INTO app_settings(key,value) VALUES ('freelancer_out_of_bids',?)").bind(bogotaDay(now)).run().catch(()=>{})
-        out.freelancer.reason='bid_limit_exceeded'
+      // Saldo, membresía o bids agotados afectan a TODA la cuenta: canal limitado hasta mañana,
+      // nunca se compra nada y el resto de Carolina sigue. Skills/verificación son por proyecto.
+      const accountWide=outOfBids||/account balance|BID_MINIMUM_REQUIREMENT_NOT_MET|Plus, Professional or Premier|RESTRICTED_FROM_BIDDING_PREMIUM/i.test(err)
+      if(accountWide){
+        const reason=outOfBids?'bids gratuitos agotados':'la plataforma exige saldo o membresía paga'
+        await setChannelStatus(env,'freelancer','CHANNEL_LIMITED',reason,since+86400000,now)
+        out.freelancer.reason='CHANNEL_LIMITED: '+reason
         break
       }
     }

@@ -1,4 +1,5 @@
 import { notifyCatalina } from './notify.js'
+import { callModel } from './modelRouter.js'
 
 export const acquisitionConstitution = `
 MISIÓN DE ADQUISICIÓN DE CAROLINA
@@ -130,26 +131,13 @@ export async function runAcquisitionDirector(env, now=Date.now()) {
   const metrics=await acquisitionMetrics(env,now)
   let decision=deterministicDecision(metrics)
   if(env.OPENROUTER_API_KEY){
-    const response=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-      method:'POST',
-      headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Acquisition Director'},
-      body:JSON.stringify({
-        model:env.OPENROUTER_EXTRACT_MODEL||env.OPENROUTER_MODEL,
-        temperature:0.2,max_tokens:900,response_format:{type:'json_object'},
+    const response=await callModel(env,{task:'acquisition.director',json:true,temperature:0.2,maxTokens:900,timeoutMs:25000,
+        validate:d=>(!!d?.focus&&Array.isArray(d?.actions))||'decision_incomplete',
         messages:[
           {role:'system',content:acquisitionConstitution+'\n\nAnaliza las métricas y propone UNA prioridad principal para las próximas 6 horas. No aumentes cold outreach si hay problemas de entregabilidad. No inventes ventas. Devuelve JSON con focus,hypothesis,actions (máx 3),copyDirective,segmentDirective,channelDirective.'},
           {role:'user',content:JSON.stringify({metrics,baseline:decision})}
-        ]
-      }),
-      signal:AbortSignal.timeout(25000)
-    }).catch(()=>null)
-    if(response?.ok){
-      const data=await response.json().catch(()=>({}))
-      try{
-        const parsed=JSON.parse(data.choices?.[0]?.message?.content||'{}')
-        if(parsed?.focus && Array.isArray(parsed?.actions)) decision={...decision,...parsed,actions:parsed.actions.slice(0,3)}
-      }catch{}
-    }
+        ]})
+    if(response.ok) decision={...decision,...response.data,actions:response.data.actions.slice(0,3)}
   }
   const strategy={at:new Date(now).toISOString(),metrics,decision}
   const prior=await env.DB.prepare("SELECT value FROM app_settings WHERE key='acquisition_strategy'").first().catch(()=>null)

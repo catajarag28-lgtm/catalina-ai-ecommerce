@@ -1,6 +1,7 @@
 // Demostración en vivo dentro de la propuesta: el prospecto le escribe al asistente que podría
 // tener su negocio, entrenado solo con la información pública de su web. Límites estrictos de uso.
 import { notifyCatalina } from '../core/notify.js'
+import { callModel } from '../core/modelRouter.js'
 
 const MAX_TURNS = 8
 const DAILY_PER_PROPOSAL = 40
@@ -38,14 +39,10 @@ export async function handleDemo(request, env, proposalId) {
   if (used > DAILY_PER_PROPOSAL) return Response.json({ reply: 'Por hoy la demostración alcanzó su límite. Puede hablar con Carolina para verla con su información real.', done: true })
   let r = {}
   try { r = JSON.parse(row.research || '{}') } catch {}
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST', headers: { authorization: 'Bearer ' + env.OPENROUTER_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: env.OPENROUTER_MODEL || env.OPENROUTER_EXTRACT_MODEL, temperature: 0.3, max_tokens: 1500, reasoning: { effort: 'low', exclude: true }, messages: [{ role: 'system', content: demoPrompt(row.company, r) }, ...history.map(m => ({ role: m.role, content: m.content.slice(0, 600) }))] }),
-    signal: AbortSignal.timeout(30000),
-  }).catch(() => null)
-  const data = res?.ok ? await res.json().catch(() => null) : null
-  if (data?.choices?.[0]?.finish_reason === 'length') return Response.json({ error: 'La demo tardó demasiado. Inténtelo de nuevo.' }, { status: 502 })
-  const reply = String(data?.choices?.[0]?.message?.content || '').replace(/[*#_`]/g, '').trim().slice(0, 700)
+  // El prospecto está probando SU demo: es la señal de compra más fuerte, se responde con tier 3.
+  const res = await callModel(env, { task: 'demo.chat', temperature: 0.3, maxTokens: 1500, timeoutMs: 30000, opportunityId: proposalId, maxAttempts: 2, messages: [{ role: 'system', content: demoPrompt(row.company, r) }, ...history.map(m => ({ role: m.role, content: m.content.slice(0, 600) }))] })
+  if (res.ok && res.finish === 'length') return Response.json({ error: 'La demo tardó demasiado. Inténtelo de nuevo.' }, { status: 502 })
+  const reply = String(res.ok ? res.content : '').replace(/[*#_`]/g, '').trim().slice(0, 700)
   if (!reply) return Response.json({ error: 'La demo no respondió. Inténtelo de nuevo.' }, { status: 502 })
   const first = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,'demo.used',?)").bind('demo-' + proposalId, proposalId, Date.now()).run()
   if (first.meta.changes && !proposalId.startsWith('test-')) {

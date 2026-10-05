@@ -1,6 +1,7 @@
 import { salesStrategy, meetingNextStep } from '../skills/salesStrategy.js'
 import { constitution, knowledge } from './knowledge.js'
 import { notifyCatalina } from './notify.js'
+import { callModel } from './modelRouter.js'
 
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app/'
 const SITE='https://soycatalinajaramillo.com'
@@ -112,18 +113,12 @@ ${booking}
 No inventes datos, precios, disponibilidad, resultados ni información sobre su empresa. Si no conoces el negocio, pregunta nombre/web o qué quiere resolver.
 Devuelve SOLO JSON:
 {"reply":"60-180 palabras, natural y profesional","hot":true|false,"summary":"1 frase para Catalina","lead":{"name":"","company":"","website":"","problem":"","budget":"","timing":""}}`
-  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina - Instagram'},
-    body:JSON.stringify({model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,temperature:0.35,max_tokens:900,response_format:{type:'json_object'},messages:[
+  const res=await callModel(env,{task:'instagram.dm',json:true,temperature:0.35,maxTokens:900,timeoutMs:30000,messages:[
       {role:'system',content:system},
       {role:'user',content:`Instagram sender id: ${senderId}\nHistorial reciente:\n${history||'(primer mensaje)'}\n\nMENSAJE NUEVO:\n${text}`}
-    ]}),
-    signal:AbortSignal.timeout(30000)
-  }).catch(()=>null)
-  if(!res?.ok) return {reply:'',hot:false,summary:'No se pudo procesar el DM.',lead:{}}
-  const data=await res.json().catch(()=>({}))
-  return parseDecision(data.choices?.[0]?.message?.content)
+    ]})
+  if(!res.ok) return {reply:'',hot:false,summary:'No se pudo procesar el DM.',lead:{}}
+  return parseDecision(res.content)
 }
 
 async function saveLead(env, conversationId, decision) {

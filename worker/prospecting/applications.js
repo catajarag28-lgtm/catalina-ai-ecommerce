@@ -2,7 +2,8 @@
 // No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
 // explícitamente que acepta aplicaciones por email y la dirección queda verificada.
 import { notifyCatalina } from '../core/notify.js'
-import { validPublicEmail, emailDomainReachable, parseModelJson } from '../core/integrations.js'
+import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
+import { callModel } from '../core/modelRouter.js'
 import { queueIntentForDirectOutbound } from './intent.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
@@ -78,14 +79,7 @@ async function sourceContainsEmail(url,email){
 }
 
 async function resolveApplicationRoute(env,row){
-  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Direct Applications'},
-    body:JSON.stringify({
-      model:env.OPENROUTER_EXTRACT_MODEL,
-      temperature:0,
-      max_tokens:1200,
-      response_format:{type:'json_object'},
+  const r=await callModel(env,{task:'application.route',json:true,temperature:0,maxTokens:1200,timeoutMs:45000,
       plugins:[{id:'web',engine:'exa',max_results:6,search_prompt:'Abre la publicación exacta y, si hace falta, el sitio oficial de la empresa para verificar cómo aplicar.'}],
       messages:[
         {role:'system',content:`Eres un verificador de rutas de aplicación laboral/freelance. Debes decidir si una publicación pública es una solicitud REAL de contratación o proyecto y cómo pide recibir candidaturas.
@@ -104,14 +98,10 @@ REGLAS:
 - No conviertas un correo genérico encontrado al azar en "application email".
 - No inventes requisitos, contactos ni empresas.`},
         {role:'user',content:JSON.stringify({sourceUrl:row.url,platform:row.platform,who:row.who,need:row.need})}
-      ]
-    }),
-    signal:AbortSignal.timeout(45000)
-  }).catch(()=>null)
-  if(!res?.ok) return null
-  const data=await res.json().catch(()=>({}))
-  const msg=data.choices?.[0]?.message||{}
-  let out={};try{out=JSON.parse(msg.content||'{}')}catch{return null}
+      ]})
+  if(!r.ok) return null
+  const msg=r.message||{}
+  let out=r.data||{}
   const cited=(msg.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url_citation?.url).filter(Boolean)
   if(out.confidence!=='alta' || out.activeNow===false) return {...out,verified:false}
   if(out.route==='email'){
@@ -147,14 +137,8 @@ async function writeApplication(env,row,route){
   const acquisitionStrategy=await acquisitionStrategyContext(env).catch(()=> '')
   const profileEs=safe(env.PROFILE_ES_URL)
   const profileEn=safe(env.PROFILE_EN_URL)
-  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Application Writer'},
-    body:JSON.stringify({
-      model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,
-      temperature:0.38,
-      max_tokens:2600,reasoning:{effort:"low",exclude:true},
-      response_format:{type:'json_object'},
+  const r=await callModel(env,{task:'application.write',json:true,temperature:0.38,maxTokens:2600,timeoutMs:40000,
+      validate:d=>(typeof d?.send==='boolean')||'send_missing',
       messages:[
         {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
 
@@ -257,13 +241,8 @@ LONGITUD:
 Devuelve SOLO JSON:
 {"send":true|false,"reason":"...","missingRequired":["..."],"language":"es|en","selectedSystems":["..."],"subject":"...","body":"..."}`},
         {role:'user',content:JSON.stringify({sourceUrl:row.url,platform:row.platform,who:row.who,need:row.need,route,priorDraft:row.reply})}
-      ]
-    }),
-    signal:AbortSignal.timeout(40000)
-  }).catch(()=>null)
-  if(!res?.ok){console.error('application_draft_http',res?.status||'no_response');return null}
-  const data=await res.json().catch(()=>({}))
-  return parseModelJson(data,'application_draft')
+      ]})
+  return r.ok?r.data:null
 }
 async function sendApplication(env,row,route,draft,now){
   const from=env.APPLICATION_EMAIL_FROM||env.EMAIL_FROM

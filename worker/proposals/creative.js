@@ -2,6 +2,7 @@
 // Se elige con muestreo de Thompson según interés real medido; los perdedores se retiran y
 // Carolina propone nuevos enfoques aprendiendo de lo que funcionó y lo que no.
 import { notifyCatalina } from '../core/notify.js'
+import { callModel } from '../core/modelRouter.js'
 import { skill } from '../skills/registry.js'
 import { outreachDailyLimit } from '../skills/salesStrategy.js'
 
@@ -163,12 +164,12 @@ export async function evolveAngles(env, now = Date.now()) {
 async function inventAngle(env, active, stats) {
   const history = (await env.DB.prepare('SELECT id,name,format,brief,status,retired_reason FROM outreach_angles ORDER BY created_at DESC LIMIT 20').all()).results || []
   const table = history.map(a => ({ ...a, envios: stats[a.id]?.n || 0, interes: stats[a.id] ? Math.round(100 * stats[a.id].engaged / stats[a.id].n) + '%' : 'sin datos', mejores: (stats[a.id]?.subjects || []).filter(s => s.score >= 0.5).slice(-3).map(s => s.subject) }))
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { authorization: 'Bearer ' + env.OPENROUTER_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ model: env.OPENROUTER_MODEL || env.OPENROUTER_EXTRACT_MODEL, temperature: 0.8, max_tokens: 600, messages: [
+  const res = await callModel(env, { task: 'angle.invent', json: true, temperature: 0.8, maxTokens: 600, timeoutMs: 25000, messages: [
     { role: 'system', content: skill('copywriting-email') + '\n\nEres el estratega de copy de Carolina. Con los resultados reales, diseña UN enfoque nuevo de asunto + hook + escena, distinto de los activos y de los retirados, que tenga más probabilidad de conseguir clics y respuestas de dueños de spas, clínicas, inmobiliarias, servicios profesionales y tiendas online hispanohablantes. Aprende de los que funcionaron; no repitas patrones de los retirados. Devuelve JSON {"id":"kebab-case","name":"nombre corto","format":"visual|carta","brief":"instrucción de 1-3 frases con un ejemplo de asunto"}.' },
     { role: 'user', content: JSON.stringify({ enfoques: table }) },
-  ] }), signal: AbortSignal.timeout(25000) })
+  ] })
   if (!res.ok) return null
-  const out = JSON.parse((await res.json()).choices[0].message.content.replace(/^```(?:json)?\s*|\s*```$/g, ''))
+  const out = res.data
   const id = String(out.id || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)
   if (!id || !out.name || !out.brief || out.brief.length > 600 || !['visual', 'carta'].includes(out.format)) return null
   const gen = 1 + Math.max(0, ...history.map(a => a.generation || 0))

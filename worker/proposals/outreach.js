@@ -1,4 +1,5 @@
 import { salesStrategy, schedulingUrl, meetingNextStep } from '../skills/salesStrategy.js'
+import { callModel } from '../core/modelRouter.js'
 import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
 import { skill, skillsPrompt } from '../skills/registry.js'
 import { learnedPlaybook } from '../core/meetings.js'
@@ -30,24 +31,11 @@ export function evidenceFound(text, evidence) {
   return parts.length > 0 && parts.every(x => hay.includes(x))
 }
 
-async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, model } = {}) {
-  let lastError = 'research_model_failed'
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const retryMessages = attempt ? [...messages, { role: 'user', content: 'La respuesta anterior no pudo procesarse. Devuelve ÚNICAMENTE un objeto JSON válido, completo, sin markdown ni texto antes o después.' }] : messages
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST', headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: model || env.OPENROUTER_MODEL || env.OPENROUTER_EXTRACT_MODEL, temperature: attempt ? 0 : temperature, max_tokens: attempt ? Math.min(max_tokens + 1200, 6500) : max_tokens, response_format: { type: 'json_object' }, messages: retryMessages }),
-      signal: AbortSignal.timeout(40000),
-    }).catch(() => null)
-    if (!res?.ok) { lastError = 'research_model_failed'; continue }
-    const out = await res.json().catch(() => ({}))
-    if (out.choices?.[0]?.finish_reason === 'length') { lastError = 'model_output_truncated'; continue }
-    const raw = String(out.choices?.[0]?.message?.content || '')
-    const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
-    if (a < 0 || b <= a) { lastError = 'model_output_not_json'; continue }
-    try { return JSON.parse(raw.slice(a, b + 1)) } catch { lastError = 'model_output_invalid_json' }
-  }
-  throw new Error(lastError)
+// Redacción de la propuesta final = tier 3; crítica y extracción de evidencia = tier 2 (vía router).
+async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, task = 'outreach.proposal', dealValue = 1500 } = {}) {
+  const r = await callModel(env, { task, messages, json: true, temperature, maxTokens: max_tokens, dealValue, timeoutMs: 40000 })
+  if (!r.ok) throw new Error(r.error === 'truncated' ? 'model_output_truncated' : r.error === 'not_json' ? 'model_output_not_json' : 'research_model_failed')
+  return r.data
 }
 
 const SPEC = `Devuelve SOLO JSON con esta forma:
@@ -83,7 +71,7 @@ async function prepare(env, row, research, angle) {
   // Autocrítica adversarial: Carolina solo publica copy sobresaliente; 7/10 ya no es suficiente.
   let critiqueError = null
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-  const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500 }).catch(e => { critiqueError = e.message; return null })
+  const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(e => { critiqueError = e.message; return null })
   let lint = lintCopy(p, row.company)
   for (let attempt = 0; attempt < 3 && (attempt === 0 ? (critique?.rewrite || lint.length) : lint.length); attempt++) {
     const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...lint]
@@ -94,7 +82,7 @@ async function prepare(env, row, research, angle) {
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
   const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-  let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => critique)
+  let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => critique)
   const qualityPass = q => {
     const s = q?.scores
     return !!s && (s.especificidad || 0) >= 9 && (s.claridad || 0) >= 9 && (s.caso_comercial || 0) >= 9 && (s.credibilidad || 0) >= 9 && (s.cta || 0) >= 9 && (s.curiosidad || 0) >= 8 && (s.deseo || 0) >= 8
@@ -109,7 +97,7 @@ async function prepare(env, row, research, angle) {
     const qLint = lintCopy(p, row.company)
     if (qLint.length) continue
     const qDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-    finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: qDraft }) }], { temperature: 0, max_tokens: 2500 }).catch(() => finalCritique)
+    finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: qDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => finalCritique)
   }
   p.critique = finalCritique?.scores || null
   p.critiqueIssues = finalCritique?.issues || []
@@ -126,7 +114,7 @@ async function prepare(env, row, research, angle) {
   const ex = p.executive || {}
   if (![ex.situation, ex.opportunity, ex.approach].every(v => typeof v === 'string' && v.trim().length >= 20) || !Array.isArray(ex.measures) || ex.measures.length < 2) throw new Error('low_fit: diagnóstico ejecutivo incompleto')
   if (!evidenceFound(research.publicText, p.evidence)) {
-    const fix = await llm(env, [{ role: 'system', content: 'Devuelve JSON {"evidence":"..."} con UNA frase copiada carácter por carácter del texto, de 12 a 160 caracteres, que respalde la observación. Si ninguna la respalda, devuelve {"evidence":""}.' }, { role: 'user', content: JSON.stringify({ observation: p.observation, text: research.publicText }) }], { temperature: 0, max_tokens: 400 }).catch(() => ({}))
+    const fix = await llm(env, [{ role: 'system', content: 'Devuelve JSON {"evidence":"..."} con UNA frase copiada carácter por carácter del texto, de 12 a 160 caracteres, que respalde la observación. Si ninguna la respalda, devuelve {"evidence":""}.' }, { role: 'user', content: JSON.stringify({ observation: p.observation, text: research.publicText }) }], { temperature: 0, max_tokens: 400, task: 'outreach.evidence' }).catch(() => ({}))
     if (!evidenceFound(research.publicText, fix.evidence)) throw new Error('unverified_observation: «' + String(p.evidence || '').slice(0, 120) + '» / reparación: «' + String(fix.evidence || '').slice(0, 120) + '»')
     p.evidence = fix.evidence
   }
