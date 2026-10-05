@@ -2,7 +2,7 @@
 // No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
 // explícitamente que acepta aplicaciones por email y la dirección queda verificada.
 import { notifyCatalina } from '../core/notify.js'
-import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
+import { validPublicEmail, emailDomainReachable, parseModelJson } from '../core/integrations.js'
 import { queueIntentForDirectOutbound } from './intent.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
@@ -153,7 +153,7 @@ async function writeApplication(env,row,route){
     body:JSON.stringify({
       model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,
       temperature:0.38,
-      max_tokens:2200,
+      max_tokens:2600,reasoning:{effort:"low",exclude:true},
       response_format:{type:'json_object'},
       messages:[
         {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
@@ -261,9 +261,9 @@ Devuelve SOLO JSON:
     }),
     signal:AbortSignal.timeout(40000)
   }).catch(()=>null)
-  if(!res?.ok) return null
+  if(!res?.ok){console.error('application_draft_http',res?.status||'no_response');return null}
   const data=await res.json().catch(()=>({}))
-  try{return JSON.parse(data.choices?.[0]?.message?.content||'{}')}catch{return null}
+  return parseModelJson(data,'application_draft')
 }
 async function sendApplication(env,row,route,draft,now){
   const from=env.APPLICATION_EMAIL_FROM||env.EMAIL_FROM

@@ -1,4 +1,5 @@
 import { notifyCatalina } from '../core/notify.js'
+import { parseModelJson } from '../core/integrations.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 const FL_BASE='https://www.freelancer.com'
@@ -151,15 +152,15 @@ amount debe estar dentro del presupuesto cuando exista; periodDays entre 2 y 30.
   const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
     method:'POST',
     headers:{authorization:'Bearer '+env.OPENROUTER_API_KEY,'content-type':'application/json','X-Title':'Carolina Marketplace'},
-    body:JSON.stringify({model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,temperature:0.25,max_tokens:1000,response_format:{type:'json_object'},messages:[
+    body:JSON.stringify({model:env.OPENROUTER_MODEL||env.OPENROUTER_EXTRACT_MODEL,temperature:0.25,max_tokens:2000,reasoning:{effort:'low',exclude:true},response_format:{type:'json_object'},messages:[
       {role:'system',content:system},
       {role:'user',content:JSON.stringify({title:p.title,description:p.description,type:p.type,budget:budgetText,jobs:p.jobs})}
     ]}),
-    signal:AbortSignal.timeout(30000)
-  }).catch(()=>null)
-  if(!res?.ok) return null
+    signal:AbortSignal.timeout(45000)
+  }).catch(e=>{console.error('freelancer_judge_fetch',e?.message);return null})
+  if(!res?.ok){console.error('freelancer_judge_http',res?.status||'no_response');return null}
   const data=await res.json().catch(()=>({}))
-  try{return JSON.parse(data.choices?.[0]?.message?.content||'{}')}catch{return null}
+  return parseModelJson(data,'freelancer_judge')
 }
 
 function validBid(p,j) {

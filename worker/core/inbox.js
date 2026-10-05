@@ -27,6 +27,20 @@ export function isUnsubscribe(subject, text) {
   return /^\s*(baja|unsubscribe|remove|stop)\b/i.test(subject || '') || /^\s*(baja|unsubscribe|no me escriban|no me contacten)\b/i.test((text || '').trim())
 }
 
+// Buzones gratuitos: el dominio no identifica a la empresa, solo se asocia por dirección exacta.
+const FREE_MAIL = /^(gmail|googlemail|hotmail|outlook|live|yahoo|icloud|me|aol|proton|protonmail|msn|gmx|yandex)\./
+export function companyDomain(addr) {
+  const d = String(addr || '').toLowerCase().split('@')[1] || ''
+  return d && !FREE_MAIL.test(d) && d !== OWN_DOMAIN ? d : null
+}
+
+// Rechazo explícito: cierra la oportunidad sin más seguimientos ni respuesta automática.
+export function isDecline(text) {
+  const body = String(text || '').split(/\n\s*(?:on [\s\S]{0,160}?wrote:|el [\s\S]{0,160}?escribi[oó]:|-----original message)/i)[0]
+    .split('\n').filter(line => !/^\s*>/.test(line)).join('\n')
+  return /\b(no\s+(?:estamos|estoy)\s+interesad[oa]s?|no\s+nos\s+interesa|no\s+me\s+interesa|not\s+interested|no,?\s+gracias|no\s+thanks|ya\s+(?:lo\s+)?tenemos\s+(?:resuelto|cubierto)|we(?:'re|\s+are)\s+all\s+set)\b/i.test(body)
+}
+
 export function obviousInboundCategory(subject, text) {
   const s = (String(subject || '') + '\n' + String(text || '')).toLowerCase()
   if (/\b(agendar|agenda|reuni[oó]n|videollamada|calendar|disponibilidad|horario para hablar|cu[aá]ndo hablamos)\b/i.test(s)) return 'meeting'
@@ -110,8 +124,18 @@ export async function handleInbound(message, env) {
   if (skip) return { handled: false, reason: skip }
 
   // Una respuesta humana detiene cualquier seguimiento y deja el estado comercial visible.
-  await env.DB.prepare("UPDATE outreach SET status='replied',updated_at=? WHERE lower(email)=? AND status='sent'").bind(now, from).run()
-  await env.DB.prepare("UPDATE direct_applications SET status='replied',updated_at=? WHERE lower(recipient)=? AND status='sent'").bind(now, from).run().catch(()=>{})
+  // Suele responder un colega (dguerrero@ en vez de info@): se asocia por dominio de empresa.
+  const domain = companyDomain(from)
+  const like = domain ? '%@' + domain : from
+  const linked = (await env.DB.prepare("SELECT id FROM outreach WHERE (lower(email)=? OR lower(email) LIKE ?) AND status IN ('sent','replied')").bind(from, like).all()).results || []
+  await env.DB.prepare("UPDATE outreach SET status='replied',updated_at=? WHERE (lower(email)=? OR lower(email) LIKE ?) AND status='sent'").bind(now, from, like).run()
+  await env.DB.prepare("UPDATE direct_applications SET status='replied',updated_at=? WHERE (lower(recipient)=? OR lower(recipient) LIKE ?) AND status='sent'").bind(now, from, like).run().catch(()=>{})
+  if (isDecline(text)) {
+    for (const r of linked) await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind('declined:' + r.id, r.id, 'reply.declined', now).run().catch(()=>{})
+    await env.DB.prepare("UPDATE emails SET category='declined' WHERE thread_key=? AND direction='in' AND message_id IS ?").bind(from, messageId).run()
+    await notifyCatalina(env, `Carolina · rechazo · ${from}`, `${from} respondió que no está interesado. Oportunidad cerrada sin más seguimientos.\n\nAsunto: ${subject}\n\n${text.slice(0, 1500)}`)
+    return { handled: true, category: 'declined', replied: false }
+  }
   if (isUnsubscribe(subject, text)) {
     await env.DB.prepare("UPDATE outreach SET status='suppressed',updated_at=? WHERE lower(email)=? AND status IN ('sent','replied','pending','review')").bind(now, from).run()
     await env.DB.prepare('INSERT OR REPLACE INTO suppression(email,reason,created_at) VALUES (?,?,?)').bind(from, 'reply_unsubscribe', now).run()
@@ -126,7 +150,7 @@ export async function handleInbound(message, env) {
     return { handled: false, reason: 'rate_limited' }
   }
 
-  const past = await env.DB.prepare('SELECT direction,subject,body FROM emails WHERE thread_key=? ORDER BY id DESC LIMIT 9 OFFSET 1').bind(from).all()
+  const past = await env.DB.prepare('SELECT direction,subject,body FROM emails WHERE (thread_key=? OR lower(thread_key) LIKE ?) AND NOT (thread_key=? AND message_id IS ?) ORDER BY id DESC LIMIT 9').bind(from, like, from, messageId).all()
   const history = (past.results || []).reverse().map(e => `${e.direction === 'in' ? 'CLIENTE' : 'CAROLINA'} · ${e.subject}\n${(e.body || '').slice(0, 1200)}`).join('\n---\n')
 
   let decision

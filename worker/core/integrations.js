@@ -70,6 +70,17 @@ export const validPublicEmail = value => {
   return !junkEmail.test(e)
 }
 
+// Respuesta JSON de OpenRouter tolerante a ```json, texto alrededor y razonamiento visible.
+// Devuelve null y registra el motivo: un fallo silencioso dejó 129 bids en judge_unavailable.
+export function parseModelJson(data, label = 'model') {
+  const choice = data?.choices?.[0]
+  const raw = String(choice?.message?.content || '')
+  const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
+  if (a >= 0 && b > a) { try { return JSON.parse(raw.slice(a, b + 1)) } catch {} }
+  console.error(label + '_unparseable', JSON.stringify({ finish: choice?.finish_reason || null, error: data?.error?.message || null, chars: raw.length }))
+  return null
+}
+
 export async function emailDomainReachable(value) {
   const email=String(value||'').trim().toLowerCase()
   if(!validPublicEmail(email)) return false
