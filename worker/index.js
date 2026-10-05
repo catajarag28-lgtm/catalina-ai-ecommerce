@@ -564,6 +564,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
     await step('intentClean', () => cleanIntentQueue(env))
     await step('intent', () => runIntentScan(env))
+    // Barrido dedicado de mercados de alto poder de compra. Una vez por ventana de 2h por el markKey.
+    await step('marketIntent', () => runIntentScan(env,Date.now(),{suffix:'markets',searches:2,offset:1,highValueOnly:true}))
     if (plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
     if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     await step('applications', () => runDirectApplications(env))

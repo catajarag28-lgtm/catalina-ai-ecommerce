@@ -240,9 +240,12 @@ export async function runIntentScan(env, now = Date.now(), options = {}) {
   const dayNumber = Math.floor(now / 86400000)
   const searchesPerSlot = Math.max(2, Math.min(8, Number(options.searches || env.INTENT_SEARCHES_PER_SLOT || 7)))
   const offset = Number(options.offset || 0)
-  const queryPool = options.partnerOnly
-    ? intentQueries.filter(q => /white label|agency looking|CRM agency|Shopify agency|automation agency/i.test(q))
-    : intentQueries
+  const highValueMarketPattern = /seek\.com\.au|Australia|Dubai|UAE|Saudi|Ireland|United Kingdom|uk\.indeed|Canada|New Zealand|Singapore|white label AI automation/i
+  const queryPool = options.highValueOnly
+    ? intentQueries.filter(q => highValueMarketPattern.test(q))
+    : options.partnerOnly
+      ? intentQueries.filter(q => /white label|agency looking|CRM agency|Shopify agency|automation agency/i.test(q))
+      : intentQueries
   const start = (dayNumber * searchesPerSlot + slot * searchesPerSlot + offset) % queryPool.length
   const fresh = []
   const funnel = { searched: 0, found: 0, duplicate: 0, filteredNoLLM: 0, qualified: 0, rejectedByModel: 0, proposals: 0, skippedNoisySource: 0, reasons: {} }
