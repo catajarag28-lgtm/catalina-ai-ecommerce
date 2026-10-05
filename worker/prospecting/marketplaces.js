@@ -248,6 +248,8 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   const since=Date.parse(bogotaDay(now)+'T00:00:00-05:00')
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM marketplace_submissions WHERE platform='freelancer' AND status='submitted' AND created_at>=?").bind(since).first()
   if((count?.n||0)>=limit){out.freelancer.reason='daily_cap';return out}
+  const noBids=await env.DB.prepare("SELECT value FROM app_settings WHERE key='freelancer_out_of_bids'").first().catch(()=>null)
+  if(noBids?.value===bogotaDay(now)){out.freelancer.reason='bid_limit_exceeded';return out}
 
   const bidderId=await freelancerSelf(env)
   if(!bidderId){out.freelancer.reason='oauth_invalid_or_self_lookup_failed';return out}
@@ -274,7 +276,7 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
     if(prior){
       if(['submitted','submitting','blocked_account_requirement'].includes(prior.status)) continue
       if(prior.status==='skipped'){
-        const budgetRecovered=prior.error==='budget_below_floor' && !belowFloor
+        const budgetRecovered=(prior.error==='budget_below_floor' && !belowFloor) || prior.error==='bid_limit_exceeded'
         const strongFitRetry=(prior.error==='low_fit' || /^fit_(medio|bajo|unknown)$/.test(String(prior.error||''))) && relevance>=2000 && Number(prior.updated_at||0)<=now-60*60*1000
         if(!budgetRecovered && !strongFitRetry) continue
       }
@@ -345,12 +347,19 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       ].join('\n')).catch(()=>{})
     } else {
       const err=JSON.stringify(sent.data||{}).slice(0,700)
-      const accountBlocked=/RESTRICTED_FROM_BIDDING_PREMIUM|BID_MINIMUM_REQUIREMENT_NOT_MET|PROFILE_INCOMPLETE|at least 5 reviews|Plus, Professional or Premier|Verified by Freelancer|complete the profile|account balance/i.test(err)
-      const blockedStatus=accountBlocked?'blocked_account_requirement':'failed'
+      const accountBlocked=/RESTRICTED_FROM_BIDDING_PREMIUM|BID_MINIMUM_REQUIREMENT_NOT_MET|PROFILE_INCOMPLETE|SKILLS_REQUIREMENT_NOT_MET|at least 5 reviews|Plus, Professional or Premier|Verified by Freelancer|complete the profile|account balance|required skills/i.test(err)
+      // Sin bids disponibles, cada intento extra solo gasta modelo: se libera el proyecto y se para hasta mañana.
+      const outOfBids=/BID_LIMIT_EXCEEDED|used all of your bids/i.test(err)
+      const blockedStatus=accountBlocked?'blocked_account_requirement':outOfBids?'skipped':'failed'
       await env.DB.prepare("UPDATE marketplace_submissions SET status=?,error=?,updated_at=? WHERE id=?")
-        .bind(blockedStatus,err,Date.now(),'freelancer:'+p.id).run()
+        .bind(blockedStatus,outOfBids?'bid_limit_exceeded':err,Date.now(),'freelancer:'+p.id).run()
       if(p.intentUrl) await env.DB.prepare("UPDATE intent_leads SET status=? WHERE url=?")
-        .bind(accountBlocked?'blocked_account_requirement':'submit_failed',p.intentUrl).run().catch(()=>{})
+        .bind(accountBlocked?'blocked_account_requirement':outOfBids?'official_api_pending':'submit_failed',p.intentUrl).run().catch(()=>{})
+      if(outOfBids){
+        await env.DB.prepare("INSERT OR REPLACE INTO app_settings(key,value) VALUES ('freelancer_out_of_bids',?)").bind(bogotaDay(now)).run().catch(()=>{})
+        out.freelancer.reason='bid_limit_exceeded'
+        break
+      }
     }
   }
   return out
