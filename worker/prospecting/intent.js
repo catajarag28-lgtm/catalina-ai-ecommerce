@@ -48,6 +48,27 @@ export const intentQueries = [
   'site:linkedin.com/jobs/view Shopify automation AI ecommerce operations remote',
   'site:linkedin.com/jobs/view Spanish bilingual AI automation CRM remote',
 
+  // Mercados de alto valor con demanda observable. Se prioriza REMOTE/CONTRACT/FREELANCE/WHITE-LABEL;
+  // on-site, visa local o work-rights obligatorios se descartan en calificación.
+  'site:seek.com.au "AI automation" n8n remote contract Australia',
+  'site:seek.com.au "AI Automation Specialist" remote Australia CRM integrations',
+  'site:linkedin.com/jobs/view Australia remote contract "AI automation" n8n',
+  'site:linkedin.com/jobs/view Dubai UAE remote contract "AI automation" n8n WhatsApp CRM',
+  'site:ae.indeed.com remote contract n8n AI automation Dubai WhatsApp CRM',
+  'site:linkedin.com/jobs/view Saudi Arabia remote contract n8n AI automation WhatsApp CRM',
+  'site:community.n8n.io Saudi Arabia hiring n8n automation remote paid project',
+  'site:linkedin.com/jobs/view Ireland remote contract n8n AI automation integrations',
+  'site:uk.indeed.com remote contract n8n AI automation integrations',
+  'site:linkedin.com/jobs/view United Kingdom remote contract n8n AI automation consultant',
+  'site:ca.indeed.com remote contract n8n AI automation Canada',
+  'site:linkedin.com/jobs/view New Zealand remote contract AI automation n8n',
+  'site:linkedin.com/jobs/view Singapore remote contract AI automation n8n integrations',
+  'Dubai real estate clinic looking for AI automation WhatsApp CRM n8n contractor',
+  'Saudi agency looking for AI automation n8n Make WhatsApp contractor remote',
+  'Australia service business looking for AI automation CRM integrations contractor',
+  'UK agency looking for white label AI automation n8n implementation partner',
+  'Ireland agency looking for AI automation contractor n8n integrations',
+
   // Comunidades donde ya preguntan cómo resolver un problema.
   'site:community.n8n.io looking for n8n expert freelance automation',
   'site:community.n8n.io need help AI agent WhatsApp CRM automation',
@@ -119,7 +140,7 @@ export async function qualifyIntent(env, p) {
   const r = await callModel(env, { task: 'intent.qualify', json: true, temperature: 0.1, maxTokens: 500, minConfidence: 0.6, dealValue: 600,
     validate: d => ['alto', 'medio', 'bajo'].includes(d?.fit) || 'fit_missing',
     messages: [
-      { role: 'system', content: 'Calificas oportunidades para Catalina Jaramillo (agentes IA, automatización, CRM, WhatsApp, Shopify/ecommerce, APIs, workflows, growth y operaciones; español nativo, inglés básico con apoyo de IA). Decide con la evidencia literal. buyer=true solo si quien publica CONTRATA o PIDE implementación (no si ofrece servicios). fit alto = núcleo directamente en sus capacidades; medio = ejecutable con capacidades transferibles; bajo = ajeno, exige especialidad no verificable o inglés hablado continuo. expectedValueUSD = estimación prudente del contrato (0 si no hay datos). Devuelve SOLO JSON {"buyer":true|false,"fit":"alto|medio|bajo","expectedValueUSD":numero,"confidence":0-1,"reason":"1 frase","recommended_action":"apply|propose|skip"}.' },
+      { role: 'system', content: 'Calificas oportunidades para Catalina Jaramillo (agentes IA, automatización, CRM, WhatsApp, Shopify/ecommerce, APIs, workflows, growth y operaciones; español nativo, inglés básico con apoyo de IA). Decide con la evidencia literal. buyer=true solo si quien publica CONTRATA o PIDE implementación (no si ofrece servicios). PRIORIDAD COMERCIAL: contratos/proyectos remote, freelance, part-time, async y white-label de mercados con alto poder de compra, especialmente Australia, UAE/Dubái, Arabia Saudita/MENA, Reino Unido, Irlanda, Canadá, Estados Unidos y Nueva Zelanda; después España/México/LatAm por facilidad idiomática. No premies un país por sí solo: fit y posibilidad real de contratar desde Colombia mandan. DESCARTA o baja a fit bajo si exige presencia física frecuente, residencia/visa/work-rights locales, relocation obligatoria, ciudadanía/clearance, o inglés oral fluido durante prácticamente toda la jornada. Una reunión ocasional en inglés NO invalida el fit. fit alto = núcleo directamente en sus capacidades y ruta remota/contract viable; medio = ejecutable con capacidades transferibles; bajo = ajeno o barrera dura de ubicación/idioma/especialidad. expectedValueUSD = estimación prudente del contrato (0 si no hay datos). Devuelve SOLO JSON {"buyer":true|false,"fit":"alto|medio|bajo","expectedValueUSD":numero,"confidence":0-1,"reason":"1 frase","recommended_action":"apply|propose|skip"}.' },
       { role: 'user', content: JSON.stringify({ url: p.url, platform: p.platform, title: p.title, who: p.who, need: p.need, evidence: p.evidence, kind: p.kind, language: p.language }) },
     ] })
   if (!r.ok) return { ok: false, reason: r.error }
@@ -217,7 +238,7 @@ export async function runIntentScan(env, now = Date.now(), options = {}) {
   const mark = await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind(markKey, 'system', suffix ? 'intent.boosted' : 'intent.scanned', now).run()
   if (!mark.meta.changes) return { due: false, slot, suffix }
   const dayNumber = Math.floor(now / 86400000)
-  const searchesPerSlot = Math.max(2, Math.min(8, Number(options.searches || env.INTENT_SEARCHES_PER_SLOT || 5)))
+  const searchesPerSlot = Math.max(2, Math.min(8, Number(options.searches || env.INTENT_SEARCHES_PER_SLOT || 7)))
   const offset = Number(options.offset || 0)
   const queryPool = options.partnerOnly
     ? intentQueries.filter(q => /white label|agency looking|CRM agency|Shopify agency|automation agency/i.test(q))

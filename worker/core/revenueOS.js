@@ -8,9 +8,9 @@ const CV_ES='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_R
 const CV_EN='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf'
 
 function detectLanguage(text=''){
-  const s=' '+String(text).toLowerCase().replace(/[^a-záéíóúñü\s]/g,' ')+' '
+  const s=' '+String(text).toLowerCase().replace(/[^a-zÃ¡Ã©Ã­Ã³ÃºÃ±Ã¼\s]/g,' ')+' '
   const en=(s.match(/\b(the|and|with|for|your|you|we|our|role|project|automation|experience|team|work|looking|hiring)\b/g)||[]).length
-  const es=(s.match(/\b(el|la|los|las|y|con|para|tu|usted|equipo|proyecto|automatización|experiencia|trabajo|busca|buscando|contratar)\b/g)||[]).length
+  const es=(s.match(/\b(el|la|los|las|y|con|para|tu|usted|equipo|proyecto|automatizaciÃ³n|experiencia|trabajo|busca|buscando|contratar)\b/g)||[]).length
   if(en===es)return null
   return en>es?'en':'es'
 }
@@ -20,8 +20,8 @@ const one = async (env,sql,...args) => env.DB.prepare(sql).bind(...args).first()
 
 export function revenueTargets(paused){
   return paused
-    ? {outbound:0,directApplications:12,marketplaces:10,intent:10,partners:8,abm:4,followups:6}
-    : {outbound:20,directApplications:8,marketplaces:7,intent:5,partners:4,abm:2,followups:4}
+    ? {outbound:0,directApplications:20,marketplaces:15,intent:13,partners:12,abm:6,followups:9}
+    : {outbound:20,directApplications:15,marketplaces:10,intent:10,partners:8,abm:4,followups:8}
 }
 
 export async function buildRevenuePlan(env, now=Date.now()){
@@ -38,7 +38,7 @@ export async function buildRevenuePlan(env, now=Date.now()){
     one(env,"SELECT COUNT(*) n FROM meetings WHERE created_at>=?",since)
   ])
   const paused=!!control?.paused
-  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legítimas.
+  // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legÃ­timas.
   const targets=revenueTargets(paused)
   const actual={
     outbound:n(outbound),directApplications:n(direct),marketplaces:n(market),intent:n(intent),
@@ -103,7 +103,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
     need:String(r.need||'').slice(0,500),
     route:r.application_route||'unknown',
     status:r.application_status||r.intent_status||'WAITING_HUMAN',
-    blocker:String(r.blocker||'La plataforma requiere acción humana/autenticada.').slice(0,400),
+    blocker:String(r.blocker||'La plataforma requiere acciÃ³n humana/autenticada.').slice(0,400),
     proposal,
     language,
     cv:language==='en'?(env.CV_EN_URL||CV_EN):(env.CV_ES_URL||CV_ES),
@@ -137,26 +137,26 @@ export async function sendManualApplicationQueue(env, now=Date.now(), force=fals
     if(!overdueReminder && !morningDigest) return {sent:false,count:rows.length,overdueCount,unchanged:true}
   }
   const lines=[
-    'Estas oportunidades YA fueron calificadas, pero requieren una acción humana dentro de la plataforma.',
-    'No están contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
+    'Estas oportunidades YA fueron calificadas, pero requieren una acciÃ³n humana dentro de la plataforma.',
+    'No estÃ¡n contadas como SUBMITTED. Catalina solo debe abrir, revisar y pulsar/enviar.',
     '',
     ...rows.slice(0,20).flatMap((r,i)=>[
       `${i+1}. [${r.platform}] ${r.project}`,
-      `   FIT: ${r.fit} · ESTADO: ${r.status} · RUTA: ${r.route}`,
-      `   Qué pide: ${r.need}`,
+      `   FIT: ${r.fit} Â· ESTADO: ${r.status} Â· RUTA: ${r.route}`,
+      `   QuÃ© pide: ${r.need}`,
       `   Link: ${r.url}`,
       `   Bloqueo: ${r.blocker}`,
-      `   SLA: ${r.overdue?'VENCIDA · '+r.ageHours+'h esperando':'vence '+r.dueAt}`,
-      `   Siguiente acción: ${r.nextAction}`,
+      `   SLA: ${r.overdue?'VENCIDA Â· '+r.ageHours+'h esperando':'vence '+r.dueAt}`,
+      `   Siguiente acciÃ³n: ${r.nextAction}`,
       `   CV: ${r.cv}`,
       `   Perfil visual: ${r.visualProfile}`,
       `   Portafolio: ${r.portfolio}`,
-      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacción final dentro de la plataforma.',
-      '   QUÉ HACES TÚ: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
+      r.proposal ? '   PROPUESTA LISTA:\n   '+r.proposal.replace(/\n/g,'\n   ') : '   PROPUESTA: requiere redacciÃ³n final dentro de la plataforma.',
+      '   QUÃ‰ HACES TÃš: abre el link, sube el CV si lo pide, revisa preguntas obligatorias y pulsa enviar. Si aparece una pregunta nueva, no inventes experiencia.',
       ''
     ])
   ]
-  await notifyCatalina(env,`🖱️ POSTULACIONES MANUALES PENDIENTES · ${rows.length}`,lines.join('\n')).catch(()=>{})
+  await notifyCatalina(env,`ðŸ–±ï¸ POSTULACIONES MANUALES PENDIENTES Â· ${rows.length}`,lines.join('\n')).catch(()=>{})
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_signature',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
     .bind(signature,now).run()
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('manual_queue_last_day',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
@@ -171,3 +171,4 @@ export async function revenueSnapshot(env,now=Date.now()){
   const manual=await manualApplicationQueue(env,now)
   return {plan,manualCount:manual.length,manualOverdue:manual.filter(x=>x.overdue).length,manual:manual.slice(0,12)}
 }
+

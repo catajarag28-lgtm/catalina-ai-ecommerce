@@ -198,7 +198,10 @@ test('Revenue OS redistributes capacity when cold outreach is paused', () => {
   assert.ok(paused.marketplaces > active.marketplaces)
   assert.ok(paused.intent > active.intent)
   assert.ok(paused.partners > active.partners)
-  assert.equal(Object.values(paused).reduce((a,b)=>a+b,0), 50)
+  const pausedTotal = Object.values(paused).reduce((a,b)=>a+b,0)
+  const activeTotal = Object.values(active).reduce((a,b)=>a+b,0)
+  assert.equal(activeTotal, 75)
+  assert.equal(pausedTotal, activeTotal)
 })
 
 test('Partner discovery can select only partner segments', () => {
