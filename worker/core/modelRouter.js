@@ -142,7 +142,9 @@ export async function callModel(env, opts) {
     for (const model of models) {
       if (attempts.length >= maxAttempts) break
       const t0 = Date.now()
-      const reasoning = tier >= 4 ? { effort: 'medium', exclude: true } : { effort: 'low', exclude: true }
+      // Medido en producción (5-oct): DeepSeek/Qwen con razonamiento consumían los 2.000 tokens pensando y
+      // devolvían JSON truncado. Clasificar/calificar no necesita pensamiento extendido: se apaga en tiers 1-2.
+      const reasoning = tier >= 4 ? { effort: 'medium', exclude: true } : tier === 3 ? { effort: 'low', exclude: true } : { enabled: false }
       const body = {
         model, messages: withCache(model, opts.messages),
         temperature: opts.temperature ?? 0.3,
