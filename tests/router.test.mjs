@@ -93,6 +93,16 @@ test('filter: keeps a fresh, explicit buyer request', async () => {
   assert.equal(r.ok, true)
 })
 
+test('filter: real buyers that never say "hiring" are kept (false negatives of 5-oct)', async () => {
+  const buyers = [
+    { url: 'https://jobs.lever.co/cscgeneration-2/40715594-0edc-4909-967c-71d252215c51', evidence: 'Sur La Table needs AI-powered automations and tooling', need: 'AI Solutions Engineer' },
+    { url: 'https://jobs.ashbyhq.com/cas/b0d87b0a-be44-41ed-80eb-c9416f13f5f7', evidence: 'Full-Time Independent Contractor', need: 'automatizaciones con IA' },
+    { url: 'https://jobs.ashbyhq.com/workhero/2b76354a', evidence: "We're growing the team that turns messy workflows into AI-powered automations", need: 'agentes de IA' },
+    { url: 'https://jobs.stardex.com/job-postings/constant-hire/senior-shopify-developer-eiPE7-', evidence: 'Build reliable automations using AI, APIs, and tools like Make, Zapier, or n8n', need: 'Shopify + IA' },
+  ]
+  for (const p of buyers) assert.equal((await classifyDemand(p, offline)).ok, true, p.url)
+})
+
 test('quality gate: blocks generic, priced or contact-leaking proposals', () => {
   const p = { platform: 'LinkedIn', need: 'automatizar seguimiento de leads de WhatsApp con CRM para clínica estética' }
   assert.equal(proposalGate('Hola, puedo ayudar.', p), 'too_short')

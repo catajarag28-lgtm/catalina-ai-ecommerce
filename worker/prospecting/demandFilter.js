@@ -16,7 +16,11 @@ const BUYER = [
   /\bseeking\b/i, /\bneed(ed)?\s+(an?\s+)?(freelancer|expert|developer|help|someone)\b/i, /\bpaid\s+(project|gig|work)\b/i, /\bbudget\b/i,
   /\bbusco\b/i, /\bbuscamos\b/i, /\bnecesito\b/i, /\bnecesitamos\b/i, /\bse\s+busca\b/i, /\bcontratar\b/i, /\bvacante\b/i,
   /\bapply\b/i, /\bjob\b/i, /\bposition\b/i, /\brole\b/i, /\bproject\b/i, /\bproyecto\b/i,
+  // Falsos negativos del 5-oct: avisos reales que no dicen "hiring" (Sur La Table, CAS, WorkHero, Stardex).
+  /\bneeds?\b/i, /\bcontractor\b/i, /\bgrowing\s+the\s+team\b/i, /\brequirements?\b/i, /\bpartnership\b/i, /\bsocios?\b/i, /\bresponsibilities\b/i,
 ]
+// Un aviso en un ATS o job board ES demanda por definición; la calificación decide si encaja.
+const JOB_BOARD = /lever\.co|greenhouse\.io|ashbyhq\.com|workable\.com|linkedin\.com\/jobs|wellfound\.com|remoteok\.com|weworkremotely\.com|builtin\.com\/job|getonbrd\.com|stardex\.com|onlinejobs\.ph|smartrecruiters\.com|bamboohr\.com\/careers|teamtailor\.com/i
 // Enlaces de navegación y upsells que los scrapers confundían con oportunidades.
 const NAV = [
   /probar\s+premium|try\s+premium|premium\s+por\s+0/i, /build\s+your\s+resume/i, /global\s+payroll/i,
@@ -73,10 +77,10 @@ export async function classifyDemand(p, { now = Date.now(), fetcher = fetch, rem
   if (OFF_SCOPE.test(fullText)) return { ok: false, reason: 'off_scope' }
   if (topic?.closed) return { ok: false, reason: 'closed_thread' }
   const published = topic?.createdAt || linkedinPostDate(url) || (p.date && Date.parse(p.date)) || null
-  const isJob = /lever|greenhouse|ashby|workable|linkedin\.com\/jobs|wellfound|remoteok|weworkremotely|builtin|getonbrd/i.test(url)
+  const isJob = JOB_BOARD.test(url)
   const maxAge = (isJob ? MAX_AGE_DAYS.job : MAX_AGE_DAYS.post) * 86400000
   if (published && Number.isFinite(published) && now - published > maxAge) return { ok: false, reason: 'stale', publishedAt: published }
-  if (buyer === 0) return { ok: false, reason: 'no_active_demand', signals: { seller, buyer } }
+  if (buyer === 0 && !isJob) return { ok: false, reason: 'no_active_demand', signals: { seller, buyer } }
   return { ok: true, publishedAt: Number.isFinite(published) ? published : null, signals: { seller, buyer } }
 }
 
