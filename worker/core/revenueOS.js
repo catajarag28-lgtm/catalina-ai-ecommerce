@@ -87,7 +87,7 @@ export async function manualApplicationQueue(env, now=Date.now()){
       )
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
       AND i.status NOT IN ('submitted','external_email_sent','direct_email_sent','not_hiring')
-      AND lower(i.platform) IN ('linkedin','upwork','workana','contra','peopleperhour','people per hour','guru','malt','twine','wellfound')
+      AND lower(i.platform) IN ('linkedin','upwork','workana','contra','peopleperhour','people per hour','guru','malt','twine','wellfound','freelancer','soyfreelancer','getonbrd','computrabajo','arc','braintrust','fiverr','toptal','n8n','make','reddit','community')
     ORDER BY CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END, i.found_at DESC
     LIMIT 60`).all()).results||[]
   return rows.map(r=>{

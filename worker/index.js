@@ -403,6 +403,10 @@ export default {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       return json(await (await import('./proposals/tracker.js')).sendTrackerLink(env))
     }
+    if (url.pathname === '/ops/vm-platform-batch' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      return json(await (await import('./prospecting/platformBatches.js')).sendPlatformBatch(env, Date.now(), { force: true }))
+    }
     if (url.pathname === '/ops/vm-jobfeeds' && request.method === 'POST') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       return json(await (await import('./prospecting/jobFeeds.js')).runJobFeeds(env, Date.now(), { force: true }))
@@ -664,6 +668,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
     await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:4}))
     await step('manualQueue', () => sendManualApplicationQueue(env))
+    // Lotes de plataformas cada 2 horas (8, 10, 12, 14 y 16 h Colombia), repartidos entre plataformas.
+    await step('platformBatch', async () => (await import('./prospecting/platformBatches.js')).sendPlatformBatch(env))
     await step('applicationCoverage', () => applicationCoverageAudit(env))
     console.log('carolina_cycle', JSON.stringify(cycle))
     await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(cycle).slice(0, 4000), Date.now()).run().catch(() => {})

@@ -225,3 +225,9 @@ test('linkedin note fits 300 chars and carries the proposal link in the follow-u
   assert.match(li.note, /^Hola Ana, soy Catalina Jaramillo/)
   assert.match(li.followup, /propuesta\/xyz/)
 })
+
+test('platform batches are spread across platforms', async () => {
+  const { spreadByPlatform } = await import('../worker/prospecting/platformBatches.js')
+  const b = spreadByPlatform([{ platform: 'upwork' }, { platform: 'upwork' }, { platform: 'upwork' }, { platform: 'workana' }, { platform: 'linkedin' }], 3)
+  assert.deepEqual(b.map(x => x.platform).sort(), ['linkedin', 'upwork', 'workana'])
+})
