@@ -37,10 +37,10 @@ export function mapVmResult(value) {
 const parse = s => { try { return JSON.parse(s || '{}') } catch { return {} } }
 
 /** Única cola que puede consumir el navegador de la VM. Solo A/B + quality=passed + propuesta real. */
-export async function vmApplicationQueue(env, { limit = 20 } = {}) {
-  const max = Math.max(1, Math.min(40, Number(limit) || 20))
+export async function vmApplicationQueue(env, { limit = 50 } = {}) {
+  const max = Math.max(1, Math.min(50, Number(limit) || 50))
   const rows = (await env.DB.prepare(`SELECT
-      o.url,o.platform,o.title,o.company,o.score,o.grade,o.brief,o.proposal,o.quality,o.action,o.updated_at,
+      o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.quality,o.action,o.updated_at,
       d.status AS application_status,d.terminal,d.next_attempt_at
     FROM opportunities o
     LEFT JOIN direct_applications d ON d.source_url=o.url
@@ -67,6 +67,7 @@ export async function vmApplicationQueue(env, { limit = 20 } = {}) {
       status: r.grade === 'A' ? 'ENVIABLE_PRIORIDAD_ALTA' : 'ENVIABLE_PRIORIDAD_MEDIA',
       action: r.action,
       quality: r.quality,
+      easyApply: Number(r.easy_apply||0)===1,
       brief: parse(r.brief),
       proposal: safe(r.proposal),
       applicationStatus: r.application_status || null,

@@ -17,7 +17,7 @@ const ids = new Map()
 try {
   for (const q of QUERIES) {
     if (ids.size >= MAX_JOBS) break
-    const url = 'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(q) + '&f_WT=2&f_TPR=r604800&sortBy=R&geoId=92000000'
+    const url = 'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(q) + '&f_WT=2&f_TPR=r604800&f_AL=true&sortBy=R&geoId=92000000'
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {})
     await sleep(jitter(3500, 5500))
     if (/\/login|authwall|checkpoint/i.test(page.url())) { console.log('linkedin: session lost', page.url()); process.exit(3) }

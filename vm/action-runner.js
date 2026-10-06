@@ -84,7 +84,7 @@ function validCandidate(x){
   const canonicalProposal=String(x.proposal||'').trim();
   if(canonicalProposal.split(/\s+/).length<80) return false;
   if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url) || !RELEVANT_RX.test(`${title} ${url}`)) return false;
-  if(p==='linkedin' && !/linkedin\.com\/jobs\/view\//i.test(url)) return false;
+  if(p==='linkedin' && (!/linkedin\.com\/jobs\/view\//i.test(url) || x.easyApply!==true)) return false;
   if((p==='n8n'||p==='make') && (!/\/t\//i.test(url) || !HIRING_COMMUNITY_RX.test(title))) return false;
   if(p==='workana') return false;
   if(!sessionConnected(p)) return false;
