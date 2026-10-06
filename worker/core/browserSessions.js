@@ -960,6 +960,15 @@ async function submitGenericApplicationForm(env,row){
     const page=await context.newPage()
     await page.goto(target,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
     await page.waitForTimeout(1200)
+    // Workable separa overview y formulario en /apply/. Ir directo evita que el click visual falle silenciosamente.
+    try {
+      const u=new URL(page.url())
+      if(/(^|\.)apply\.workable\.com$/i.test(u.hostname) && !/\/apply\/?$/i.test(u.pathname)) {
+        const applyLink=page.getByRole('link',{name:/apply for this job|application|apply/i}).first()
+        const href=await applyLink.getAttribute('href').catch(()=>null)
+        if(href){ await page.goto(new URL(href,page.url()).toString(),{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{}); await page.waitForTimeout(1200) }
+      }
+    } catch {}
 
     const successRe=/application (?:was )?(?:submitted|received|sent)|successfully applied|thank you for applying|thanks for applying|we(?:'ve| have) received your application|solicitud enviada|candidatura enviada|postulaci[oó]n enviada|hemos recibido tu (?:solicitud|candidatura)/i
     const blockedRe=/captcha|verify you are human|security check|unusual activity|sign in to apply|log in to apply|inicia sesi[oó]n para (?:postular|aplicar)|checkout|credit card|payment required|membership required/i
