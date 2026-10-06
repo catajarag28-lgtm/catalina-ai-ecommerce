@@ -120,7 +120,7 @@ export async function handleInbound(message, env) {
   const like = domain ? '%@' + domain : from
   const linked = (await env.DB.prepare("SELECT id FROM outreach WHERE (lower(email)=? OR lower(email) LIKE ?) AND status IN ('sent','replied')").bind(from, like).all()).results || []
   await env.DB.prepare("UPDATE outreach SET status='replied',updated_at=? WHERE (lower(email)=? OR lower(email) LIKE ?) AND status='sent'").bind(now, from, like).run()
-  await env.DB.prepare("UPDATE direct_applications SET status='replied',updated_at=? WHERE (lower(recipient)=? OR lower(recipient) LIKE ?) AND status='sent'").bind(now, from, like).run().catch(()=>{})
+  await env.DB.prepare("UPDATE direct_applications SET status='replied',updated_at=? WHERE (lower(recipient)=? OR lower(recipient) LIKE ?) AND status IN ('sent','external_email_sent')").bind(now, from, like).run().catch(()=>{})
   if (isDecline(text)) {
     for (const r of linked) await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind('declined:' + r.id, r.id, 'reply.declined', now).run().catch(()=>{})
     await env.DB.prepare("UPDATE emails SET category='declined' WHERE thread_key=? AND direction='in' AND message_id IS ?").bind(from, messageId).run()
