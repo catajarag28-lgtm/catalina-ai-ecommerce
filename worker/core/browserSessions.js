@@ -2,6 +2,7 @@ import { launch, connect } from '@cloudflare/playwright'
 import { notifyCatalina } from './notify.js'
 import { callModel } from './modelRouter.js'
 import { sessionStateFrom } from './sessionHealth.js'
+import { autoSubmitAllowed } from './channels.js'
 
 const enc=new TextEncoder()
 const dec=new TextDecoder()
@@ -1125,6 +1126,8 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
   for(const row of rows){
     if(results.length>=limit)break
     const platform=normalizePlatform(row.platform)
+    // AUTO_SUBMIT=off: ni navegador ni modelo; queda en la cola humana con su propuesta.
+    if(!autoSubmitAllowed(env)){diagnostics.autoSubmitOff=(diagnostics.autoSubmitOff||0)+1;continue}
     if(!platform){
       const target=genericApplicationTarget(row)
       if(!target){diagnostics.unsupported++;continue}

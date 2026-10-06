@@ -4,6 +4,7 @@
 import { notifyCatalina } from '../core/notify.js'
 import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { callModel } from '../core/modelRouter.js'
+import { autoSubmitAllowed } from '../core/channels.js'
 import { queueIntentForDirectOutbound } from './intent.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
@@ -374,6 +375,7 @@ export async function runDirectApplications(env,now=Date.now()){
       AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','official_api_pending','official_api_matched','direct_application_pending','needs_application_review'))
       AND coalesce(i.active_now,1)=1
       AND coalesce(d.terminal,0)=0
+      AND coalesce(d.status,'')<>'ready_for_submission'
       AND i.status IN (
         'new','needs_verified_identity','direct_application_pending','application_ready','queued_outbound',
         'waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review',
@@ -474,6 +476,13 @@ export async function runDirectApplications(env,now=Date.now()){
       continue
     }
 
+    if(!autoSubmitAllowed(env)){
+      // AUTO_SUBMIT=off: la candidatura queda escrita y lista; no se envía hasta validar calidad.
+      await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,subject,body,route,status,blocker,created_at,updated_at) VALUES (?,?,?,?,?,'email','ready_for_submission','auto_submit_off',?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,subject=excluded.subject,body=excluded.body,route='email',status='ready_for_submission',blocker='auto_submit_off',terminal=0,updated_at=excluded.updated_at")
+        .bind(row.url,platform,route.email,safe(draft.subject).slice(0,180),safe(draft.body),now,now).run()
+      out.prepared=(out.prepared||0)+1
+      continue
+    }
     await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,subject,body,route,status,created_at,updated_at) VALUES (?,?,?,?,?,'email','sending',?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,subject=excluded.subject,body=excluded.body,route='email',status='sending',error=NULL,blocker=NULL,last_attempt_at=excluded.updated_at,next_attempt_at=NULL,terminal=0,updated_at=excluded.updated_at")
       .bind(row.url,platform,route.email,safe(draft.subject).slice(0,180),safe(draft.body),now,now).run()
     const sent=await sendApplication(env,row,route,draft,now)

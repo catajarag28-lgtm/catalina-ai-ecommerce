@@ -128,3 +128,16 @@ test('session health: only a fresh authenticated probe is CONNECTED', async () =
   // Guardada pero sin probe reciente: nunca CONNECTED por suposición.
   assert.equal(sessionStateFrom({ stored: 'present', lastSuccess: now - 30 * 3600000 }, now).state, 'REFRESH_REQUIRED')
 })
+
+test('opportunity score: target roles grade high, SEO PM and off-profile roles are rejected', async () => {
+  const { scoreOpportunity, proposalQuality } = await import('../worker/prospecting/opportunities.js')
+  const seo = scoreOpportunity({ title: 'SEO Project Manager (Remote, Cali)', company: 'Acme', description: 'Manage SEO projects, keyword research, backlinks and content calendars.' })
+  assert.equal(seo.grade, 'C')
+  const good = scoreOpportunity({ title: 'AI Automation Specialist - Ecommerce Operations', company: 'Spreetail', location: 'Remote', description: 'Build AI agents and workflow automation with n8n, Shopify and CRM for ecommerce operations. Long-term contract, remote, LATAM welcome.' })
+  assert.ok(good.grade === 'A' || good.grade === 'B', JSON.stringify(good))
+  const dev = scoreOpportunity({ title: 'Senior Backend Engineer (Golang, Kubernetes)', company: 'X', description: 'AI platform' })
+  assert.equal(dev.grade, 'C')
+  assert.equal(scoreOpportunity({ title: 'Video Editor for AI ads', description: 'edit videos' }).grade, 'C')
+  const o = { title: 'AI Automation Specialist', company: 'Spreetail', description: 'Build AI agents workflow automation shopify operations fulfillment' }
+  assert.equal(proposalQuality('Hi, I saw your offer and I am very passionate. ' + 'word '.repeat(150), o), 'company_not_mentioned')
+})

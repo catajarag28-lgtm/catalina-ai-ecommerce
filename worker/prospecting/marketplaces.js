@@ -1,6 +1,6 @@
 import { notifyCatalina } from '../core/notify.js'
 import { callModel } from '../core/modelRouter.js'
-import { setChannelStatus, channelLimited } from '../core/channels.js'
+import { setChannelStatus, channelLimited, autoSubmitAllowed } from '../core/channels.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
 const FL_BASE='https://www.freelancer.com'
@@ -315,6 +315,13 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
       continue
     }
 
+    if(!autoSubmitAllowed(env)){
+      // AUTO_SUBMIT=off: bid listo para revisión, no se envía.
+      await env.DB.prepare("INSERT INTO marketplace_submissions(id,platform,external_id,url,title,amount,currency,proposal,status,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,'ready_for_submission','auto_submit_off',?,?) ON CONFLICT(id) DO UPDATE SET amount=excluded.amount,currency=excluded.currency,proposal=excluded.proposal,status='ready_for_submission',error='auto_submit_off',updated_at=excluded.updated_at")
+        .bind('freelancer:'+p.id,'freelancer',p.id,p.url,p.title,bid.amount,p.currency,bid.proposal,now,now).run()
+      out.freelancer.prepared=(out.freelancer.prepared||0)+1
+      continue
+    }
     // Claim antes de enviar para evitar doble bid en crons concurrentes.
     const claim=prior
       ? await env.DB.prepare("UPDATE marketplace_submissions SET amount=?,currency=?,proposal=?,status='submitting',error=NULL,updated_at=? WHERE id=? AND status IN ('failed','skipped')")

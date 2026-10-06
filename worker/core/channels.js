@@ -22,3 +22,7 @@ export async function channelSnapshot(env) {
   const rows = await env.DB.prepare("SELECT key,value FROM app_settings WHERE key LIKE 'channel:%'").all().catch(() => ({ results: [] }))
   return Object.fromEntries((rows.results || []).map(r => { try { return [r.key.slice(8), JSON.parse(r.value)] } catch { return [r.key.slice(8), null] } }))
 }
+
+// Candado global de envíos automáticos (postulaciones por navegador, por email y bids).
+// Hasta que Catalina valide la calidad, todo se PREPARA y queda listo para revisión: AUTO_SUBMIT=off.
+export const autoSubmitAllowed = env => String(env.AUTO_SUBMIT || 'off').toLowerCase() === 'on'

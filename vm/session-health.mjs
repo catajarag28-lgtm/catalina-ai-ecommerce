@@ -13,7 +13,8 @@ const MIN_INTERVAL_MS = Number(process.env.SESSION_HEALTH_INTERVAL_MS || 55 * 60
 const PLATFORMS = {
   google:   { url: 'https://myaccount.google.com/', domain: 'google.com', auth: ['SID', '__Secure-1PSID'], login: /accounts\.google\.com\/.*(signin|identifier|ServiceLogin)/i },
   linkedin: { url: 'https://www.linkedin.com/feed/', domain: 'linkedin.com', auth: ['li_at'], login: /\/login|\/uas\/login|authwall|signup/i, challenge: /checkpoint|challenge/i },
-  workana:  { url: 'https://www.workana.com/dashboard', domain: 'workana.com', auth: [], login: /\/login|\/signin/i },
+  // Workana puede tener sesión válida pero el perfil sin aprobar: no se puede postular (no gastar IA).
+  workana:  { url: 'https://www.workana.com/dashboard', domain: 'workana.com', auth: [], login: /\/login|\/signin/i, profileBlock: /no pudimos aprobar tu perfil|tu perfil est[aá] en revisi[oó]n/i },
   upwork:   { url: 'https://www.upwork.com/nx/find-work/', domain: 'upwork.com', auth: [], login: /account-security\/login|\/login/i },
   n8n:      { url: 'https://community.n8n.io/', domain: 'community.n8n.io', auth: ['_t'], discourse: true },
   make:     { url: 'https://community.make.com/', domain: 'community.make.com', auth: ['_t'], discourse: true },
@@ -47,6 +48,7 @@ async function check(ctx, name) {
     // de "Log in / Sign in" significa sesión cerrada.
     else if (!p.auth.length && await page.locator('a:visible, button:visible').filter({ hasText: /^\s*(log ?in|sign ?in|iniciar sesi[oó]n|ingresar|entrar)\s*$/i }).count().catch(() => 0)) { verdict = 'LOGIN_REQUIRED'; evidence = 'login_button_visible' }
     else if (!cookies.length) { verdict = 'LOGIN_REQUIRED'; evidence = 'no_platform_cookies' }
+    else if (p.profileBlock && p.profileBlock.test(body)) { verdict = 'BLOCKED'; evidence = 'BLOCKED_PROFILE_APPROVAL' }
     else { verdict = 'CONNECTED'; evidence = 'authenticated_page' }
     return { verdict, evidence, url: url.split('?')[0].slice(0, 120), title: title.slice(0, 80), platformCookies: cookies.length, authCookieNames: authNames }
   } finally { await page.close().catch(() => {}) }

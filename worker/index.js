@@ -379,10 +379,22 @@ export default {
       }catch(e){return new Response('No pude guardar la sesión: '+String(e?.message||e),{status:400,headers:{'content-type':'text/plain; charset=utf-8'}})}
     }
     // CloudSessionHealth de la VM (navegador persistente PRIMARIO). Solo la VM conoce el token.
-    if (url.pathname === '/ops/vm-session-health' && request.method === 'POST') {
+    const vmAuthorized = async () => {
       const sha = async s => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s))))
       const [a, b] = await Promise.all([sha(request.headers.get('authorization') || ''), sha('Bearer ' + (env.CAROLINA_VM_TOKEN || crypto.randomUUID()))])
-      if (!env.CAROLINA_VM_TOKEN || a.some((x, i) => x !== b[i])) return json({ error: 'unauthorized' }, 401)
+      return !!env.CAROLINA_VM_TOKEN && a.every((x, i) => x === b[i])
+    }
+    // Oportunidades descubiertas por el runner de la VM → cola inteligente (score, brief, propuesta única).
+    if (url.pathname === '/ops/vm-opportunities' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      const body = safeJson(await request.text())
+      const { ingestOpportunities } = await import('./prospecting/opportunities.js')
+      const result = await ingestOpportunities(env, String(body.source || 'vm').slice(0, 30), Array.isArray(body.items) ? body.items : [], { limit: Math.min(12, Number(body.limit || 10)) })
+      console.log('vm_opportunities', JSON.stringify({ received: result.received, A: result.A, B: result.B, C: result.C, prepared: result.prepared }))
+      return json(result)
+    }
+    if (url.pathname === '/ops/vm-session-health' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       const body = safeJson(await request.text())
       const allowed = ['CONNECTED', 'LOGIN_REQUIRED', 'CHALLENGE_REQUIRED', 'BLOCKED', 'PROFILE_MISSING', 'ERROR']
       const results = (Array.isArray(body.results) ? body.results : []).slice(0, 20).map(r => ({
