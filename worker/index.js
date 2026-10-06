@@ -20,6 +20,7 @@ import { isMeetingMail, handleMeetingMail, learnedPlaybook } from './core/meetin
 import { instagramReady, verifyInstagramChallenge, receiveInstagramWebhook } from './core/instagram.js'
 import { runAcquisitionDirector } from './core/acquisitionStrategy.js'
 import { buildRevenuePlan, sendManualApplicationQueue, revenueSnapshot } from './core/revenueOS.js'
+import { vmApplicationQueue, recordVmApplicationResult } from './core/vmBridge.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -405,6 +406,17 @@ export default {
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('vm_session_health',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(value), Date.now()).run()
       console.log('vm_session_health', JSON.stringify(results.map(r => r.platform + ':' + r.verdict)))
       return json({ ok: true, stored: results.length })
+    }
+    // Cola canónica para el navegador persistente: SOLO propuestas A/B que ya pasaron quality gate.
+    if (url.pathname === '/ops/vm-queue' && request.method === 'GET') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      return json(await vmApplicationQueue(env, { limit: Math.max(1, Math.min(40, Number(url.searchParams.get('limit') || 20))) }))
+    }
+    // Resultado real/dry-run del navegador de la VM → D1. Nunca confiar en archivos locales como fuente final.
+    if (url.pathname === '/ops/vm-result' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      try { return json(await recordVmApplicationResult(env, safeJson(await request.text()))) }
+      catch (e) { return json({ error: String(e?.message || e) }, 400) }
     }
     if (url.pathname === '/ops/browser/setup' && request.method === 'POST') {
       if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
