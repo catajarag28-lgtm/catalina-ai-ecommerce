@@ -44,8 +44,9 @@ const tierOf = task => TASK_TIERS[task] ?? 2
 
 // Valor esperado → cuánto razonamiento vale la pena comprar.
 export function valueCeiling(dealValue = 0) {
-  if (dealValue >= 3000) return 4
-  if (dealValue >= 500) return 3
+  // Claude queda reservado para oportunidades realmente high-ticket; la mayoría se resuelve con DeepSeek/Gemini.
+  if (dealValue >= 5000) return 4
+  if (dealValue >= 1200) return 3
   return 2
 }
 
@@ -75,14 +76,19 @@ export async function guardState(env, task, now = Date.now()) {
   await ensureTable(env)
   const budget = Number(env.AI_DAILY_BUDGET_USD || 2)
   const maxPerWindow = Number(env.AI_TASK_MAX_CALLS_15M || 40)
-  const row = await env.DB.prepare('SELECT (SELECT COALESCE(SUM(cost),0) FROM ai_calls WHERE at>=?) spent, (SELECT COUNT(*) FROM ai_calls WHERE task=? AND at>=?) recent').bind(bogotaMidnight(now), task, now - 15 * 60000).first().catch(() => ({ spent: 0, recent: 0 }))
+  const day = bogotaMidnight(now)
+  const row = await env.DB.prepare('SELECT (SELECT COALESCE(SUM(cost),0) FROM ai_calls WHERE at>=?) spent, (SELECT COUNT(*) FROM ai_calls WHERE task=? AND at>=?) recent, (SELECT COUNT(*) FROM ai_calls WHERE tier=4 AND at>=?) premium').bind(day, task, now - 15 * 60000, day).first().catch(() => ({ spent: 0, recent: 0, premium: 0 }))
   const spent = Number(row?.spent || 0)
+  const premiumCap = Math.max(0, Math.min(20, Number(env.PREMIUM_REVIEW_DAILY_TARGET || 8) || 8))
+  const budgetTier = spent >= budget ? 1 : spent >= budget * 0.8 ? 2 : 4
   return {
     spent, budget,
     circuitOpen: Number(row?.recent || 0) >= maxPerWindow,
-    // Al 80% del presupuesto solo se permite hasta DeepSeek; al 100% solo modelos gratuitos.
-    maxTier: spent >= budget ? 1 : spent >= budget * 0.8 ? 2 : 4,
+    // Al 80% del presupuesto solo DeepSeek; al 100% solo gratis. Claude además tiene cupo diario independiente.
+    maxTier: Number(row?.premium || 0) >= premiumCap ? Math.min(3, budgetTier) : budgetTier,
     freeOnly: spent >= budget,
+    premiumUsed: Number(row?.premium || 0),
+    premiumCap,
   }
 }
 

@@ -187,17 +187,29 @@ export async function adjustDailyCap(env, now = Date.now()) {
   const since = now - 7 * 86400000
   const sent = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE sent_at>=? AND id NOT LIKE 'test-%'").bind(since).first())?.n || 0
   const ev = type => env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) n FROM outreach_events e JOIN outreach o ON o.id=e.outreach_id WHERE o.id NOT LIKE 'test-%' AND e.type=? AND e.occurred_at>=?").bind(type, since).first().then(r => r?.n || 0)
-  const bounced = await ev('email.bounced'), complained = await ev('email.complained')
+  const bounced = await ev('email.bounced'), complained = await ev('email.complained'), declined = await ev('reply.declined')
   const engaged = (await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) n FROM outreach_events e JOIN outreach o ON o.id=e.outreach_id WHERE o.id NOT LIKE 'test-%' AND e.type IN ('email.clicked','page.viewed','cta.clicked') AND e.occurred_at>=?").bind(since).first())?.n || 0
   const replied = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE status='replied' AND updated_at>=? AND id NOT LIKE 'test-%'").bind(since).first())?.n || 0
-  let next = cap
-  if (sent >= cap * 2 && complained === 0 && bounced / Math.max(1, sent) < 0.03 && (engaged / Math.max(1, sent) >= 0.03 || replied > 0)) next = Math.min(ceiling, cap + 15)
-  if (next > ceiling) next = ceiling
+  const positive = Math.max(0, replied - declined)
+  const meetings = (await env.DB.prepare("SELECT COUNT(DISTINCT m.id) n FROM meetings m JOIN outreach o ON lower(o.email)=lower(m.email) WHERE o.sent_at>=? AND o.id NOT LIKE 'test-%'").bind(since).first().catch(()=>({n:0})))?.n || 0
+  const bounceRate = bounced / Math.max(1, sent), positiveRate = positive / Math.max(1, sent)
+  let next = cap, reason = 'sin cambio'
+  if (complained > 0 || bounceRate >= 0.05) {
+    next = Math.max(5, Math.floor(cap * 0.5)); reason = 'protección de entregabilidad'
+  } else if (sent >= 30 && positive === 0 && meetings === 0) {
+    next = Math.max(5, Math.floor(cap * 0.6)); reason = '30+ envíos sin respuesta positiva ni reunión'
+  } else if (sent >= 20 && positiveRate < 0.02 && cap > 10) {
+    next = Math.max(10, cap - 5); reason = 'respuesta positiva por debajo de 2%'
+  } else if (sent >= cap * 2 && bounceRate < 0.03 && (positive >= 2 || meetings >= 1 || engaged / Math.max(1, sent) >= 0.05)) {
+    next = Math.min(ceiling, cap + 5); reason = 'evidencia de interés real'
+  }
+  next = Math.min(next, ceiling)
   if (next !== cap) {
     await env.DB.prepare('UPDATE outreach_control SET daily_cap=?,updated_at=? WHERE id=1').bind(next, now).run()
-    await notifyCatalina(env, `Carolina sube el volumen a ${next} correos por día hábil`, `Últimos 7 días: ${sent} enviados, ${bounced} rebotes, ${complained} quejas, ${engaged} con interés (clic o visita), ${replied} respuestas.\nTecho configurado: ${ceiling}.`).catch(() => {})
+    const verb = next > cap ? 'sube' : 'reduce'
+    await notifyCatalina(env, `Carolina ${verb} el volumen a ${next} correos/día`, `Motivo: ${reason}. Últimos 7 días: ${sent} enviados, ${positive} respuestas positivas, ${meetings} reuniones, ${bounced} rebotes, ${complained} quejas, ${engaged} con interés.\nTecho configurado: ${ceiling}.`).catch(() => {})
   }
-  return { due: true, cap: next, sent, bounced, engaged, replied }
+  return { due: true, cap: next, sent, bounced, engaged, replied, positive, meetings, reason }
 }
 
 export async function currentDailyCap(env) {

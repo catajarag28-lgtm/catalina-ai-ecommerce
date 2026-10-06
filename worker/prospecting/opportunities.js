@@ -83,6 +83,43 @@ export function scoreOpportunity(o) {
   return { score, grade, parts, rejects, reasons }
 }
 
+
+// Prioridad económica determinística: decide quién merece gasto de IA, no quién "suena interesante".
+export function expectedContractPriority(o, s = {}) {
+  const text = [o.title, o.description, o.company, o.location].filter(Boolean).join(' ')
+  const explicit = /(looking for|seeking|hiring|need (?:an?|someone)|contractor|freelance|paid project|busco|necesito|contratando|contratar|proyecto pagado)/i.test(text)
+  const partner = /(white[- ]label|delivery partner|implementation partner|agency partner|multiple clients|client projects|agencia|agency)/i.test(text)
+  const recurring = Number(s?.parts?.recurring || 0)
+  const authority = Number(s?.parts?.authority || 0)
+  const urgency = Number(s?.parts?.urgency || 0)
+  const competition = Number(s?.parts?.competition || 0)
+  const fit = Number(s?.score || 0)
+  const b = usd(o.budgetUsd)
+
+  const budgetScore = b == null ? 8 : b >= 5000 ? 20 : b >= 2000 ? 18 : b >= 1000 ? 15 : b >= 500 ? 12 : b >= 300 ? 7 : 0
+  let priority = Math.round(
+    Math.min(35, fit * 0.35) +
+    (explicit ? 18 : 0) +
+    (partner ? 14 : 0) +
+    budgetScore +
+    (recurring >= 10 ? 8 : recurring >= 6 ? 5 : 1) +
+    Math.min(5, authority) +
+    Math.min(5, urgency) +
+    Math.min(5, competition)
+  )
+  priority = Math.max(0, Math.min(100, priority))
+
+  const expectedValue = b != null
+    ? Math.max(300, Math.min(10000, b))
+    : partner ? 3500
+      : recurring >= 10 ? 2500
+        : explicit && fit >= 70 ? 1800
+          : explicit ? 1200
+            : fit >= 70 ? 1000 : 600
+
+  return { priority, expectedValue, explicit, partner }
+}
+
 // Quality gate anti-genérico, sin LLM.
 export function proposalQuality(proposal, o) {
   const t = String(proposal || '').trim()
@@ -135,7 +172,7 @@ export async function briefAndPropose(env, o, s) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const r = await callModel(env, {
       task: 'intent.proposal', json: true, temperature: 0.45, maxTokens: 2200, timeoutMs: 60000, opportunityId: o.url.slice(0, 200),
-      dealValue: s.grade === 'A' ? 3000 : 1200, minConfidence: 0.6,
+      dealValue: Number(s.expectedValue || (s.grade === 'A' ? 1800 : 900)), minConfidence: 0.6,
       validate: d => (d?.brief && typeof d.proposal === 'string') || 'brief_or_proposal_missing',
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }, ...(feedback ? [{ role: 'user', content: 'Corrige la propuesta: ' + feedback + '. Conserva solo hechos reales.' }] : [])],
     })
@@ -194,6 +231,13 @@ export async function ingestOpportunities(env, source, items, { limit = 10, chan
       continue
     }
     const s = scoreOpportunity(o)
+    const econ = expectedContractPriority(o, s)
+    s.contractPriority = econ.priority
+    s.expectedValue = econ.expectedValue
+    s.parts.contractPriority = econ.priority
+    s.parts.expectedValue = econ.expectedValue
+    s.parts.explicitDemand = econ.explicit ? 1 : 0
+    s.parts.partnerPotential = econ.partner ? 1 : 0
     out[s.grade]++
     if (s.rejects.length || s.grade === 'C') out.rejected.push({ title: o.title, company: o.company, score: s.score, why: [...s.rejects, ...s.reasons].join(', ') || 'score bajo' })
     await env.DB.prepare(`INSERT INTO opportunities(url,source,platform,channel,title,company,location,budget_text,budget_usd,applicants,easy_apply,description,score,grade,score_parts,rejects,action,status,apply_url,created_at,updated_at)
@@ -201,9 +245,15 @@ export async function ingestOpportunities(env, source, items, { limit = 10, chan
       .bind(o.url, source, o.platform, channel, o.title, o.company, o.location, o.budgetText, o.budgetUsd, o.applicants, o.easyApply ? 1 : 0, o.description, s.score, s.grade, JSON.stringify(s.parts), JSON.stringify([...s.rejects, ...s.reasons]), s.grade === 'C' ? 'SKIP_LOW_SCORE' : 'PENDING_BRIEF', s.grade === 'C' ? 'discarded' : 'qualified', atsApplyUrl(o.applyUrl), now, now).run()
     scored.push({ o, s })
   }
-  // Solo A y B consumen IA; A primero.
-  scored.sort((a, b) => b.s.score - a.s.score)
-  for (const { o, s } of scored.filter(x => x.s.grade !== 'C').slice(0, limit)) {
+  // Solo A/B con prioridad contractual suficiente consumen IA. Orden: probabilidad económica, luego fit.
+  const minPriority = Math.max(0, Math.min(100, Number(env.MIN_CONTRACT_PRIORITY || 55) || 55))
+  scored.sort((a, b) => (b.s.contractPriority - a.s.contractPriority) || (b.s.score - a.s.score))
+  const midnight = Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now) + 'T00:00:00-05:00')
+  const alreadyDeep = Number((await env.DB.prepare("SELECT COUNT(*) n FROM opportunities WHERE proposal<>'' AND updated_at>=?").bind(midnight).first().catch(() => null))?.n || 0)
+  const dailyDeepTarget = Math.max(5, Math.min(80, Number(env.DEEP_RESEARCH_DAILY_TARGET || 35) || 35))
+  const remainingDeep = Math.max(0, dailyDeepTarget - alreadyDeep)
+  const candidatesForAI = scored.filter(x => x.s.grade !== 'C' && x.s.contractPriority >= minPriority).slice(0, Math.min(limit, remainingDeep))
+  for (const { o, s } of candidatesForAI) {
     const r = await briefAndPropose(env, o, s)
     if (!r?.ok) { out.results.push({ title: o.title, company: o.company, score: s.score, grade: s.grade, error: r?.error }); continue }
     if (r.quality === 'not_aligned') out.notAligned++

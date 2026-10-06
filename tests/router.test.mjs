@@ -18,7 +18,8 @@ test('router: bulk work starts free, commercial writing on Gemini, Claude never 
 
 test('router: escalation ceiling follows expected deal value', () => {
   assert.equal(valueCeiling(100), 2)
-  assert.equal(valueCeiling(800), 3)
+  assert.equal(valueCeiling(800), 2)
+  assert.equal(valueCeiling(1500), 3)
   assert.equal(valueCeiling(5000), 4)
   // Low confidence on a USD 100 lead never buys premium reasoning.
   assert.equal(selectModel('intent.qualify', { dealValue: 100, confidence: 0.2 }).tier, 2)
@@ -140,6 +141,18 @@ test('opportunity score: target roles grade high, SEO PM and off-profile roles a
   assert.equal(scoreOpportunity({ title: 'Video Editor for AI ads', description: 'edit videos' }).grade, 'C')
   const o = { title: 'AI Automation Specialist', company: 'Spreetail', description: 'Build AI agents workflow automation shopify operations fulfillment' }
   assert.equal(proposalQuality('Hi, I saw your offer and I am very passionate. ' + 'word '.repeat(150), o), 'company_not_mentioned')
+})
+
+test('contract priority spends AI on explicit high-value demand before cold generic opportunities', async () => {
+  const { scoreOpportunity, expectedContractPriority } = await import('../worker/prospecting/opportunities.js')
+  const explicit = { title: 'AI Automation Contractor', company: 'Growth Agency', description: 'We are looking for a white-label automation partner for ongoing client projects. Need n8n, CRM and AI agent implementation.', budgetUsd: 3000 }
+  const cold = { title: 'AI Automation Specialist', company: 'Generic Co', description: 'Automation and AI operations.' }
+  const se = scoreOpportunity(explicit), sc = scoreOpportunity(cold)
+  const pe = expectedContractPriority(explicit, se), pc = expectedContractPriority(cold, sc)
+  assert.ok(pe.priority > pc.priority, JSON.stringify({ pe, pc }))
+  assert.ok(pe.expectedValue >= 3000)
+  assert.equal(pe.explicit, true)
+  assert.equal(pe.partner, true)
 })
 
 test('dry-run 6-oct regressions: on-site events, spoken-English sales roles and false claims are blocked', async () => {
