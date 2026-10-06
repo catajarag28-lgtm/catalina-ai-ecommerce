@@ -275,7 +275,9 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
         if(!budgetRecovered && !strongFitRetry) continue
       }
       if(prior.status==='failed' && Number(prior.updated_at||0)>now-60*60*1000) continue
-      if(!['failed','skipped'].includes(prior.status)) continue
+      // Bids que quedaron listos cuando AUTO_SUBMIT estaba apagado: ahora que está encendido, se envían.
+      const unlocked=prior.status==='ready_for_submission' && prior.error==='auto_submit_off' && autoSubmitAllowed(env)
+      if(!unlocked && !['failed','skipped'].includes(prior.status)) continue
     }
     // Para USD, evita microproyectos incompatibles con una implementación profesional.
     if(belowFloor) {
