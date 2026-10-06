@@ -183,7 +183,8 @@ export async function runOutreach(env, now = Date.now()) {
   for (const t of today) { const k = sectorOf(t); sentBy[k] = (sentBy[k] || 0) + t.n }
   // Clientes primero; las alianzas con agencias salen como máximo 3 al día y al final de la fila.
   const partnersToday = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE kind='partner' AND sent_at>?").bind(now - 86400000).first())?.n || 0
-  const urgency = r => r.kind === 'partner' ? (partnersToday >= 3 ? -1000 : -1) : (/^senal-/.test(r.segment || '') ? 1000 : 0) + (MIX[sectorOf(r)] || 5) / (1 + (sentBy[sectorOf(r)] || 0))
+  const usd = r => /EE\. UU\.|Puerto Rico|Panamá|Rep\. Dominicana|Ecuador|El Salvador/.test(regionOf(r) || '') ? 2 : 1
+  const urgency = r => r.kind === 'partner' ? (partnersToday >= 3 ? -1000 : -1) : (/^senal-/.test(r.segment || '') ? 1000 : 0) + usd(r) * (MIX[sectorOf(r)] || 5) / (1 + (sentBy[sectorOf(r)] || 0))
   rows.sort((a, b) => urgency(b) - urgency(a))
   // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
   for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
