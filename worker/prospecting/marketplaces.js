@@ -248,6 +248,29 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
   const bidderId=await freelancerSelf(env)
   if(!bidderId){out.freelancer.reason='oauth_invalid_or_self_lookup_failed';return out}
 
+  // Bids ya evaluados y redactados mientras AUTO_SUBMIT estaba apagado (últimas 72 h): se envían primero, dentro del tope.
+  if(autoSubmitAllowed(env)){
+    let used=count?.n||0
+    const ready=(await env.DB.prepare("SELECT * FROM marketplace_submissions WHERE platform='freelancer' AND status='ready_for_submission' AND error='auto_submit_off' AND proposal IS NOT NULL AND amount IS NOT NULL AND created_at>? ORDER BY created_at DESC LIMIT 10").bind(now-72*3600000).all()).results||[]
+    for(const r of ready){
+      if(used>=limit) break
+      const claim=await env.DB.prepare("UPDATE marketplace_submissions SET status='submitting',updated_at=? WHERE id=? AND status='ready_for_submission'").bind(now,r.id).run()
+      if(!claim.meta.changes) continue
+      const sent=await placeFreelancerBid(env,{id:r.external_id},{amount:Number(r.amount),period:7,proposal:r.proposal},bidderId)
+      if(sent.ok && sent.data?.result?.id){
+        used++; out.freelancer.submitted++
+        await env.DB.prepare("UPDATE marketplace_submissions SET status='submitted',provider_id=?,error=NULL,updated_at=? WHERE id=?").bind(String(sent.data.result.id),Date.now(),r.id).run()
+        await notifyCatalina(env,`🎯 Carolina postuló en Freelancer · ${r.title}`,['Carolina presentó el bid desde tu cuenta mediante la API oficial de Freelancer.',`Proyecto: ${r.url}`,`Oferta: ${r.currency||''} ${r.amount} · 7 días`,'','Propuesta enviada:',r.proposal].join('\n')).catch(()=>{})
+      } else {
+        const err=JSON.stringify(sent.data||{}).slice(0,700)
+        const outOfBids=/BID_LIMIT_EXCEEDED|used all of your bids/i.test(err)
+        await env.DB.prepare("UPDATE marketplace_submissions SET status=?,error=?,updated_at=? WHERE id=?").bind(outOfBids?'ready_for_submission':'failed',outOfBids?'auto_submit_off':err,Date.now(),r.id).run()
+        if(outOfBids){ out.freelancer.reason='bid_limit_exceeded'; return out }
+      }
+    }
+    if(used>=limit){ out.freelancer.reason='daily_cap'; return out }
+  }
+
   const rotation=Math.floor(now/(15*60*1000))%FL_QUERIES.length
   const queries=[0,2,4,6,8,10,12,14].map(offset=>FL_QUERIES[(rotation+offset)%FL_QUERIES.length])
   const seen=new Set()
