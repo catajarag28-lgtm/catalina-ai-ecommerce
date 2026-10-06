@@ -249,7 +249,8 @@ export async function runOutreach(env, now = Date.now()) {
     await env.DB.prepare('INSERT INTO emails(thread_key,direction,from_addr,to_addr,subject,body,message_id,category,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(row.email, 'out', 'clientes@soycatalinajaramillo.com', row.email, subject, html, result.id, 'outreach', Date.now()).run()
     await notifyCatalina(env, `CONTROL INTERNO · propuesta enviada a ${row.company} · «${subject}»`, internalBrief(row, research, proposal, angle, result.id)).catch(() => {})
     // La copia usa otro ID de Resend: sus rebotes no alteran el estado del prospecto.
-    if (env.CATALINA_EMAIL) {
+    // Plan gratis de Resend = 100 correos/día: la copia exacta solo para las primeras 5 del día (el resto está en la hoja).
+    if (env.CATALINA_EMAIL && (count?.n || 0) < Number(env.EXACT_COPY_DAILY || 5)) {
       const copy = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'Idempotency-Key': `outreach-copy-${row.id}` }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.CATALINA_EMAIL], subject: `COPIA EXACTA · así la recibió ${row.company}: ${subject}`.slice(0, 200), html, text }), signal: AbortSignal.timeout(12000) }).catch(() => null)
       if (!copy?.ok) console.error('outreach_copy_failure', row.id)
     }
