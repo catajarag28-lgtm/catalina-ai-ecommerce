@@ -89,7 +89,7 @@ export async function channelMetrics(env, days = 30, now = Date.now()) {
 
 /** Ingreso esperado por acción y reparto de capacidad diaria. Canales bloqueados reciben 0. */
 export async function allocateCapacity(env, { dailyActions = null, now = Date.now() } = {}) {
-  dailyActions = Math.max(50, Math.min(250, Number(dailyActions ?? env.PROPOSAL_PREP_DAILY_TARGET ?? 100) || 100))
+  dailyActions = Math.max(20, Math.min(120, Number(dailyActions ?? env.PROPOSAL_PREP_DAILY_TARGET ?? 40) || 40))
   const { channels } = await channelMetrics(env, 30, now)
   const control = await env.DB.prepare('SELECT paused FROM outreach_control WHERE id=1').first().catch(() => ({ paused: 0 }))
   const blocked = {
@@ -116,8 +116,19 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   const appTarget = Math.max(1, Math.min(100, Number(env.APPLICATION_SUBMIT_DAILY_TARGET || 50) || 50))
   const apps = rows.find(r => r.channel === 'job_applications')
   // Con auto-submit encendido, Carolina debe mantener una capacidad mínima real de postulaciones.
-  if (autoSubmitAllowed(env)) { if (apps) { apps.actions = Math.max(apps.actions, appTarget); apps.note = `AUTO_SUBMIT on: objetivo hasta ${appTarget} postulaciones/día, siempre sujeto a quality gate y bloqueos reales` } }
+  if (autoSubmitAllowed(env)) { if (apps) { apps.actions = Math.max(apps.actions, Math.min(appTarget, dailyActions)); apps.note = `AUTO_SUBMIT on: prioridad hasta ${Math.min(appTarget,dailyActions)} postulaciones/día, sujeto a quality gate y bloqueos reales` } }
   else if (apps) { apps.actions = Math.min(apps.actions, 15); apps.note = 'AUTO_SUBMIT off: preparadas para revisión humana' }
+
+  // El allocator no puede prometer más trabajo del presupuesto diario: si un mínimo (p. ej. postulaciones)
+  // crea overflow, recorta primero canales de menor EV. Conserva una pequeña exploración de intención.
+  let overflow = Math.max(0, rows.reduce((sum, r) => sum + Number(r.actions || 0), 0) - dailyActions)
+  for (const r of rows.filter(r => !r.blocked && r !== apps).sort((a, b) => a.evPerAction - b.evPerAction)) {
+    if (overflow <= 0) break
+    const floor = r.channel === 'intent_signals' ? Math.min(3, r.actions) : 0
+    const cut = Math.min(overflow, Math.max(0, r.actions - floor))
+    r.actions -= cut; overflow -= cut
+  }
+  if (overflow > 0 && apps) { const cut = Math.min(overflow, Math.max(0, apps.actions - 1)); apps.actions -= cut; overflow -= cut }
   rows.sort((a, b) => b.evPerAction - a.evPerAction)
   const allocation = { at: new Date(now).toISOString(), dailyActions, expectedRevenuePerDay: +rows.reduce((a, r) => a + r.actions * r.evPerAction, 0).toFixed(2), channels: rows }
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('capacity_allocation',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(allocation), now).run().catch(() => {})
