@@ -5,7 +5,7 @@ import { manualApplicationQueue } from '../core/revenueOS.js'
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const SLOTS = [8, 10, 12, 14, 16]
-export const langOf = t => (String(t).match(/(the|and|your|with|I am|I have|experience)/gi) || []).length > (String(t).match(/(el|la|los|con|para|tengo|experiencia|su)/gi) || []).length ? 'en' : 'es'
+export const langOf = t => (String(t).match(/\b(the|and|your|with|I am|I have|experience)\b/gi) || []).length > (String(t).match(/\b(el|la|los|con|para|tengo|experiencia|su)\b/gi) || []).length ? 'en' : 'es'
 
 // Reparte por plataforma (round-robin) para no concentrar todo en una sola.
 export function spreadByPlatform(items, max) {
