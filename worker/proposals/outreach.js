@@ -73,7 +73,7 @@ export async function prepare(env, row, research, angle) {
   // Autocrítica adversarial: Carolina solo publica copy sobresaliente; 7/10 ya no es suficiente.
   let critiqueError = null
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-  const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(e => { critiqueError = e.message; return null })
+  const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, tipo: row.kind === 'partner' ? 'alianza con agencia: evalúa caso_comercial y deseo desde el beneficio para la agencia y sus clientes' : 'cliente final', publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(e => { critiqueError = e.message; return null })
   let lint = lintCopy(p, row.company)
   for (let attempt = 0; attempt < 3 && (attempt === 0 ? (critique?.rewrite || lint.length) : lint.length); attempt++) {
     const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...lint]
@@ -84,7 +84,7 @@ export async function prepare(env, row, research, angle) {
   }
   // Vuelve a juzgar la versión FINAL, no el borrador anterior.
   const finalDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-  let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => critique)
+  let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, tipo: row.kind === 'partner' ? 'alianza con agencia: evalúa caso_comercial y deseo desde el beneficio para la agencia y sus clientes' : 'cliente final', publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => critique)
   const qualityPass = q => {
     const s = q?.scores
     // Calibrado 6-oct: con 9/10 en todo se rechazaba más de la mitad (34 vs 31 enviadas). La veracidad sigue en 9;
@@ -103,7 +103,7 @@ export async function prepare(env, row, research, angle) {
     const qLint = lintCopy(p, row.company)
     if (qLint.length) continue
     const qDraft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
-    finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: qDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => finalCritique)
+    finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, tipo: row.kind === 'partner' ? 'alianza con agencia: evalúa caso_comercial y deseo desde el beneficio para la agencia y sus clientes' : 'cliente final', publicText: research.publicText.slice(0, 5000), draft: qDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => finalCritique)
   }
   p.critique = finalCritique?.scores || null
   p.critiqueIssues = finalCritique?.issues || []
@@ -180,7 +180,9 @@ export async function runOutreach(env, now = Date.now()) {
   const today = (await env.DB.prepare("SELECT segment, COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND sent_at>? GROUP BY 1").bind(now - 86400000).all()).results || []
   const sentBy = {}
   for (const t of today) { const k = sectorOf(t); sentBy[k] = (sentBy[k] || 0) + t.n }
-  const urgency = r => (/^senal-/.test(r.segment || '') ? 1000 : 0) + (MIX[sectorOf(r)] || 5) / (1 + (sentBy[sectorOf(r)] || 0))
+  // Clientes primero; las alianzas con agencias salen como máximo 3 al día y al final de la fila.
+  const partnersToday = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE kind='partner' AND sent_at>?").bind(now - 86400000).first())?.n || 0
+  const urgency = r => r.kind === 'partner' ? (partnersToday >= 3 ? -1000 : -1) : (/^senal-/.test(r.segment || '') ? 1000 : 0) + (MIX[sectorOf(r)] || 5) / (1 + (sentBy[sectorOf(r)] || 0))
   rows.sort((a, b) => urgency(b) - urgency(a))
   // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
   for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
