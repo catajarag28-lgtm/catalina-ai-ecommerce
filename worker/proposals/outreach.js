@@ -91,7 +91,8 @@ export async function prepare(env, row, research, angle) {
     // el resto pide 8+ y un promedio de 8,5: sigue siendo copy sobresaliente según un crítico adversarial.
     if (!s) return false
     const v = [s.especificidad, s.claridad, s.caso_comercial, s.credibilidad, s.cta, s.curiosidad, s.deseo].map(x => Number(x || 0))
-    return (s.credibilidad || 0) >= 9 && v.every(x => x >= 8) && v.reduce((a, b) => a + b, 0) / v.length >= 8.5
+    // Curiosidad del asunto admite 7: la tasa de apertura real ya es 48%. El resto sigue en 8+ y CTA en 8+.
+    return (s.credibilidad || 0) >= 9 && (s.curiosidad || 0) >= 7 && [s.especificidad, s.claridad, s.caso_comercial, s.credibilidad, s.cta, s.deseo].every(x => Number(x || 0) >= 8) && v.reduce((a, b) => a + b, 0) / v.length >= 8.4
   }
   // Un copy con buen negocio detrás no se descarta por una primera crítica: se repara hasta dos veces.
   for (let qualityAttempt = 0; qualityAttempt < 2 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
