@@ -289,3 +289,68 @@ Implementa un Revenue Capacity Allocator:
 Añade test E2E específico:
 coldOutreachPaused=true + deficits applications/marketplace/partners >0
 => el ciclo DEBE producir acciones reales en al menos los canales ejecutables o blockers específicos por cada deficit.
+
+## THROUGHPUT SLA — NO NEGOCIABLE
+
+Carolina no se considera operativa por "buscar" o "preparar". Se mide por acciones comerciales ejecutadas y reuniones.
+
+### CAPACIDAD OBJETIVO FASE 1 (desde que executors/sesiones estén estables)
+En una ventana de 24h:
+- 300 negocios/oportunidades screened por reglas + modelos baratos.
+- 120–200 negocios/oportunidades con research suficiente para decidir fit.
+- 60 propuestas comerciales NUEVAS a empresas/decisores por día, distribuidas en canales seguros. NO significa 60 correos desde un solo dominio.
+- 40 postulaciones SUBMITTED reales/día como piso inicial donde exista ruta permitida; subir hacia 60/día si APIs/forms/sesiones lo soportan.
+- 20 partner/white-label pitches/día.
+- 30–60 follow-ups/día.
+- Total fase 1: >=150 acciones comerciales ejecutadas/día entre outbound + applications + partners + followups, siempre que inventario válido y seguridad de canal lo permitan.
+
+### FASE 2
+Si la tasa trailing de reuniones es insuficiente y los canales están sanos, escalar a 200–300 acciones calificadas/día multicanal.
+No escalar un canal que tenga entregabilidad, bloqueo o policy risk.
+
+### META DE REUNIONES
+North Star: 10 reuniones calificadas/día como capacidad objetivo madura.
+No falsear ni garantizar.
+Calcular automáticamente:
+required_actions = CEIL(target_meetings / trailing_14d_meeting_rate)
+por canal y global.
+Si no hay historial suficiente, usar experimentos pequeños por canal y recalibrar.
+La tasa se calcula sobre SENT/SUBMITTED reales, no FOUND/PREPARED.
+
+### COSTE DE IA
+Dato real auditado hoy:
+- 141 llamadas AI ≈ USD 0.46 total.
+- intent.qualify con DeepSeek ≈ USD 0.000036/call.
+- intent.proposal con Gemini ≈ USD 0.001406/call.
+- application.route ≈ USD 0.007195/call (demasiado caro; optimizar).
+- application.write ≈ USD 0.004648/call.
+
+Objetivo:
+- mantener hard cap USD 2/día inicialmente;
+- apuntar a <= USD 1/día con 150+ acciones ejecutadas;
+- no usar IA donde reglas/ATS/domain parsing resuelvan;
+- application.route: detectar Lever/Greenhouse/Ashby/Workable/LinkedIn/Workana/Upwork/etc por URL/HTML determinísticamente y solo llamar IA/web si queda ambiguo;
+- cachear research/company/context por 7–30 días;
+- Gemini solo para final copy de alto fit;
+- Sonnet solo para high-value/low-confidence;
+- medir ai_cost_per_sent, ai_cost_per_submitted, ai_cost_per_positive_reply, ai_cost_per_meeting, no solo cost/call.
+
+### EXECUTION SLA
+Cada ciclo debe convertir deficits del revenue_plan en trabajo real.
+Si target directApplications=20 y actual=0, no basta con boostApplications=true.
+El executor debe intentar hasta:
+(a) llenar el deficit,
+(b) agotar inventario válido,
+(c) encontrar un blocker específico y verificable.
+
+Registrar:
+planned, attempted, executed, blocked, inventory_exhausted, evidence_id.
+
+Un deficit sin executor llamado es un BUG.
+
+### DAILY SCOREBOARD OBLIGATORIO
+A las 8pm America/Bogota enviar:
+screened / researched / qualified / prepared / sent / submitted / delivered / positive replies / meetings booked / meetings held / proposals / won / revenue / AI cost.
+Separado por:
+channel, country, vertical, segment, copy_version, offer_version.
+Además: motivo concreto por el que no se alcanzó cada objetivo diario.

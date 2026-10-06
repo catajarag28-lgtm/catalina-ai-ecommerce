@@ -206,14 +206,28 @@ export async function recordSessionHealth(env,platform,probe=null,now=Date.now()
   return health
 }
 
+// Navegador persistente de la VM = fuente PRIMARIA. Un reporte de más de 3 h no cuenta como CONNECTED.
+export async function vmSessionHealth(env,now=Date.now()){
+  const row=await env.DB.prepare("SELECT value,updated_at FROM app_settings WHERE key='vm_session_health'").first().catch(()=>null)
+  if(!row)return {fresh:false,at:null,byPlatform:{}}
+  let v={};try{v=JSON.parse(row.value)}catch{}
+  const fresh=now-Number(row.updated_at||0)<3*3600000
+  return {fresh,at:v.at||null,mode:v.mode||null,profile:v.profile||null,byPlatform:Object.fromEntries((v.results||[]).map(r=>[r.platform,{...r,connected:fresh&&r.verdict==='CONNECTED'}]))}
+}
+
 export async function browserSessionSummary(env){
   const out=[]
+  const vm=await vmSessionHealth(env)
   for(const id of browserPlatforms){
     const inspected=await inspectBrowserState(env,id)
     const h=await readHealth(env,id)
     // Sin probe registrado no hay CONNECTED: se deriva del estado guardado.
     const derived=h||{state:sessionStateFrom({stored:inspected.stored,probe:null}).state}
-    out.push({platform:id,label:PLATFORM_CONFIG[id].label,saved:inspected.stored==='present',stored:inspected.stored,
+    const v=vm.byPlatform[id]
+    out.push({platform:id,label:PLATFORM_CONFIG[id].label,
+      vm:v?{verdict:v.verdict,connected:v.connected,evidence:v.evidence,afterRestart:v.afterRestart,at:vm.at,fresh:vm.fresh}:null,
+      cloudflare:{state:derived.state,stored:inspected.stored},
+      saved:inspected.stored==='present',stored:inspected.stored,
       state:derived.state,connected:derived.state==='CONNECTED',lastProbe:h?.last_probe||null,lastSuccess:h?.last_success||null,
       lastUrl:h?.last_url||null,expiresAt:h?.expires_at||inspected.expiresAt||null,failureReason:h?.failure_reason||(inspected.reason||null)})
   }
