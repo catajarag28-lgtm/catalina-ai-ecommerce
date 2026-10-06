@@ -217,3 +217,11 @@ test('tracker CSV escapes commas and quotes', async () => {
   const csv = toCsv([{ a: 'Spa "Luna", Miami', b: 'x' }])
   assert.match(csv, /"Spa ""Luna"", Miami",x/)
 })
+
+test('linkedin note fits 300 chars and carries the proposal link in the follow-up', async () => {
+  const { linkedinNote } = await import('../worker/proposals/whatsappChannel.js')
+  const li = linkedinNote({ id: 'xyz', company: 'Inmobiliaria Sol' }, { contactName: 'Ana Pérez', observation: 'Vi que publican más de 40 propiedades en Doral y responden solo por formulario en horario de oficina, lo que deja muchas consultas nocturnas sin atención inmediata.', hypothesis: '¿Qué pasa con quien pregunta por una casa a las 10 p. m.?' })
+  assert.ok(li.note.length <= 300)
+  assert.match(li.note, /^Hola Ana, soy Catalina Jaramillo/)
+  assert.match(li.followup, /propuesta\/xyz/)
+})

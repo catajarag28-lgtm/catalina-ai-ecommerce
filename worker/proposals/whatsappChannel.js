@@ -25,6 +25,21 @@ export function whatsappOpener(row, p = {}) {
   ].filter(Boolean).join('\n\n')
 }
 
+// LinkedIn (lo envía Catalina): nota de conexión ≤300 caracteres + mensaje al aceptar. Mejor que el típico
+// mensaje de plataforma: observación concreta de SU empresa, prueba real (LAURA, 5.000+ clientes) y una propuesta
+// hecha solo para ellos en lugar de "llena el formulario".
+export function linkedinNote(row, p = {}) {
+  const who = p.contactName ? p.contactName.split(/\s+/)[0] : ''
+  const obs = firstSentence(p.observation, 120)
+  let note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. ${obs} Diseño sistemas de ventas y atención con IA; mi agente LAURA ya atendió a más de 5.000 clientes por WhatsApp. ¿Conectamos?`
+  if (note.length > 300) note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Diseño sistemas de ventas y atención con IA para empresas como ${row.company}; mi agente LAURA ya atendió a más de 5.000 clientes. ¿Conectamos?`
+  const followup = `Gracias por conectar${who ? ', ' + who : ''}. Preparé una idea concreta para ${row.company}: ${firstSentence(p.hypothesis, 200)} La dejé aquí, pensada solo para ustedes: ${SITE}/propuesta/${row.id}
+
+Si te hace sentido, lo vemos en 20 minutos esta semana.`
+  const search = 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(row.company + ' (fundador OR CEO OR gerente OR director OR dueño)')
+  return { note: note.slice(0, 300), followup, search }
+}
+
 export async function runWhatsappProposals(env, { limit = 1, now = Date.now() } = {}) {
   const cap = Number(env.WHATSAPP_DAILY_PREP || 25)
   const done = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE kind='whatsapp' AND status IN ('wa_ready','wa_listed') AND updated_at>?").bind(now - 86400000).first())?.n || 0
@@ -73,13 +88,15 @@ export async function sendWhatsappList(env, now = Date.now()) {
     let p = {}; try { p = JSON.parse(r.research || '{}') } catch {}
     const phone = String(r.email).replace(/^wa:/, '').replace(/\D/g, '')
     const msg = whatsappOpener(r, p)
+    const li = linkedinNote(r, p)
     const vacante = /"vacante"/.test(r.dossier || '') ? (() => { try { return JSON.parse(r.dossier).directorio?.vacante } catch { return '' } })() : ''
     return `<div style="border:1px solid #e2ddd6;border-radius:10px;padding:14px;margin:0 0 14px">
 <p style="margin:0 0 4px;font-weight:bold">${i + 1}. ${esc(r.company)}</p>
 <p style="margin:0 0 8px;font-size:13px;color:#68625b">${esc(r.website)}${vacante ? ' · 🔥 Está contratando: ' + esc(vacante) : ''}</p>
 <div style="white-space:pre-wrap;background:#f5f4f2;border-radius:8px;padding:10px;font-size:14px">${esc(msg)}</div>
 <p style="margin:10px 0 0"><a href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" style="background:#1f7a4d;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:bold">Abrir WhatsApp con el mensaje</a>
-&nbsp; <a href="${SITE}/propuesta/${esc(r.id)}" style="color:#7a4f34">Ver su propuesta</a></p></div>`
+&nbsp; <a href="${SITE}/propuesta/${esc(r.id)}" style="color:#7a4f34">Ver su propuesta</a></p>
+<details style="margin-top:10px"><summary style="cursor:pointer;color:#0a66c2;font-weight:bold">También por LinkedIn</summary><p style="margin:8px 0 4px;font-size:13px"><a href="${li.search}" style="color:#0a66c2">Buscar al dueño o gerente en LinkedIn</a> · Nota de conexión:</p><div style="white-space:pre-wrap;background:#eef3f8;border-radius:8px;padding:8px;font-size:13px">${esc(li.note)}</div><p style="margin:8px 0 4px;font-size:13px">Cuando acepte:</p><div style="white-space:pre-wrap;background:#eef3f8;border-radius:8px;padding:8px;font-size:13px">${esc(li.followup)}</div></details></div>`
   }).join('')
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#1c1a18;line-height:1.5">
 <p style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7a4f34;margin:0 0 4px">Carolina · Lista de WhatsApp</p>

@@ -113,6 +113,19 @@ export const intentQueries = [
   'ecommerce Shopify busca automatización soporte ventas recompra IA',
   'law firm Spanish AI intake CRM appointment automation',
   'insurance agency Spanish AI lead qualification CRM automation',
+  // Plataformas en español y faltantes (6-oct): más demanda hispana y proyectos del día.
+  'site:workana.com/job automatización IA WhatsApp CRM n8n proyecto',
+  'site:workana.com/job agente de inteligencia artificial chatbot ventas tienda online',
+  'site:workana.com/job Shopify automatización ecommerce integraciones',
+  'site:soyfreelancer.com proyecto automatización chatbot WhatsApp inteligencia artificial',
+  'site:freelancer.es OR site:freelancer.com.co OR site:freelancer.mx proyecto automatización IA WhatsApp',
+  'site:getonbrd.com automatización IA operaciones ecommerce remoto',
+  'site:computrabajo.com automatización inteligencia artificial CRM remoto',
+  'site:upwork.com/freelance-jobs n8n OR "AI agent" OR "WhatsApp automation"',
+  'site:arc.dev OR site:braintrust.com AI automation n8n contract remote',
+  'site:community.n8n.io hiring OR "looking for" OR "paid" n8n expert project',
+  'site:community.make.com "looking for" OR hiring Make automation expert paid',
+  'site:malt.es OR site:malt.com automatización IA n8n CRM freelance',
 ]
 
 // Paso 1 — DESCUBRIR (tier 1, gratuito): solo encuentra y describe; no redacta propuestas.
