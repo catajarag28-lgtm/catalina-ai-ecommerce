@@ -11,7 +11,7 @@ test('router: bulk work starts free, commercial writing on Gemini, Claude never 
   assert.equal(selectModel('intent.search').tier, 1)
   assert.ok(TIER_MODELS[1][0].endsWith(':free'))
   assert.equal(selectModel('intent.qualify').tier, 2)
-  assert.equal(selectModel('intent.proposal').tier, 3)
+  assert.equal(selectModel('intent.proposal').tier, 2)
   for (const task of ['intent.search', 'intent.qualify', 'intent.proposal', 'inbox.reply', 'freelancer.judge'])
     assert.notEqual(selectModel(task).tier, 4)
 })
@@ -23,7 +23,7 @@ test('router: escalation ceiling follows expected deal value', () => {
   // Low confidence on a USD 100 lead never buys premium reasoning.
   assert.equal(selectModel('intent.qualify', { dealValue: 100, confidence: 0.2 }).tier, 2)
   // Low confidence on a USD 5.000 opportunity may climb one tier.
-  assert.equal(selectModel('intent.proposal', { dealValue: 5000, confidence: 0.2 }).tier, 4)
+  assert.equal(selectModel('intent.proposal', { dealValue: 5000, confidence: 0.2 }).tier, 3)
 })
 
 test('router: confidence and JSON parsing are tolerant', () => {

@@ -29,7 +29,7 @@ export const TASK_TIERS = {
   'intent.qualify': 2,         // ¿es comprador real y encaja?
   'outreach.critique': 2,      // rúbrica de calidad sobre el borrador
   'outreach.evidence': 2,      // cita literal que respalda la observación
-  'intent.proposal': 3,        // texto final que lee el comprador
+  'intent.proposal': 2,        // texto final que lee el comprador
   'application.write': 3,
   'outreach.proposal': 3,
   'inbox.reply': 3,            // cada respuesta humana entrante es un posible cliente; volumen bajo

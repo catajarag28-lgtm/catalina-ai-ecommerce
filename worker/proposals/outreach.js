@@ -75,7 +75,7 @@ export async function prepare(env, row, research, angle) {
   const draft = { subject: p.subject, preview: p.preview, hook: p.hook, subhook: p.subhook, offerPitch: p.offerPitch, observation: p.observation, evidence: p.evidence, hypothesis: p.hypothesis, scene: p.scene, ps: p.ps }
   const critique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, tipo: row.kind === 'partner' ? 'alianza con agencia: evalúa caso_comercial y deseo desde el beneficio para la agencia y sus clientes' : 'cliente final', publicText: research.publicText.slice(0, 5000), draft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(e => { critiqueError = e.message; return null })
   let lint = lintCopy(p, row.company)
-  for (let attempt = 0; attempt < 3 && (attempt === 0 ? (critique?.rewrite || lint.length) : lint.length); attempt++) {
+  for (let attempt = 0; attempt < 1 && (attempt === 0 ? (critique?.rewrite || lint.length) : lint.length); attempt++) {
     const issues = [...(attempt === 0 ? (critique?.issues || []) : []), ...lint]
     const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Reescribe el JSON completo corrigiendo: ' + issues.join('; ') + '. Conserva hechos y evidencia. Hazlo más específico y deseable para ESTE negocio, sin inventar nada. Ideal 90-160 palabras comerciales; la profundidad vive en la página.' }]).catch(() => null)
     if (!rewritten) break
@@ -95,10 +95,10 @@ export async function prepare(env, row, research, angle) {
     return (s.credibilidad || 0) >= 9 && (s.curiosidad || 0) >= 7 && [s.especificidad, s.claridad, s.caso_comercial, s.credibilidad, s.cta, s.deseo].every(x => Number(x || 0) >= 8) && v.reduce((a, b) => a + b, 0) / v.length >= 8.4
   }
   // Un copy con buen negocio detrás no se descarta por una primera crítica: se repara hasta dos veces.
-  for (let qualityAttempt = 0; qualityAttempt < 2 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
+  for (let qualityAttempt = 0; qualityAttempt < 1 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
     const scoreText = Object.entries(finalCritique.scores || {}).map(([k,v]) => k + '=' + v).join(', ')
     const issues = [...(finalCritique.issues || []), 'scores actuales: ' + scoreText]
-    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Mejora la propuesta para superar el quality gate SIN inventar hechos ni cambiar la evidencia. Corrige específicamente: ' + issues.join('; ') + '. Mantén una sola oportunidad comercial y un CTA claro.' }], { temperature: 0.25, max_tokens: 4500, ...(qualityAttempt === 1 ? { dealValue: 3000, confidence: 0.5 } : {}) }).catch(() => null)
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Mejora la propuesta para superar el quality gate SIN inventar hechos ni cambiar la evidencia. Corrige específicamente: ' + issues.join('; ') + '. Mantén una sola oportunidad comercial y un CTA claro.' }], { temperature: 0.25, max_tokens: 4500 }).catch(() => null)
     if (!rewritten) break
     p = rewritten
     const qLint = lintCopy(p, row.company)
