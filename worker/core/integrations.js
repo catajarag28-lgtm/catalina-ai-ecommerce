@@ -123,20 +123,24 @@ export async function researchWebsite(url) {
       target = new URL(next, target)
     }
     if (!res.ok || (res.headers.get('content-type') || '').indexOf('text/html') < 0) return { ok: false, reason: 'site_unavailable' }
-    const html = (await res.text()).slice(0, 250000)
-    const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 3500)
-    const mailtoEmails=[...html.matchAll(/href=["']mailto:([^"'?\s<>]+)/gi)].map(m=>m[1])
-    const textEmails=html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}/g) || []
-    const publicEmails = [...new Set([...mailtoEmails,...textEmails].map(e => e.toLowerCase()).filter(validPublicEmail))]
-    const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
-    const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
-    const socialLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 20)
-    const publicPhones = [...new Set([...html.matchAll(/href=["'](?:tel:|https:\/\/wa\.me\/|https:\/\/api\.whatsapp\.com\/send\?phone=)\+?([\d\s().-]{7,20})/gi)].map(m => '+' + m[1].replace(/\D/g, '')).filter(x => x.length >= 9))].slice(0, 4)
-    // Logo del negocio (para personalizar la propuesta): logo explícito, ícono de alta resolución o imagen social.
-    const abs = u => { try { const x = new URL(u.replace(/&amp;/g, '&'), target); return x.protocol === 'https:' ? x.toString() : '' } catch { return '' } }
-    const logo = abs((html.match(/<img[^>]+src=["']([^"']*logo[^"']*\.(?:png|svg|webp|jpe?g)[^"']*)["']/i) || html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i) || [])[1] || '')
-    return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, socialLinks, publicPhones, logo, signals: detectSignals(html, links) }
+    return pageFromHtml((await res.text()).slice(0, 250000), target)
   } catch { return { ok: false, reason: 'site_unavailable' } }
+}
+
+// Extrae texto, contactos, enlaces y señales de un HTML (servido o renderizado por el navegador en la nube).
+export function pageFromHtml(html, target) {
+  const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 3500)
+  const mailtoEmails=[...html.matchAll(/href=["']mailto:([^"'?\s<>]+)/gi)].map(m=>m[1])
+  const textEmails=html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}/g) || []
+  const publicEmails = [...new Set([...mailtoEmails,...textEmails].map(e => e.toLowerCase()).filter(validPublicEmail))]
+  const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
+  const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
+  const socialLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 20)
+  const publicPhones = [...new Set([...html.matchAll(/href=["'](?:tel:|https:\/\/wa\.me\/|https:\/\/api\.whatsapp\.com\/send\?phone=)\+?([\d\s().-]{7,20})/gi)].map(m => '+' + m[1].replace(/\D/g, '')).filter(x => x.length >= 9))].slice(0, 4)
+  // Logo del negocio (para personalizar la propuesta): logo explícito, ícono de alta resolución o imagen social.
+  const abs = u => { try { const x = new URL(u.replace(/&amp;/g, '&'), target); return x.protocol === 'https:' ? x.toString() : '' } catch { return '' } }
+  const logo = abs((html.match(/<img[^>]+src=["']([^"']*logo[^"']*\.(?:png|svg|webp|jpe?g)[^"']*)["']/i) || html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i) || [])[1] || '')
+  return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, socialLinks, publicPhones, logo, signals: detectSignals(html, links) }
 }
 
 // Señales verificables en el HTML. La ausencia de una señal NO demuestra que el negocio carezca de esa herramienta.
@@ -164,9 +168,13 @@ export function detectSignals(html, links = []) {
 }
 
 // Investigación de negocio: portada + hasta 3 páginas clave del mismo dominio (servicios, contacto, reservas, nosotros).
-export async function researchBusiness(url) {
-  const home = await researchWebsite(url)
+export async function researchBusiness(url, env = null) {
+  let home = await researchWebsite(url)
   if (!home.ok) return home
+  if (home.publicText.length < 400 && env?.BROWSER) {
+    const r = await import('./browserSessions.js').then(m => m.renderHtml(env, home.source)).catch(() => null)
+    if (r?.html) { const t = new URL(r.finalUrl || home.source); if (t.protocol === 'https:' && t.hostname.replace(/^www./, '') === new URL(home.source).hostname.replace(/^www./, '')) home = { ...pageFromHtml(r.html, t), rendered: true } }
+  }
   const host = new URL(home.source).hostname.replace(/^www\./, '')
   const key = /contact|contacto|servicio|service|tratamiento|treatment|reserv|book|cita|appointment|nosotros|about|sobre|precio|pricing|menu|productos|shop|tienda/i
   const pages = home.publicLinks.filter(u => { try { const h = new URL(u); return h.hostname.replace(/^www\./, '') === host && key.test(h.pathname) && !/\.(pdf|jpe?g|png|webp|zip)$/i.test(h.pathname) } catch { return false } })

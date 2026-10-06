@@ -230,7 +230,7 @@ export async function searchSegment(env, segment) {
 
 // Verifica un candidato abriendo su web: negocio activo, correo publicado en su sitio, encaje comercial.
 export async function verifyCandidate(env, cand, segment) {
-  const site = await researchBusiness(cand.website)
+  const site = await researchBusiness(cand.website, env)
   if (!site.ok || site.publicText.length < 400) return { ok: false, reason: 'site_unreadable' }
   if (excludedHosts.test(site.host)) return { ok: false, reason: 'excluded_host' }
   // Objetivo: empresas SIN automatización visible. Si ya tienen chat/bot o CRM automatizado, no se les escribe.

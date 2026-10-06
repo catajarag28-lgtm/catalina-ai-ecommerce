@@ -35,7 +35,7 @@ export async function runWhatsappProposals(env, { limit = 1, now = Date.now() } 
     const claimed = await env.DB.prepare("UPDATE outreach SET status='wa_researching',updated_at=? WHERE id=? AND status='wa_pending'").bind(Date.now(), row.id).run()
     if (!claimed.meta.changes) continue
     try {
-      const research = await researchBusiness(row.website)
+      const research = await researchBusiness(row.website, env)
       if (!research.ok || research.publicText.length < 300) throw new Error('website_unavailable')
       if (automationVisible(research.signals)) throw new Error('low_fit: ya tiene automatización visible')
       const angle = await pickAngle(env)

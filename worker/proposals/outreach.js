@@ -201,7 +201,7 @@ export async function runOutreach(env, now = Date.now()) {
         const contact = await researchWebsite(row.source_url)
         if (!contact.ok || !contact.publicEmails?.includes(row.email.toLowerCase())) throw new Error('contact_not_verified_on_source')
       }
-      research = await researchBusiness(row.website)
+      research = await researchBusiness(row.website, env)
       if (!research.ok || research.publicText.length < 300) throw new Error('website_unavailable')
       if (row.kind !== 'partner' && automationVisible(research.signals)) throw new Error('low_fit: ya tiene automatización visible (' + (research.signals.chat || research.signals.crm) + ')')
     }

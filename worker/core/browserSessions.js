@@ -1169,3 +1169,22 @@ export async function submitOpportunityForm(env,opp){
   return submitGenericApplicationForm(env,row)
 }
 export const isSupportedApplyHost=url=>{try{const u=new URL(String(url||''));return u.protocol==='https:'&&GENERIC_APPLICATION_HOST_RE.test(u.hostname)}catch{return false}}
+
+// Render de webs hechas con JavaScript (Wix, tiendas headless): sin esto, 1 de cada 3 negocios quedaba "ilegible".
+// Solo lectura pública; tope diario para no agotar el navegador en la nube. Los retos anti-bot no se evaden.
+export async function renderHtml(env, url) {
+  if (!env?.BROWSER || !/^https:\/\//.test(String(url || ''))) return null
+  const key = 'render_' + new Date().toISOString().slice(0, 10)
+  const used = Number((await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind(key).first().catch(() => null))?.value || 0)
+  if (used >= Number(env.RENDER_DAILY_LIMIT || 80)) return null
+  await env.DB.prepare('INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at').bind(key, String(used + 1), Date.now()).run().catch(() => {})
+  let browser
+  try {
+    browser = await launch(env.BROWSER, { keep_alive: 60000 })
+    const page = await browser.newPage()
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 }).catch(() => page.waitForTimeout(3000))
+    const html = (await page.content()).slice(0, 250000)
+    if (/cf-challenge|captcha|are you human|pow\.php/i.test(html) && html.length < 20000) return null
+    return { html, finalUrl: page.url() }
+  } catch { return null } finally { await browser?.close().catch(() => {}) }
+}
