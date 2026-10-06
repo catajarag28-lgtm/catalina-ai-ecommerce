@@ -100,7 +100,7 @@ export async function checkOutreachHealth(env, now=Date.now()) {
 
 export async function sendDailyOutreachReport(env, now=Date.now()) {
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now).map(part=>[part.type,part.value]))
-  if (Number(parts.hour)!==18) return {due:false}
+  if (Number(parts.hour)!==20) return {due:false}
   const day=parts.year+'-'+parts.month+'-'+parts.day
   const start=new Date(day+'T00:00:00-05:00').getTime()
   const result=await env.DB.prepare("INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)").bind('daily-report-'+day,'system','report.sent',now).run()
@@ -178,8 +178,17 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     `Ejecutado 24h: outbound ${revenuePlan.actual.outbound} · directas ${revenuePlan.actual.directApplications} · marketplaces ${revenuePlan.actual.marketplaces} · intent ${revenuePlan.actual.intent} · partners ${revenuePlan.actual.partners} · follow-ups ${revenuePlan.actual.followups}`,
   ]:['Plan de redistribución no disponible.']
 
+  const formsSent=await env.DB.prepare("SELECT COUNT(*) n FROM outreach_events WHERE type='form.sent' AND occurred_at>=?").bind(start).first().catch(()=>({n:0}))
+  const waRows=(await env.DB.prepare("SELECT o.* FROM outreach o WHERE o.kind='whatsapp' AND o.status IN ('wa_ready','wa_listed') AND o.email LIKE 'wa:%' AND EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type='form.unavailable') ORDER BY o.updated_at DESC LIMIT 15").all().catch(()=>({results:[]}))).results||[]
+  const { whatsappOpener } = await import('./whatsappChannel.js')
+  const waLines=waRows.length?waRows.map((r,i)=>{let p={};try{p=JSON.parse(r.research||'{}')}catch{};const ph=String(r.email).replace(/^wa:/,'').replace(/\D/g,'');const m=whatsappOpener(r,p);return [`${i+1}. ${r.company}`,`   Abrir WhatsApp con el mensaje: https://wa.me/${ph}?text=${encodeURIComponent(m)}`,`   Mensaje: ${m.replace(/\n+/g,' ')}`].join('\n')}):['No hay mensajes de WhatsApp pendientes hoy.']
   const lines=[
     'CAROLINA · REPORTE DIARIO DE ADQUISICIÓN · '+day,
+    '',
+    'FORMULARIOS DE CONTACTO ENVIADOS POR CAROLINA: '+(formsSent?.n||0),
+    '',
+    'WHATSAPP QUE DEBES ENVIAR TÚ (toca el enlace y envía)',
+    ...waLines,
     '',
     'EMAIL OUTBOUND · COLD OUTREACH',
     'Correos fríos nuevos enviados: '+stats.sent,

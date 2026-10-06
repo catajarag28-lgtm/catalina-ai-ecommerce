@@ -20,6 +20,10 @@ const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '')
 // España queda fuera del correo en frío: la LSSI exige consentimiento previo incluso entre empresas.
 // Colombia solo en segmento premium con clientela internacional.
 export const segments = [
+  { id: 'cl-ecommerce', weight: 3, region: 'Chile', sector: 'ecommerce', q: 'marca chilena con tienda online propia (Shopify, WooCommerce o Jumpseller) de belleza, moda, hogar o bienestar, con despachos a todo Chile y atención por WhatsApp o Instagram' },
+  { id: 'cl-realestate', weight: 3, region: 'Chile', sector: 'inmobiliaria', q: 'corredora de propiedades o inmobiliaria independiente en Santiago, Viña del Mar o Concepción con propiedades publicadas, formulario o WhatsApp y agenda de visitas' },
+  { id: 'cl-servicios', weight: 2, region: 'Chile', sector: 'servicios', q: 'clínica dental, centro estético o estudio de abogados en Santiago de Chile con reservas o consultas en línea y atención por WhatsApp' },
+  { id: 'uk-hispano', weight: 2, region: 'Reino Unido', sector: 'servicios', q: 'empresa en Londres o Reino Unido que atiende a clientes hispanohablantes o latinoamericanos (agencia de estudios en el Reino Unido, inmigración, inmobiliaria para inversionistas latinos, clínica o servicios) con web en español' },
   // Señal de intención: empresas que HOY publican vacantes de atención, ventas por chat o recepción.
   // Ya decidieron gastar en ese problema; un agente cuesta menos que una contratación y trabaja 24/7.
   { id: 'senal-contratando-latam', signal: 'hiring', weight: 3, region: 'México', sector: 'ecommerce', q: 'vacantes publicadas en los últimos 30 días por pymes, tiendas online o marcas en México, Colombia o Chile para asesor(a) de ventas por WhatsApp, atención al cliente por chat, community manager que responda mensajes o ejecutivo de ventas digital' },
@@ -73,6 +77,9 @@ const rotation = segments.flatMap(s => Array(s.weight).fill(s))
 
 // Consultas para Google Maps (rotan por ciudad) y áreas de OpenStreetMap por segmento.
 export const placesQueries = {
+  'cl-realestate': ['corredora de propiedades Santiago', 'inmobiliaria Las Condes', 'corredora de propiedades Viña del Mar'],
+  'cl-servicios': ['clínica dental Providencia Santiago', 'centro estético Las Condes', 'abogados Santiago centro'],
+  'cl-ecommerce': ['tienda de cosmética Santiago', 'tienda de ropa Providencia'],
   'dtc-beauty-latam': ['tienda online cosmética Ciudad de México', 'marca skincare Guadalajara', 'productos capilares Bogotá tienda', 'tienda de belleza online Medellín', 'marca cosmética Santiago Chile'],
   'dtc-latina-usa': ['latina owned beauty brand Miami', 'hispanic skincare brand Los Angeles', 'latina fashion boutique online Houston'],
   'co-ecommerce': ['tienda online Bogotá', 'tienda virtual Medellín', 'boutique online Cali', 'tienda de accesorios Barranquilla'],

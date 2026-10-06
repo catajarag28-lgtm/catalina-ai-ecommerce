@@ -22,7 +22,7 @@ export function inBusinessHours(region, now = Date.now()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]))
   return !['Sat', 'Sun'].includes(parts.weekday) && Number(parts.hour) >= 8 && Number(parts.hour) < 19
 }
-export const blockedRegions = new Set(['España'])
+export const blockedRegions = new Set(['España', 'Alemania'])
 const regionOf = row => { try { return JSON.parse(row.dossier || '{}').region || '' } catch { return '' } }
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ]+/g, ' ').trim()
 // La evidencia debe estar en la web: se aceptan fragmentos separados por «…» si cada uno (≥ 12 caracteres) aparece literalmente.
@@ -183,7 +183,7 @@ export async function runOutreach(env, now = Date.now()) {
   for (const t of today) { const k = sectorOf(t); sentBy[k] = (sentBy[k] || 0) + t.n }
   // Clientes primero; las alianzas con agencias salen como máximo 3 al día y al final de la fila.
   const partnersToday = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE kind='partner' AND sent_at>?").bind(now - 86400000).first())?.n || 0
-  const usd = r => /EE\. UU\.|Puerto Rico|Panamá|Rep\. Dominicana|Ecuador|El Salvador/.test(regionOf(r) || '') ? 2 : 1
+  const usd = r => /EE\. UU\.|Puerto Rico|Panamá|Rep\. Dominicana|Ecuador|El Salvador|Chile|Reino Unido/.test(regionOf(r) || '') ? 2 : 1
   const urgency = r => r.kind === 'partner' ? (partnersToday >= 3 ? -1000 : -1) : (/^senal-/.test(r.segment || '') ? 1000 : 0) + usd(r) * (MIX[sectorOf(r)] || 5) / (1 + (sentBy[sectorOf(r)] || 0))
   rows.sort((a, b) => urgency(b) - urgency(a))
   // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
