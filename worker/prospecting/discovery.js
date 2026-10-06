@@ -162,6 +162,23 @@ export async function findCandidates(env, segment, turn) {
 async function state(env, key) { return (await env.DB.prepare('SELECT next_index FROM discovery_state WHERE source_url=?').bind(key).first())?.next_index || 0 }
 async function setState(env, key, value) { await env.DB.prepare('INSERT INTO discovery_state(source_url,next_index,updated_at) VALUES (?,?,?) ON CONFLICT(source_url) DO UPDATE SET next_index=excluded.next_index,updated_at=excluded.updated_at').bind(key, value, Date.now()).run() }
 
+// Los buscadores con IA a veces inventan el dominio. Se comprueba que exista en DNS; si no, se busca la web real
+// del negocio por su nombre en Google Maps. Sin dominio comprobable, el candidato se descarta (no se adivina).
+async function resolves(host) {
+  const r = await fetch('https://cloudflare-dns.com/dns-query?name=' + encodeURIComponent(host) + '&type=A', { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(5000) }).then(x => x.ok ? x.json() : null).catch(() => null)
+  if (!r) return true
+  return Number(r.Status) === 0 && Array.isArray(r.Answer) && r.Answer.length > 0
+}
+export async function realWebsite(env, company, website, hint = '') {
+  const h = hostOf(website)
+  if (h && await resolves(h)) return 'https://' + h + '/'
+  if (!company || !env.GOOGLE_PLACES_KEY) return null
+  const r = await placesSearch(env, company + (hint ? ' ' + hint : ''), { minReviews: 0 }).catch(() => null)
+  const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '')
+  const hit = (r?.items || []).find(p => norm(p.company).includes(norm(company).slice(0, 8)) || norm(company).includes(norm(p.company).slice(0, 8)))
+  return hit && !excludedHosts.test(hostOf(hit.website)) ? hit.website : null
+}
+
 // Señal de contratación: la vacante es la evidencia de intención; el contacto sale SIEMPRE de la web oficial de la empresa.
 async function searchHiringSignals(env, segment) {
   const r = await callModel(env, { task: 'discovery.search', json: true, temperature: 0.2, maxTokens: 1400, timeoutMs: 45000,
@@ -177,8 +194,10 @@ async function searchHiringSignals(env, segment) {
     if (!h || excludedHosts.test(h) || out.has(h) || !c.jobTitle) continue
     // La vacante debe venir de una URL que el buscador realmente devolvió; si no, no es evidencia.
     const jobUrl = String(c.jobUrl || '')
-    if (!jobUrl.startsWith('https://') || (cited.size && ![...cited].some(u => u.split('#')[0] === jobUrl.split('#')[0]))) continue
-    out.set(h, { website: 'https://' + h + '/', company: c.company || null, score: 2000, meta: { señal: 'contratando', vacante: String(c.jobTitle).slice(0, 140), vacanteUrl: jobUrl.slice(0, 300), publicada: String(c.posted || '').slice(0, 40) } })
+    if (!jobUrl.startsWith('https://') || (cited.size && ![...cited].some(u => hostOf(u) === hostOf(jobUrl)))) continue
+    const site = await realWebsite(env, c.company, c.website, segment.region)
+    if (!site || out.has(hostOf(site))) continue
+    out.set(hostOf(site), { website: site, company: c.company || null, score: 2000, meta: { señal: 'contratando', vacante: String(c.jobTitle).slice(0, 140), vacanteUrl: jobUrl.slice(0, 300), publicada: String(c.posted || '').slice(0, 40) } })
   }
   return [...out.values()]
 }
@@ -199,7 +218,12 @@ export async function searchSegment(env, segment) {
   const found = new Map()
   for (const b of listed) { const h = hostOf(b.website); if (h) found.set(h, b.company) }
   for (const u of cited) { const h = hostOf(u); if (h && !found.has(h)) found.set(h, null) }
-  return [...found.entries()].filter(([h]) => !excludedHosts.test(h)).map(([host, company]) => ({ website: 'https://' + host + '/', company }))
+  const items = []
+  for (const [host, company] of [...found.entries()].filter(([h]) => !excludedHosts.test(h))) {
+    const site = await realWebsite(env, company, 'https://' + host + '/', segment.region)
+    if (site && !items.some(i => i.website === site)) items.push({ website: site, company })
+  }
+  return items
 }
 
 // Verifica un candidato abriendo su web: negocio activo, correo publicado en su sitio, encaje comercial.

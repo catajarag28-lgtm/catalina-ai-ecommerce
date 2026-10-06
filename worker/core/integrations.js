@@ -114,7 +114,9 @@ export async function researchWebsite(url) {
     let target = new URL(url), res
     for (let hop = 0; hop < 4; hop++) {
       if (target.protocol !== 'https:' || privateHost(target.hostname)) return { ok: false, reason: 'invalid_public_url' }
-      res = await fetch(target.toString(), { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (compatible; CarolinaResearch/1.1; +https://soycatalinajaramillo.com)', 'accept-language': 'es,en;q=0.8' }, signal: AbortSignal.timeout(8000) })
+      const opts = { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (compatible; CarolinaResearch/1.1; +https://soycatalinajaramillo.com)', 'accept-language': 'es,en;q=0.8' } }
+      // Un reintento con más tiempo: webs lentas de pymes se perdían por un solo timeout de 8 s.
+      res = await fetch(target.toString(), { ...opts, signal: AbortSignal.timeout(8000) }).catch(() => fetch(target.toString(), { ...opts, signal: AbortSignal.timeout(14000) }))
       if (res.status < 300 || res.status >= 400) break
       const next = res.headers.get('location'); if (!next) break
       target = new URL(next, target)

@@ -473,7 +473,7 @@ export default {
       const posts = await searchIntent(env, q)
       return json({ query: q, posts: posts.map(p => ({ url: p.url, platform: p.platform, date: p.date, who: p.who, need: p.need, fit: p.fit, reply: p.reply })) })
     }
-    if (env.OUTREACH_TEST_TO && url.pathname === '/ops/discovery-dry' && request.method === 'POST') {
+    if (url.pathname === '/ops/discovery-dry' && request.method === 'POST' && (env.OUTREACH_TEST_TO || await vmAuthorized())) {
       const seg = segments.find(x => x.id === url.searchParams.get('segment')) || segments[0]
       const turn = { places: 0, web: 1, osm: 2 }[url.searchParams.get('source')] ?? 1
       const got = await findCandidates(env, seg, turn).catch(e => ({ error: e.message, items: [] }))
