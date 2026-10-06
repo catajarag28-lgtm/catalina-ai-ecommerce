@@ -87,7 +87,11 @@ export async function prepare(env, row, research, angle) {
   let finalCritique = await llm(env, [{ role: 'system', content: skill('copywriting-email') + '\n\n' + critiqueRubric }, { role: 'user', content: JSON.stringify({ company: row.company, publicText: research.publicText.slice(0, 5000), draft: finalDraft }) }], { temperature: 0, max_tokens: 2500, task: 'outreach.critique' }).catch(() => critique)
   const qualityPass = q => {
     const s = q?.scores
-    return !!s && (s.especificidad || 0) >= 9 && (s.claridad || 0) >= 9 && (s.caso_comercial || 0) >= 9 && (s.credibilidad || 0) >= 9 && (s.cta || 0) >= 9 && (s.curiosidad || 0) >= 8 && (s.deseo || 0) >= 8
+    // Calibrado 6-oct: con 9/10 en todo se rechazaba más de la mitad (34 vs 31 enviadas). La veracidad sigue en 9;
+    // el resto pide 8+ y un promedio de 8,5: sigue siendo copy sobresaliente según un crítico adversarial.
+    if (!s) return false
+    const v = [s.especificidad, s.claridad, s.caso_comercial, s.credibilidad, s.cta, s.curiosidad, s.deseo].map(x => Number(x || 0))
+    return (s.credibilidad || 0) >= 9 && v.every(x => x >= 8) && v.reduce((a, b) => a + b, 0) / v.length >= 8.5
   }
   // Un copy con buen negocio detrás no se descarta por una primera crítica: se repara hasta dos veces.
   for (let qualityAttempt = 0; qualityAttempt < 2 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
