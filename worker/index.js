@@ -395,7 +395,7 @@ export default {
     // Vista previa de la estructura de propuestas a Catalina (antes de encender el envío automático).
     if (url.pathname === '/ops/vm-preview' && request.method === 'POST') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
-      return json(await (await import('./proposals/preview.js')).sendStructurePreview(env))
+      try { return json(await (await import('./proposals/preview.js')).sendStructurePreview(env)) } catch (e) { return json({ error: e?.message }, 500) }
     }
     // Tanda controlada de postulaciones por formulario ATS (force solo para la verificación inicial).
     if (url.pathname === '/ops/vm-run-opportunities' && request.method === 'POST') {

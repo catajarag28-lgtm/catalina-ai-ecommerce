@@ -1,5 +1,5 @@
 import { salesStrategy } from '../skills/salesStrategy.js'
-import { researchBusiness, pickBusinessEmail } from '../core/integrations.js'
+import { researchBusiness, pickBusinessEmail, automationVisible } from '../core/integrations.js'
 import { currentDailyCap } from '../proposals/creative.js'
 import { skill } from '../skills/registry.js'
 import { placesSearch, osmSearch } from './sources.js'
@@ -18,6 +18,12 @@ const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '')
 // España queda fuera del correo en frío: la LSSI exige consentimiento previo incluso entre empresas.
 // Colombia solo en segmento premium con clientela internacional.
 export const segments = [
+  // Señal de intención: empresas que HOY publican vacantes de atención, ventas por chat o recepción.
+  // Ya decidieron gastar en ese problema; un agente cuesta menos que una contratación y trabaja 24/7.
+  { id: 'senal-contratando-latam', signal: 'hiring', weight: 6, region: 'México', sector: 'ecommerce', q: 'vacantes publicadas en los últimos 30 días por pymes, tiendas online o marcas en México, Colombia o Chile para asesor(a) de ventas por WhatsApp, atención al cliente por chat, community manager que responda mensajes o ejecutivo de ventas digital' },
+  { id: 'senal-contratando-inmobiliaria', signal: 'hiring', weight: 5, region: 'México', sector: 'inmobiliaria', q: 'vacantes recientes de inmobiliarias o desarrolladoras en México, Colombia, Panamá, República Dominicana o Florida para asesor inmobiliario que atienda leads, recepcionista o ejecutivo de atención a prospectos por WhatsApp' },
+  { id: 'senal-contratando-usa', signal: 'hiring', weight: 4, region: 'EE. UU.', sector: 'servicios', q: 'job postings in the last 30 days by Hispanic-serving small businesses in Florida or Texas (med spa, dental, law firm, insurance, real estate, home services) hiring a bilingual receptionist, front desk, appointment setter or customer service rep for WhatsApp, chat or phone' },
+  { id: 'senal-contratando-spa', signal: 'hiring', weight: 3, region: 'Colombia', sector: 'spa', q: 'vacantes recientes de spas, clínicas estéticas o centros de belleza en Colombia, México o Miami para recepcionista, agendadora de citas o asesora comercial que responda WhatsApp e Instagram' },
   // Mezcla objetivo de Catalina (6-oct): ecommerce/DTC es su vertical más fuerte y estaba casi ausente.
   { id: 'dtc-beauty-latam', weight: 6, region: 'México', sector: 'ecommerce', q: 'marca DTC de belleza, cuidado capilar o skincare en México, Colombia o Chile con tienda Shopify propia, envíos nacionales y atención por WhatsApp' },
   { id: 'dtc-latina-usa', weight: 5, region: 'EE. UU.', sector: 'ecommerce', q: 'marca latina en Estados Unidos con tienda online propia (Shopify o WooCommerce) de belleza, moda, bienestar, suplementos legales o alimentos, que vende a público hispano' },
@@ -138,7 +144,7 @@ export function pickSegment(factors = {}, rnd = Math.random(), predicate = () =>
 
 // Alterna fuentes: Google Maps → búsqueda web → OpenStreetMap. Si una fuente no aplica o falla, usa la búsqueda web.
 export async function findCandidates(env, segment, turn) {
-  const pick = ['places', 'web', 'osm'][turn % 3]
+  const pick = segment.signal ? 'web' : ['places', 'web', 'osm'][turn % 3]
   const qs = placesQueries[segment.id] || [segment.q]
   if (pick === 'places' && env.GOOGLE_PLACES_KEY) {
     const r = await placesSearch(env, qs[Math.floor(turn / 3) % qs.length], { minReviews: segment.kind === 'partner' ? 5 : 20 })
@@ -149,13 +155,36 @@ export async function findCandidates(env, segment, turn) {
     if (r.ok && r.items.length) return { source: 'openstreetmap', items: r.items }
   }
   const web = await searchSegment(env, segment).catch(() => [])
+  if (segment.signal === 'hiring') return { source: 'vacantes', items: web }
   return { source: 'web', items: web.map(w => ({ ...w, score: 5 })) }
 }
 
 async function state(env, key) { return (await env.DB.prepare('SELECT next_index FROM discovery_state WHERE source_url=?').bind(key).first())?.next_index || 0 }
 async function setState(env, key, value) { await env.DB.prepare('INSERT INTO discovery_state(source_url,next_index,updated_at) VALUES (?,?,?) ON CONFLICT(source_url) DO UPDATE SET next_index=excluded.next_index,updated_at=excluded.updated_at').bind(key, value, Date.now()).run() }
 
+// Señal de contratación: la vacante es la evidencia de intención; el contacto sale SIEMPRE de la web oficial de la empresa.
+async function searchHiringSignals(env, segment) {
+  const r = await callModel(env, { task: 'discovery.search', json: true, temperature: 0.2, maxTokens: 1400, timeoutMs: 45000,
+    validate: d => Array.isArray(d?.companies) || 'companies_missing',
+    plugins: [{ id: 'web', engine: 'exa', max_results: 12, search_prompt: 'Vacantes de empleo recientes publicadas por empresas pequeñas y medianas:' }],
+    messages: [{ role: 'system', content: 'Encuentra VACANTES reales y recientes publicadas por pymes (no por agencias de reclutamiento, no por grandes corporaciones, no por empresas de software o call centers). Para cada vacante identifica la empresa que contrata y su sitio web OFICIAL (no el portal de empleo). Si no conoces con certeza el dominio oficial, omítela. Devuelve SOLO JSON {"companies":[{"company":"nombre","website":"https://dominio-oficial","jobTitle":"título literal de la vacante","jobUrl":"https://url-de-la-vacante","posted":"fecha si aparece o vacío"}]} con hasta 10 empresas distintas.' },
+      { role: 'user', content: segment.q }] })
+  if (!r.ok) return []
+  const cited = new Set((r.message?.annotations || []).filter(a => a.type === 'url_citation').map(a => a.url_citation?.url).filter(Boolean))
+  const out = new Map()
+  for (const c of r.data.companies || []) {
+    const h = hostOf(c.website)
+    if (!h || excludedHosts.test(h) || out.has(h) || !c.jobTitle) continue
+    // La vacante debe venir de una URL que el buscador realmente devolvió; si no, no es evidencia.
+    const jobUrl = String(c.jobUrl || '')
+    if (!jobUrl.startsWith('https://') || (cited.size && ![...cited].some(u => u.split('#')[0] === jobUrl.split('#')[0]))) continue
+    out.set(h, { website: 'https://' + h + '/', company: c.company || null, score: 2000, meta: { señal: 'contratando', vacante: String(c.jobTitle).slice(0, 140), vacanteUrl: jobUrl.slice(0, 300), publicada: String(c.posted || '').slice(0, 40) } })
+  }
+  return [...out.values()]
+}
+
 export async function searchSegment(env, segment) {
+  if (segment.signal === 'hiring') return searchHiringSignals(env, segment)
   const r = await callModel(env, { task: 'discovery.search', json: true, temperature: 0.3, maxTokens: 900, timeoutMs: 45000,
       validate: d => Array.isArray(d?.businesses) || 'businesses_missing',
       plugins: [{ id: 'web', engine: 'exa', max_results: 10, search_prompt: 'Resultados web para encontrar sitios oficiales de negocios:' }],
@@ -178,6 +207,8 @@ export async function verifyCandidate(env, cand, segment) {
   const site = await researchBusiness(cand.website)
   if (!site.ok || site.publicText.length < 400) return { ok: false, reason: 'site_unreadable' }
   if (excludedHosts.test(site.host)) return { ok: false, reason: 'excluded_host' }
+  // Objetivo: empresas SIN automatización visible. Si ya tienen chat/bot o CRM automatizado, no se les escribe.
+  if (segment?.kind !== 'partner' && automationVisible(site.signals)) return { ok: false, reason: 'automation_visible: ' + (site.signals.chat || site.signals.crm) }
   const email = pickBusinessEmail(site.publicEmails, site.host)
   if (!email) return { ok: false, reason: 'no_published_email' }
   const r = await callModel(env, { task: 'discovery.verify', json: true, maxTokens: 1200, temperature: 0, timeoutMs: 30000,

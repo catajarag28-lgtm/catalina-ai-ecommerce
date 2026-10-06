@@ -75,9 +75,12 @@ export async function checkOutreachHealth(env, now=Date.now()) {
     await notifyCatalina(env,'Prospección reanudada','La pausa por rebotes cumplió 72 h sin quejas de spam. Carolina reanuda los correos nuevos; los rebotados quedaron suprimidos y la regla vigila 7 días móviles.').catch(()=>{})
   }
   // Ventana de 7 días y muestra mínima: con 20 envíos, un solo rebote (5%) no debe detener la máquina.
-  const sent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=?").bind(now-7*86400000).first()
-  const bounces=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(now-7*86400000).first()
-  const bounces24=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(now-86400000).first()
+  // Tras corregir la causa de los rebotes (bounce_reset_at) la ventana arranca ahí: los rebotes viejos ya están suprimidos.
+  const reset=Number((await env.DB.prepare('SELECT bounce_reset_at FROM outreach_control WHERE id=1').first().catch(()=>null))?.bounce_reset_at||0)
+  const since7=Math.max(now-7*86400000,reset)
+  const sent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=?").bind(since7).first()
+  const bounces=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(since7).first()
+  const bounces24=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(Math.max(now-86400000,reset)).first()
   if ((complaints?.n||0)>0 || (bounces24?.n||0)>=3 || ((sent?.n||0)>=30 && (bounces?.n||0)*100/(sent.n)>=5)) {
     await pauseOutreach(env,'Quejas o rebotes por encima del umbral seguro (5% en 7 días o 3 en 24 h)')
     return {paused:true,reason:'delivery'}

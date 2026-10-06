@@ -158,7 +158,7 @@ export function briefVeto(brief = {}) {
 }
 
 let ready = false
-async function ensureTable(env) {
+export async function ensureTable(env) {
   if (ready) return
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS opportunities (url TEXT PRIMARY KEY, source TEXT, platform TEXT, channel TEXT, title TEXT, company TEXT, location TEXT,
     budget_text TEXT, budget_usd REAL, applicants TEXT, easy_apply INTEGER, description TEXT, score INTEGER, grade TEXT, score_parts TEXT, rejects TEXT,

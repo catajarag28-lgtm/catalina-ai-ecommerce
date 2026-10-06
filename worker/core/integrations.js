@@ -140,13 +140,16 @@ export async function researchWebsite(url) {
 const SIGNALS = {
   reservas: /vagaro|mindbody|fresha|joinblvd|boulevard|squareup\.com\/appointments|square\.site|calendly|acuityscheduling|setmore|zenoti|booksy|treatwell|glofox|simplybook|timely|doctoralia|zocdoc|nexhealth|localmed|jane\.app|agendapro|reservio|goldie|glossgenius|schedulicity/i,
   whatsapp: /wa\.me\/|api\.whatsapp\.com|web\.whatsapp\.com/i,
-  chat: /intercom|tidio|driftt|crisp\.chat|livechatinc|tawk\.to|zdassets|zopim|hs-scripts|manychat|chatbase|botpress|landbot|freshchat|olark|smartsupp|elfsight.*chat|getbutton|podium/i,
+  chat: /intercom|tidio|driftt|crisp\.chat|livechatinc|tawk\.to|zdassets|zopim|hs-scripts|manychat|chatbase|botpress|landbot|freshchat|olark|smartsupp|elfsight.*chat|getbutton|podium|wati\.io|respond\.io|botmaker|callbell|leadsales|treble\.ai|b2chat|gupshup|yalo|sirena\.app|chatwoot|trengo|kommo|aisensy|interakt|whatsform|joinchat-bot|voiceflow|tidiochat/i,
   tienda: /cdn\.shopify|myshopify|woocommerce|tiendanube|vtex|bigcommerce|wixstatic.*ecom|magento|prestashop|squarespace-commerce/i,
   email_marketing: /klaviyo|mailchimp|list-manage|activecampaign|convertkit|brevo|sendinblue/i,
   crm: /hubspot|salesforce|zoho|gohighlevel|leadconnector|pipedrive|kommo/i,
   instagram: /instagram\.com\//i,
   tiktok: /tiktok\.com\/@/i,
 }
+// Automatización ya visible en su web (chat/bot o CRM con automatizaciones). Esos negocios no son el objetivo:
+// Carolina busca empresas que todavía atienden a mano.
+export const automationVisible = (signals = {}) => !!(signals.chat || /gohighlevel|leadconnector|kommo/i.test(String(signals.crm || '')))
 export function detectSignals(html, links = []) {
   const all = html + ' ' + links.join(' ')
   const found = {}
@@ -168,6 +171,16 @@ export async function researchBusiness(url) {
   for (const group of [/contact|contacto/i, /servicio|service|tratamiento|treatment|menu|productos|shop|tienda/i, /reserv|book|cita|appointment|about|nosotros|sobre/i]) { const u = pages.find(x => group.test(x) && !pick.includes(x)); if (u) pick.push(u) }
   const extra = []
   for (const u of pick) { const r = await researchWebsite(u); if (r.ok) extra.push(r) }
+  // Muchas webs no enlazan su página de contacto en la portada: si aún no hay correo, se prueban rutas habituales.
+  if (![home, ...extra].some(r => r.publicEmails?.length)) {
+    const origin = new URL(home.source).origin
+    for (const path of ['/contacto', '/contact', '/contactanos', '/contact-us', '/contactenos']) {
+      const u = origin + path
+      if (pick.includes(u)) continue
+      const r = await researchWebsite(u)
+      if (r.ok && new URL(r.source).hostname.replace(/^www\./, '') === host) { extra.push(r); if (r.publicEmails.length) break }
+    }
+  }
   const all = [home, ...extra]
   const signals = {}
   for (const r of all) for (const [k, v] of Object.entries(r.signals || {})) if (v && (!signals[k] || (Array.isArray(v) && v.length))) signals[k] = v

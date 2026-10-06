@@ -188,3 +188,10 @@ test('opportunity routing: only public ATS links are auto-submittable', async ()
   assert.equal(atsApplyUrl('https://www.linkedin.com/jobs/view/1'), null)
   assert.equal(atsApplyUrl('http://jobs.lever.co/acme'), null)
 })
+
+test('automation filter: chat/bot or automated CRM is visible; manual WhatsApp is the target', async () => {
+  const { automationVisible, detectSignals } = await import('../worker/core/integrations.js')
+  assert.equal(automationVisible(detectSignals('<script src="https://cdn.wati.io/widget.js"></script>')), true)
+  assert.equal(automationVisible(detectSignals('<script src="https://widgets.leadconnectorhq.com/x.js"></script>')), true)
+  assert.equal(automationVisible(detectSignals('<a href="https://wa.me/573001112233">WhatsApp</a><form></form>')), false)
+})

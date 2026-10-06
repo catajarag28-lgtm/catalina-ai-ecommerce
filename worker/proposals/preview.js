@@ -1,6 +1,7 @@
 // Vista previa para Catalina antes del envío automático: copia exacta de una propuesta real + estructura,
 // muestra de postulación, plan diario y mezcla por vertical. Solo se envía a CATALINA_EMAIL.
 import { segments } from '../prospecting/discovery.js'
+import { ensureTable } from '../prospecting/opportunities.js'
 
 const SITE = 'https://soycatalinajaramillo.com'
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -29,6 +30,7 @@ export async function verticalQueue(env) {
 }
 
 export async function sendStructurePreview(env) {
+  await ensureTable(env)
   const sample = await env.DB.prepare("SELECT id, company, subject, html FROM outreach WHERE sent_at IS NOT NULL AND html IS NOT NULL AND length(html)>500 AND id NOT LIKE 'test-%' ORDER BY sent_at DESC LIMIT 1").first()
   const app = await env.DB.prepare("SELECT title, company, url, apply_url, score, grade, brief, proposal FROM opportunities WHERE status='prepared' AND grade='A' AND proposal<>'' ORDER BY (apply_url IS NOT NULL) DESC, score DESC LIMIT 1").first()
   const queue = await verticalQueue(env)
