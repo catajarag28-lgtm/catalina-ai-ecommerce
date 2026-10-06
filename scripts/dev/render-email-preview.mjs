@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
-import { brandedProposal } from '../worker/proposals/outreach.js'
-import { renderProposalPage } from '../worker/proposals/proposalPage.js'
+import { brandedProposal } from '../../worker/proposals/outreach.js'
+import { renderProposalPage } from '../../worker/proposals/proposalPage.js'
 
 // Muestra pública con un negocio FICTICIO (no se usa ningún prospecto real).
 const company = 'Lumière Med Spa (ejemplo)'
@@ -21,6 +21,6 @@ const p = {
 }
 const banner = '<div style="background:#5d4224;color:#fff;text-align:center;padding:10px;font:12px Arial">MUESTRA · NEGOCIO FICTICIO · ASÍ SE VE EL CORREO DE CAROLINA</div>'
 const mark = html => html.replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>').replace(/(<body[^>]*>)/, '$1' + banner)
-writeFileSync(new URL('../public/muestra-correo-carolina.html', import.meta.url), mark(brandedProposal(company, p, 'https://soycatalinajaramillo.com/muestra-propuesta-carolina.html')))
-writeFileSync(new URL('../public/muestra-correo-carta.html', import.meta.url), mark(brandedProposal(company, { ...p, format: 'carta', subject: 'hydrafacial antes de una boda' }, 'https://soycatalinajaramillo.com/muestra-propuesta-carolina.html')))
-writeFileSync(new URL('../public/muestra-propuesta-carolina.html', import.meta.url), mark(renderProposalPage({ id: 'muestra', company, proposal: p, subject: p.subject })))
+writeFileSync(new URL('../../public/muestra-correo-carolina.html', import.meta.url), mark(brandedProposal(company, p, 'https://soycatalinajaramillo.com/muestra-propuesta-carolina.html')))
+writeFileSync(new URL('../../public/muestra-correo-carta.html', import.meta.url), mark(brandedProposal(company, { ...p, format: 'carta', subject: 'hydrafacial antes de una boda' }, 'https://soycatalinajaramillo.com/muestra-propuesta-carolina.html')))
+writeFileSync(new URL('../../public/muestra-propuesta-carolina.html', import.meta.url), mark(renderProposalPage({ id: 'muestra', company, proposal: p, subject: p.subject })))

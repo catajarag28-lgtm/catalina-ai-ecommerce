@@ -16,8 +16,6 @@
   ],
   "vars": {
     "ALLOWED_ORIGIN": "https://soycatalinajaramillo.com,https://www.soycatalinajaramillo.com,https://catajarag28-lgtm.github.io",
-    "OPENROUTER_MODEL": "google/gemini-3.8-flash",
-    "OPENROUTER_EXTRACT_MODEL": "google/gemini-3.1-flash-lite",
     "OUTREACH_ENABLED": "true",
     "OUTREACH_DAILY_LIMIT": "30",
     "OUTREACH_FIXED_DAILY_CAP": "true",
@@ -27,7 +25,7 @@
     "APPLICATION_REPLY_TO": "clientes@soycatalinajaramillo.com",
     "PROFILE_ES_URL": "https://soycatalinajaramillo.com/perfil-catalina.html",
     "PROFILE_EN_URL": "https://soycatalinajaramillo.com/catalina-profile.html",
-    "INSTAGRAM_ENABLED": "true",
+    "INSTAGRAM_ENABLED": "false",
     "INSTAGRAM_API_VERSION": "v22.0",
     "PROSPECT_SOURCES": "[{\"url\":\"https://avaluxuryspa.com/\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://refreshbymairi.com/es\",\"region\":\"EE. UU.\",\"sector\":\"spa\"},{\"url\":\"https://www.miamiinmobiliario.com/contacto/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://www.awa-realty.com/\",\"region\":\"EE. UU.\",\"sector\":\"inmobiliaria\"},{\"url\":\"https://americanhubservices.com/es/nosotros/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://professionalservicesgp.com/\",\"region\":\"EE. UU.\",\"sector\":\"servicios\"},{\"url\":\"https://www.lausi.es/contacto\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://centroauroom.es/contacto/\",\"region\":\"España\",\"sector\":\"estética\"},{\"url\":\"https://www.tablu.mx/pages/contacto\",\"region\":\"México\",\"sector\":\"ecommerce\"},{\"url\":\"https://www.aesthetic-center.mx/contacto\",\"region\":\"México\",\"sector\":\"estética\"},{\"url\":\"https://spaanamar.com/\",\"region\":\"Colombia\",\"sector\":\"spa\"}]",
     "CALENDAR_TIMEZONE": "America/Bogota",

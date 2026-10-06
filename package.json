@@ -9,17 +9,7 @@
     "test": "node --test tests/*.test.mjs",
     "deploy": "vite build && npx wrangler deploy",
     "preview": "vite preview",
-    "skills:doc": "node scripts/skills-doc.mjs",
-    "carolina:machine": "node scripts/carolina-machine.js",
-    "carolina:runner": "node scripts/runner-local.js run",
-    "carolina:connect": "node scripts/runner-local.js connect-all",
-    "carolina:audit": "node scripts/runner-local.js audit",
-    "carolina:intelligence": "node scripts/carolina-proposal-intelligence.js",
-    "carolina:opportunities": "node scripts/carolina-opportunity-engine.js",
-    "carolina:apply:safe": "node scripts/safe-auto-apply.js",
-    "carolina:business": "node scripts/business-prospecting-engine.js",
-    "carolina:targets": "node scripts/carolina-revenue-planner.js",
-    "carolina:report": "node scripts/carolina-daily-report.js"
+    "skills:doc": "node scripts/skills-doc.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
