@@ -100,7 +100,7 @@ const BRIEF_SPEC = `Devuelve SOLO JSON:
 {"brief":{"client":"empresa/cliente y qué hace (solo con lo que dice la publicación)","realNeed":"qué está buscando realmente","likelyPain":"dolor probable (hipótesis condicional)","expectedOutcome":"resultado que espera","whyCatalina":"por qué encaja, con hechos reales","relevantExperience":["2-3 experiencias REALES del portafolio que aplican"],"proof":"prueba/ejemplo apropiado (LAURA, CAROLINA, Professional Glam, portafolio)","risk":"riesgo u objeción probable y cómo se maneja","angle":"ángulo de la propuesta en 1 frase","cta":"llamado a la acción único"},
 "aligned":true|false,"alignmentReason":"1 frase","language":"es|en","proposal":"130-240 palabras en el idioma de la publicación","confidence":0-1}`
 
-const PROPOSAL_RULES = `Escribe como Carolina, directora comercial de Catalina Jaramillo, una candidatura/propuesta ÚNICA para ESTA oportunidad. Prohibido sonar a plantilla.
+const PROPOSAL_RULES = `Escribe EN PRIMERA PERSONA, con la voz de Catalina Jaramillo (es su candidatura: "yo diseñé", "dirijo"), una candidatura/propuesta ÚNICA para ESTA oportunidad. Carolina la prepara pero no aparece en el texto. Prohibido sonar a plantilla.
 - Primera línea: una observación concreta sobre SU necesidad (no "vi tu oferta", no "me apasiona").
 - Nombra a la empresa y conecta 2-3 requisitos literales del aviso con experiencia REAL de Catalina.
 - Muestra cómo abordaría los primeros 30 días (2-3 pasos concretos) y qué resultado mediría.
