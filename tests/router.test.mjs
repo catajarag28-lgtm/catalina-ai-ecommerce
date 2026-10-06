@@ -170,3 +170,21 @@ test('allocator: targets follow expected revenue and blocked channels get zero',
   const t = targetsFromAllocation({ channels: [{ channel: 'direct_outbound', actions: 0 }, { channel: 'job_applications', actions: 15 }, { channel: 'project_bids', actions: 0 }, { channel: 'intent_signals', actions: 12 }, { channel: 'partnerships', actions: 0 }] })
   assert.equal(t.outbound, 0); assert.equal(t.marketplaces, 0); assert.equal(t.directApplications, 15); assert.equal(t.intent, 12)
 })
+
+test('language truth: unverified interpretation claims are replaced before any automatic send', async () => {
+  const { enforceLanguageTruth } = await import('../worker/interpreter/disclosure.js')
+  const es = 'Diseñé LAURA. Mi idioma nativo es español y mi inglés oral es básico; en reuniones uso interpretación con IA en tiempo real y escribo con asistencia de IA. ¿Hablamos?'
+  const out = enforceLanguageTruth(es, {}, 'es')
+  assert.ok(!/interpretaci/i.test(out)); assert.match(out, /comunicación escrita es fluida/); assert.match(out, /Diseñé LAURA/)
+  assert.equal(enforceLanguageTruth(es, { OPENAI_API_KEY: 'k', INTERPRETER_VERIFIED: 'true' }, 'es'), es)
+  const en = "I built LAURA. I'm a native Spanish speaker; for live meetings I use a real-time AI interpretation agent. Let's talk."
+  assert.ok(!/interpretation/i.test(enforceLanguageTruth(en, {}, 'en')))
+})
+
+test('opportunity routing: only public ATS links are auto-submittable', async () => {
+  const { atsApplyUrl } = await import('../worker/prospecting/opportunities.js')
+  assert.ok(atsApplyUrl('https://jobs.lever.co/acme/123'))
+  assert.ok(atsApplyUrl('https://jobs.ashbyhq.com/acme/abc'))
+  assert.equal(atsApplyUrl('https://www.linkedin.com/jobs/view/1'), null)
+  assert.equal(atsApplyUrl('http://jobs.lever.co/acme'), null)
+})

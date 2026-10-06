@@ -392,6 +392,17 @@ export default {
       const [a, b] = await Promise.all([sha(request.headers.get('authorization') || ''), sha('Bearer ' + (env.CAROLINA_VM_TOKEN || crypto.randomUUID()))])
       return !!env.CAROLINA_VM_TOKEN && a.every((x, i) => x === b[i])
     }
+    // Vista previa de la estructura de propuestas a Catalina (antes de encender el envío automático).
+    if (url.pathname === '/ops/vm-preview' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      return json(await (await import('./proposals/preview.js')).sendStructurePreview(env))
+    }
+    // Tanda controlada de postulaciones por formulario ATS (force solo para la verificación inicial).
+    if (url.pathname === '/ops/vm-run-opportunities' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      const body = safeJson(await request.text())
+      return json(await (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: Math.min(5, Number(body.limit || 1)), force: body.force === true }))
+    }
     // Oportunidades descubiertas por el runner de la VM → cola inteligente (score, brief, propuesta única).
     if (url.pathname === '/ops/vm-opportunities' && request.method === 'POST') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
@@ -595,6 +606,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
       const quick = { at: new Date().toISOString(), kind: 'send-only' }
       try { quick.hot = await runHotFollowup(env) } catch (e) { quick.hot = { error: e?.message } }
       try { quick.outreach = await runOutreach(env) } catch (e) { quick.outreach = { error: e?.message } }
+      // Segundo envío por ciclo rápido: capacidad para ~100/día en horario hábil (el tope diario y el freno siguen mandando).
+      try { quick.outreach2 = await runOutreach(env) } catch (e) { quick.outreach2 = { error: e?.message } }
       console.log('carolina_cycle', JSON.stringify(quick))
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_send_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(quick).slice(0, 2000), Date.now()).run().catch(() => {})
       return
@@ -627,6 +640,8 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
     if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     await step('applications', () => runDirectApplications(env))
+    // Cola inteligente → formularios ATS (solo A/B con propuesta aprobada; respeta AUTO_SUBMIT y tope diario).
+    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 2 }))
     if (plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))

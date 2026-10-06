@@ -43,10 +43,12 @@ try {
         description: (t('.show-more-less-html__markup') || t('.description__text')).slice(0, 7000),
         criteria: t('.description__job-criteria-list').slice(0, 600),
         easyApply: /easy apply|solicitud sencilla/i.test(document.body.innerText || ''),
+        // Postulación externa (ATS de la empresa): LinkedIn la publica codificada dentro de <code id="applyUrl">.
+        applyUrl: (() => { const raw = document.querySelector('code#applyUrl')?.innerHTML || ''; const m = raw.match(/[?&]url=([^&"\s]+)/); try { return m ? decodeURIComponent(m[1]) : '' } catch { return '' } })(),
       }
     }).catch(() => null)
     if (!data?.title || (data.description || '').length < 200) { console.log('skip_no_description', id); continue }
-    items.push({ platform: 'linkedin', url, title: data.title.slice(0, 200), company: data.company.slice(0, 120), location: data.location.slice(0, 120), applicants: data.applicants.slice(0, 60), easyApply: data.easyApply, description: data.description + (data.criteria ? '\n\n' + data.criteria : ''), query: q })
+    items.push({ platform: 'linkedin', url, title: data.title.slice(0, 200), company: data.company.slice(0, 120), location: data.location.slice(0, 120), applicants: data.applicants.slice(0, 60), easyApply: data.easyApply, applyUrl: data.applyUrl, description: data.description + (data.criteria ? '\n\n' + data.criteria : ''), query: q })
   }
   console.log('collected', items.length)
   // Lotes pequeños: cada lote se puntúa completo; solo A/B consumen IA. Para al llegar a la meta preparada.

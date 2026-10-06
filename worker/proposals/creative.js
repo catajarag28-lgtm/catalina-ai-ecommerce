@@ -191,7 +191,7 @@ export async function adjustDailyCap(env, now = Date.now()) {
   const engaged = (await env.DB.prepare("SELECT COUNT(DISTINCT outreach_id) n FROM outreach_events e JOIN outreach o ON o.id=e.outreach_id WHERE o.id NOT LIKE 'test-%' AND e.type IN ('email.clicked','page.viewed','cta.clicked') AND e.occurred_at>=?").bind(since).first())?.n || 0
   const replied = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE status='replied' AND updated_at>=? AND id NOT LIKE 'test-%'").bind(since).first())?.n || 0
   let next = cap
-  if (sent >= cap * 2 && complained === 0 && bounced / Math.max(1, sent) < 0.03 && (engaged / Math.max(1, sent) >= 0.03 || replied > 0)) next = Math.min(ceiling, cap + 5)
+  if (sent >= cap * 2 && complained === 0 && bounced / Math.max(1, sent) < 0.03 && (engaged / Math.max(1, sent) >= 0.03 || replied > 0)) next = Math.min(ceiling, cap + 15)
   if (next > ceiling) next = ceiling
   if (next !== cap) {
     await env.DB.prepare('UPDATE outreach_control SET daily_cap=?,updated_at=? WHERE id=1').bind(next, now).run()

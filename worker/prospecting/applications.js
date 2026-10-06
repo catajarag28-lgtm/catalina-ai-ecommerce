@@ -5,6 +5,7 @@ import { notifyCatalina } from '../core/notify.js'
 import { validPublicEmail, emailDomainReachable } from '../core/integrations.js'
 import { callModel } from '../core/modelRouter.js'
 import { autoSubmitAllowed } from '../core/channels.js'
+import { enforceLanguageTruth } from '../interpreter/disclosure.js'
 import { queueIntentForDirectOutbound } from './intent.js'
 import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acquisitionStrategy.js'
 
@@ -485,6 +486,7 @@ export async function runDirectApplications(env,now=Date.now()){
     }
     await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,recipient,subject,body,route,status,created_at,updated_at) VALUES (?,?,?,?,?,'email','sending',?,?) ON CONFLICT(source_url) DO UPDATE SET recipient=excluded.recipient,subject=excluded.subject,body=excluded.body,route='email',status='sending',error=NULL,blocker=NULL,last_attempt_at=excluded.updated_at,next_attempt_at=NULL,terminal=0,updated_at=excluded.updated_at")
       .bind(row.url,platform,route.email,safe(draft.subject).slice(0,180),safe(draft.body),now,now).run()
+    draft.body=enforceLanguageTruth(draft.body,env,draft.language)
     const sent=await sendApplication(env,row,route,draft,now)
     if(sent.ok){
       out.sent++

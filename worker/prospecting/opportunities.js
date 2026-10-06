@@ -164,13 +164,19 @@ async function ensureTable(env) {
     budget_text TEXT, budget_usd REAL, applicants TEXT, easy_apply INTEGER, description TEXT, score INTEGER, grade TEXT, score_parts TEXT, rejects TEXT,
     brief TEXT, proposal TEXT, quality TEXT, action TEXT, status TEXT, model TEXT, cost REAL, created_at INTEGER, updated_at INTEGER)`).run()
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_opportunities_grade ON opportunities(grade,status,updated_at)').run()
+  // Ruta de ejecución: enlace de postulación (ATS), idioma de la propuesta y evidencia del envío.
+  for (const col of ['apply_url TEXT', 'language TEXT', 'attempts INTEGER DEFAULT 0', 'submitted_at INTEGER', 'evidence TEXT'])
+    await env.DB.prepare('ALTER TABLE opportunities ADD COLUMN ' + col).run().catch(() => {})
   ready = true
 }
 
+// Ruta según cómo se postula: formulario ATS público (automatizable) o Easy Apply / sin ruta (humano por ahora).
+const ATS_HOST = /(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com|weworkremotely\.com|remoteok\.com|builtin\.com|gofractional\.com|stardex\.com)$/i
+export const atsApplyUrl = url => { try { const u = new URL(String(url || '')); return u.protocol === 'https:' && ATS_HOST.test(u.hostname) ? u.toString() : null } catch { return null } }
 const actionFor = (o, grade, aligned) => {
   if (grade === 'C' || aligned === false) return 'SKIP_LOW_SCORE'
-  if (!autoSubmitAllowed({ AUTO_SUBMIT: o.autoSubmit })) return o.platform === 'linkedin' ? 'HUMAN_SUBMIT_REQUIRED' : 'READY_FOR_REVIEW'
-  return 'AUTO_SUBMIT'
+  if (atsApplyUrl(o.applyUrl)) return 'SUBMIT_ATS_FORM'
+  return o.platform === 'linkedin' ? 'HUMAN_SUBMIT_REQUIRED' : 'READY_FOR_REVIEW'
 }
 
 /** Ingresa oportunidades (p. ej. del runner de la VM), puntúa todas y prepara A/B hasta `limit`. */
@@ -179,15 +185,20 @@ export async function ingestOpportunities(env, source, items, { limit = 10, chan
   const now = Date.now(), out = { received: items.length, duplicates: 0, A: 0, B: 0, C: 0, rejected: [], prepared: 0, notAligned: 0, genericBlocked: 0, results: [] }
   const scored = []
   for (const raw of items.slice(0, 60)) {
-    const o = { platform: String(raw.platform || source).toLowerCase(), url: String(raw.url || '').split('?')[0].slice(0, 400), title: String(raw.title || '').slice(0, 200), company: String(raw.company || '').slice(0, 120), location: String(raw.location || '').slice(0, 120), description: String(raw.description || '').slice(0, 8000), applicants: String(raw.applicants || '').slice(0, 40), easyApply: !!raw.easyApply, budgetText: raw.budgetText || null, budgetUsd: usd(raw.budgetUsd), autoSubmit: env.AUTO_SUBMIT }
+    const o = { platform: String(raw.platform || source).toLowerCase(), url: String(raw.url || '').split('?')[0].slice(0, 400), title: String(raw.title || '').slice(0, 200), company: String(raw.company || '').slice(0, 120), location: String(raw.location || '').slice(0, 120), description: String(raw.description || '').slice(0, 8000), applicants: String(raw.applicants || '').slice(0, 40), easyApply: !!raw.easyApply, budgetText: raw.budgetText || null, budgetUsd: usd(raw.budgetUsd), autoSubmit: env.AUTO_SUBMIT, applyUrl: String(raw.applyUrl || '').slice(0, 1000) }
     if (!/^https:\/\//.test(o.url) || !o.title) continue
-    if (await env.DB.prepare('SELECT 1 FROM opportunities WHERE url=? AND proposal IS NOT NULL').bind(o.url).first()) { out.duplicates++; continue }
+    if (await env.DB.prepare('SELECT 1 FROM opportunities WHERE url=? AND proposal IS NOT NULL').bind(o.url).first()) {
+      out.duplicates++
+      // Ya preparada: solo se completa la ruta de postulación si ahora se conoce (sin gastar IA).
+      if (atsApplyUrl(o.applyUrl)) await env.DB.prepare("UPDATE opportunities SET apply_url=?, action=CASE WHEN status='prepared' AND action IN ('HUMAN_SUBMIT_REQUIRED','READY_FOR_REVIEW','AUTO_SUBMIT') THEN 'SUBMIT_ATS_FORM' ELSE action END, updated_at=? WHERE url=? AND apply_url IS NULL").bind(atsApplyUrl(o.applyUrl), now, o.url).run()
+      continue
+    }
     const s = scoreOpportunity(o)
     out[s.grade]++
     if (s.rejects.length || s.grade === 'C') out.rejected.push({ title: o.title, company: o.company, score: s.score, why: [...s.rejects, ...s.reasons].join(', ') || 'score bajo' })
-    await env.DB.prepare(`INSERT INTO opportunities(url,source,platform,channel,title,company,location,budget_text,budget_usd,applicants,easy_apply,description,score,grade,score_parts,rejects,action,status,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(url) DO UPDATE SET score=excluded.score,grade=excluded.grade,score_parts=excluded.score_parts,rejects=excluded.rejects,description=excluded.description,updated_at=excluded.updated_at`)
-      .bind(o.url, source, o.platform, channel, o.title, o.company, o.location, o.budgetText, o.budgetUsd, o.applicants, o.easyApply ? 1 : 0, o.description, s.score, s.grade, JSON.stringify(s.parts), JSON.stringify([...s.rejects, ...s.reasons]), s.grade === 'C' ? 'SKIP_LOW_SCORE' : 'PENDING_BRIEF', s.grade === 'C' ? 'discarded' : 'qualified', now, now).run()
+    await env.DB.prepare(`INSERT INTO opportunities(url,source,platform,channel,title,company,location,budget_text,budget_usd,applicants,easy_apply,description,score,grade,score_parts,rejects,action,status,apply_url,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(url) DO UPDATE SET score=excluded.score,grade=excluded.grade,score_parts=excluded.score_parts,rejects=excluded.rejects,description=excluded.description,apply_url=coalesce(excluded.apply_url,apply_url),updated_at=excluded.updated_at`)
+      .bind(o.url, source, o.platform, channel, o.title, o.company, o.location, o.budgetText, o.budgetUsd, o.applicants, o.easyApply ? 1 : 0, o.description, s.score, s.grade, JSON.stringify(s.parts), JSON.stringify([...s.rejects, ...s.reasons]), s.grade === 'C' ? 'SKIP_LOW_SCORE' : 'PENDING_BRIEF', s.grade === 'C' ? 'discarded' : 'qualified', atsApplyUrl(o.applyUrl), now, now).run()
     scored.push({ o, s })
   }
   // Solo A y B consumen IA; A primero.
@@ -202,9 +213,39 @@ export async function ingestOpportunities(env, source, items, { limit = 10, chan
     if (veto) { r.aligned = false; r.quality = 'not_aligned:' + veto; out.notAligned++ }
     const action = String(r.quality).startsWith('failed') ? 'NEEDS_REWRITE' : actionFor(o, s.grade, r.aligned)
     if (action !== 'SKIP_LOW_SCORE' && action !== 'NEEDS_REWRITE') out.prepared++
-    await env.DB.prepare('UPDATE opportunities SET brief=?,proposal=?,quality=?,action=?,status=?,model=?,cost=?,updated_at=? WHERE url=?')
-      .bind(JSON.stringify(r.brief || {}), r.proposal || '', r.quality, action, action === 'SKIP_LOW_SCORE' ? 'discarded' : 'prepared', r.model || '', Number(r.cost || 0), Date.now(), o.url).run()
+    await env.DB.prepare('UPDATE opportunities SET brief=?,proposal=?,quality=?,action=?,status=?,model=?,cost=?,language=?,updated_at=? WHERE url=?')
+      .bind(JSON.stringify(r.brief || {}), r.proposal || '', r.quality, action, action === 'SKIP_LOW_SCORE' ? 'discarded' : 'prepared', r.model || '', Number(r.cost || 0), r.language === 'es' ? 'es' : 'en', Date.now(), o.url).run()
     out.results.push({ title: o.title, company: o.company, url: o.url, score: s.score, grade: s.grade, quality: r.quality, action, model: r.model })
+  }
+  return out
+}
+
+const bogotaMidnight = now => Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now) + 'T00:00:00-05:00')
+
+/**
+ * Envía oportunidades A/B preparadas por su formulario ATS público, con la propuesta única ya aprobada.
+ * Solo cuenta SUBMITTED_CONFIRMED cuando el formulario confirma. Preguntas que no se pueden responder con
+ * verdad → HUMAN_ACTION_REQUIRED. force=true solo para la tanda controlada de verificación.
+ */
+export async function runOpportunitySubmissions(env, { limit = 2, force = false, now = Date.now() } = {}) {
+  await ensureTable(env)
+  if (!force && !autoSubmitAllowed(env)) return { skipped: 'AUTO_SUBMIT off' }
+  const cap = Number(env.OPPORTUNITY_FORM_DAILY_LIMIT || 20)
+  const today = Number((await env.DB.prepare("SELECT COUNT(*) n FROM opportunities WHERE status='submitted' AND submitted_at>=?").bind(bogotaMidnight(now)).first())?.n || 0)
+  if (today >= cap) return { skipped: 'daily_cap', today, cap }
+  const rows = (await env.DB.prepare("SELECT * FROM opportunities WHERE status='prepared' AND action='SUBMIT_ATS_FORM' AND grade IN ('A','B') AND apply_url IS NOT NULL AND coalesce(attempts,0)<2 AND proposal<>'' ORDER BY score DESC LIMIT ?").bind(Math.min(limit, cap - today)).all()).results || []
+  const { submitOpportunityForm } = await import('../core/browserSessions.js')
+  const out = { attempted: rows.length, confirmed: 0, human: 0, errors: 0, results: [] }
+  for (const o of rows) {
+    await env.DB.prepare('UPDATE opportunities SET attempts=coalesce(attempts,0)+1, updated_at=? WHERE url=?').bind(Date.now(), o.url).run()
+    const r = await submitOpportunityForm(env, o).catch(e => ({ status: 'error', error: e?.message }))
+    let status = 'prepared', action = o.action
+    if (r.status === 'submitted') { status = 'submitted'; action = 'SUBMITTED_CONFIRMED'; out.confirmed++ }
+    else if (/waiting_human|human_required|language_hard_requirement/.test(r.status)) { status = 'human_action'; action = 'HUMAN_ACTION_REQUIRED'; out.human++ }
+    else out.errors++
+    await env.DB.prepare("UPDATE opportunities SET status=?, action=?, submitted_at=CASE WHEN ?='submitted' THEN ? ELSE submitted_at END, evidence=?, updated_at=? WHERE url=?")
+      .bind(status, action, status, Date.now(), JSON.stringify({ status: r.status, providerId: r.providerId || null, questions: r.questions || null, action: r.action || null, finalUrl: r.url || null, error: r.error || null }).slice(0, 1500), Date.now(), o.url).run()
+    out.results.push({ company: o.company, title: o.title, result: r.status, providerId: r.providerId || null, questions: r.questions || null })
   }
   return out
 }

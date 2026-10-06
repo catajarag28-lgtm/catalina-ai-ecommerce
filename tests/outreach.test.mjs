@@ -20,10 +20,10 @@ test('Email verification is grounded in actual HTML, not model output',async()=>
 })
 
 import {outreachDailyLimit,schedulingUrl,meetingNextStep} from '../worker/skills/salesStrategy.js'
-test('Volume grows only when configured and cannot exceed 50',()=>{
+test('Volume grows only when configured and cannot exceed 100',()=>{
  assert.equal(outreachDailyLimit({}),5)
  assert.equal(outreachDailyLimit({OUTREACH_DAILY_LIMIT:'30'}),30)
- assert.equal(outreachDailyLimit({OUTREACH_DAILY_LIMIT:'100'}),50)
+ assert.equal(outreachDailyLimit({OUTREACH_DAILY_LIMIT:'250'}),100)
  assert.equal(outreachDailyLimit({OUTREACH_DAILY_LIMIT:'invalid'}),5)
 })
 test('Appointment links must be Google HTTPS; missing connection never claims booking',()=>{

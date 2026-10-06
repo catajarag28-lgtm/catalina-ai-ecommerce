@@ -3,6 +3,7 @@ import { notifyCatalina } from './notify.js'
 import { callModel } from './modelRouter.js'
 import { sessionStateFrom } from './sessionHealth.js'
 import { autoSubmitAllowed } from './channels.js'
+import { enforceLanguageTruth } from '../interpreter/disclosure.js'
 
 const enc=new TextEncoder()
 const dec=new TextDecoder()
@@ -966,7 +967,8 @@ async function submitGenericApplicationForm(env,row){
     if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
     if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
 
-    const prepared=await prepareBrowserReply(env,row,body)
+    // Oportunidades de la cola inteligente ya traen propuesta única aprobada por el quality gate: no se reescribe.
+    const prepared=row.preparedReply?{eligible:true,language:row.language||'en',reply:row.preparedReply}:await prepareBrowserReply(env,row,body)
     if(!prepared.eligible){
       await env.DB.prepare("UPDATE intent_leads SET status='language_hard_requirement',language=? WHERE url=?").bind(prepared.language,row.url).run().catch(()=>{})
       await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'language_hard_requirement',route:'browser_generic_form',error:'spoken_english_hard_requirement'})
@@ -1157,3 +1159,13 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
   }
   return {enabled:true,processed:results.length,diagnostics,results}
 }
+
+// Ejecutor de la cola inteligente `opportunities` en formularios ATS públicos (Lever, Ashby, Greenhouse…).
+// No requiere login. Solo cuenta como enviada si el formulario muestra confirmación (markGenericSubmitted).
+export async function submitOpportunityForm(env,opp){
+  if(env.BROWSER_AUTOMATION_ENABLED!=='true'||!env.BROWSER)return {status:'disabled'}
+  const row={url:opp.url,platform:opp.company?`${opp.platform||'linkedin'} · ${opp.company}`:(opp.platform||'linkedin'),who:opp.company||'',need:opp.title||'',
+    application_route:'form',resolved_route:'form',status:'waiting_human_form',blocker:opp.apply_url,reply:enforceLanguageTruth(opp.proposal,env,opp.language),preparedReply:enforceLanguageTruth(opp.proposal,env,opp.language),language:opp.language||'en'}
+  return submitGenericApplicationForm(env,row)
+}
+export const isSupportedApplyHost=url=>{try{const u=new URL(String(url||''));return u.protocol==='https:'&&GENERIC_APPLICATION_HOST_RE.test(u.hostname)}catch{return false}}

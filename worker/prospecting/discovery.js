@@ -18,6 +18,14 @@ const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '')
 // España queda fuera del correo en frío: la LSSI exige consentimiento previo incluso entre empresas.
 // Colombia solo en segmento premium con clientela internacional.
 export const segments = [
+  // Mezcla objetivo de Catalina (6-oct): ecommerce/DTC es su vertical más fuerte y estaba casi ausente.
+  { id: 'dtc-beauty-latam', weight: 6, region: 'México', sector: 'ecommerce', q: 'marca DTC de belleza, cuidado capilar o skincare en México, Colombia o Chile con tienda Shopify propia, envíos nacionales y atención por WhatsApp' },
+  { id: 'dtc-latina-usa', weight: 5, region: 'EE. UU.', sector: 'ecommerce', q: 'marca latina en Estados Unidos con tienda online propia (Shopify o WooCommerce) de belleza, moda, bienestar, suplementos legales o alimentos, que vende a público hispano' },
+  { id: 'co-ecommerce', weight: 4, region: 'Colombia', sector: 'ecommerce', q: 'tienda online colombiana con Shopify o WooCommerce, pago contraentrega o envíos nacionales y pedidos por WhatsApp (moda, belleza, hogar, accesorios)' },
+  { id: 'mx-dtc-fashion', weight: 3, region: 'México', sector: 'ecommerce', q: 'marca mexicana de moda, accesorios o hogar con ecommerce propio, catálogo amplio y atención al cliente por WhatsApp o Instagram' },
+  { id: 'saas-b2b-latam', weight: 4, region: 'México', sector: 'servicios', q: 'empresa SaaS o B2B en México, Colombia o Chile con equipo comercial, demo agendable y formulario de contacto para empresas' },
+  { id: 'hospitality-latam', weight: 2, region: 'México', sector: 'servicios', q: 'hotel boutique, operador de alquiler vacacional o tour operator en Cancún, Tulum, Cartagena o Medellín con reservas por web y WhatsApp' },
+  { id: 'aliados-ecommerce-agencies', kind: 'partner', weight: 3, region: 'México', sector: 'agencia', q: 'agencia de ecommerce o Shopify partner en México o Colombia que implementa tiendas para marcas y podría subcontratar automatización e IA' },
   { id: 'miami-medspa', weight: 3, region: 'EE. UU.', sector: 'spa', q: 'med spa o spa de estética en Miami, Doral, Coral Gables o Brickell con atención en español y reservas en línea' },
   { id: 'miami-realestate', weight: 6, region: 'EE. UU.', sector: 'inmobiliaria', q: 'agencia inmobiliaria independiente en Miami, Doral, Brickell o Coral Gables que atiende compradores latinoamericanos e inversionistas en español y publica propiedades o agenda visitas' },
   { id: 'tx-realestate', weight: 4, region: 'EE. UU.', sector: 'inmobiliaria', q: 'agencia inmobiliaria hispana independiente en Houston, Dallas, Austin o San Antonio que publica propiedades y atiende leads en español' },
@@ -57,6 +65,13 @@ const rotation = segments.flatMap(s => Array(s.weight).fill(s))
 
 // Consultas para Google Maps (rotan por ciudad) y áreas de OpenStreetMap por segmento.
 export const placesQueries = {
+  'dtc-beauty-latam': ['tienda online cosmética Ciudad de México', 'marca skincare Guadalajara', 'productos capilares Bogotá tienda', 'tienda de belleza online Medellín', 'marca cosmética Santiago Chile'],
+  'dtc-latina-usa': ['latina owned beauty brand Miami', 'hispanic skincare brand Los Angeles', 'latina fashion boutique online Houston'],
+  'co-ecommerce': ['tienda online Bogotá', 'tienda virtual Medellín', 'boutique online Cali', 'tienda de accesorios Barranquilla'],
+  'mx-dtc-fashion': ['marca de ropa Ciudad de México', 'tienda de accesorios Monterrey', 'decoración hogar tienda Guadalajara'],
+  'saas-b2b-latam': ['empresa de software Ciudad de México', 'empresa SaaS Bogotá', 'software empresarial Santiago Chile'],
+  'hospitality-latam': ['hotel boutique Tulum', 'hotel boutique Cartagena', 'alquiler vacacional Cancún', 'tour operador Medellín'],
+  'aliados-ecommerce-agencies': ['agencia Shopify Ciudad de México', 'agencia ecommerce Bogotá', 'agencia tiendas online Medellín'],
   'miami-medspa': ['med spa en Miami', 'med spa Doral FL', 'spa facial Coral Gables', 'med spa Brickell Miami', 'estética facial Hialeah', 'med spa Kendall FL'],
   'miami-realestate': ['inmobiliaria en Miami', 'real estate agency Doral FL', 'bienes raíces Brickell', 'realtor hispano Miami', 'real estate agency Coral Gables'],
   'tx-realestate': ['realtor hispano Houston', 'inmobiliaria Dallas español', 'real estate agency Austin hispanic', 'realtor San Antonio español'],

@@ -23,7 +23,7 @@ DREAM ACCOUNTS: de las cuentas contactadas, prioriza cada día las de mayor valo
 // El límite configurado es el objetivo operativo de propuestas nuevas; salud y supresión siguen protegiendo la entrega.
 export function outreachDailyLimit(env={}) {
  const requested=Number(env.OUTREACH_DAILY_LIMIT)
- return Math.max(1,Math.min(50,Number.isFinite(requested)&&requested>0?Math.floor(requested):5))
+ return Math.max(1,Math.min(100,Number.isFinite(requested)&&requested>0?Math.floor(requested):5))
 }
 export function schedulingUrl(env={}) {
  try { const u=new URL(env.GOOGLE_BOOKING_URL||''); return u.protocol==='https:' && ['calendar.google.com','calendar.app.google'].includes(u.hostname)?u.toString():null } catch {return null}
