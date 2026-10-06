@@ -645,7 +645,9 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const plan = cycle.revenuePlan || {}
     // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
     await step('discovery', () => discoverProspects(env))
-    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
+    const lowYield = env.LOW_YIELD_CHANNELS === 'on'
+    const intentSlot = new Date().getUTCHours() % 2 === 0 && new Date().getUTCMinutes() < 15
+    if (lowYield && plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', async () => (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }))
     // Canal WhatsApp: propuestas para empresas que solo publican WhatsApp + lista diaria para Catalina.
@@ -654,17 +656,17 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('whatsappList', async () => (await import('./proposals/whatsappChannel.js')).sendWhatsappList(env))
     // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
     await step('intentClean', () => cleanIntentQueue(env))
-    await step('intent', () => runIntentScan(env))
+    if (intentSlot) await step('intent', () => runIntentScan(env))
     // Barrido dedicado de mercados de alto poder de compra. Una vez por ventana de 2h por el markKey.
-    await step('marketIntent', () => runIntentScan(env,Date.now(),{suffix:'markets',searches:2,offset:1,highValueOnly:true}))
-    if (plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
-    if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
+    if (lowYield) await step('marketIntent', () => runIntentScan(env,Date.now(),{suffix:'markets',searches:2,offset:1,highValueOnly:true}))
+    if (lowYield && plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
+    if (lowYield && plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     await step('applications', () => runDirectApplications(env))
     // Cola inteligente → formularios ATS (solo A/B con propuesta aprobada; respeta AUTO_SUBMIT y tope diario).
     await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 4 }))
     // Bolsas de empleo remoto con API pública (7 a. m. y 1 p. m. Colombia) → embudo de oportunidades.
     await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
-    if (plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
+    if (lowYield && plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
     await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:4}))

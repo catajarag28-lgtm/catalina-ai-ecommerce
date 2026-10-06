@@ -178,6 +178,7 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     `Ejecutado 24h: outbound ${revenuePlan.actual.outbound} · directas ${revenuePlan.actual.directApplications} · marketplaces ${revenuePlan.actual.marketplaces} · intent ${revenuePlan.actual.intent} · partners ${revenuePlan.actual.partners} · follow-ups ${revenuePlan.actual.followups}`,
   ]:['Plan de redistribución no disponible.']
 
+  const aiToday=Number((await env.DB.prepare('SELECT coalesce(sum(cost),0) c FROM ai_calls WHERE at>=?').bind(start).first().catch(()=>null))?.c||0)
   const formsSent=await env.DB.prepare("SELECT COUNT(*) n FROM outreach_events WHERE type='form.sent' AND occurred_at>=?").bind(start).first().catch(()=>({n:0}))
   const waRows=(await env.DB.prepare("SELECT o.* FROM outreach o WHERE o.kind='whatsapp' AND o.status IN ('wa_ready','wa_listed') AND o.email LIKE 'wa:%' AND EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type='form.unavailable') ORDER BY o.updated_at DESC LIMIT 15").all().catch(()=>({results:[]}))).results||[]
   const { whatsappOpener } = await import('./whatsappChannel.js')
@@ -189,6 +190,8 @@ export async function sendDailyOutreachReport(env, now=Date.now()) {
     '',
     'WHATSAPP QUE DEBES ENVIAR TÚ (toca el enlace y envía)',
     ...waLines,
+    '',
+    'COSTO DE IA HOY: USD '+aiToday.toFixed(2)+(stats.sent?' · USD '+(aiToday/stats.sent).toFixed(2)+' por propuesta enviada':'')+(stats.replied?' · USD '+(aiToday/stats.replied).toFixed(2)+' por respuesta':''),
     '',
     'EMAIL OUTBOUND · COLD OUTREACH',
     'Correos fríos nuevos enviados: '+stats.sent,
