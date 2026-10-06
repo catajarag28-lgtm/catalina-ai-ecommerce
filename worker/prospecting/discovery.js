@@ -10,6 +10,8 @@ import { callModel } from '../core/modelRouter.js'
 // Solo se usan URLs devueltas por el buscador; cada negocio se verifica abriendo su propia web.
 
 const excludedNames = /^(kb\s*digital|nodena|e-?luxe|luis\s+victoria)$/i
+// Portales de empleo y ATS: nunca son la web de la empresa que contrata.
+export const jobBoardHosts = /(^|\.)(greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|breezy\.hr|bamboohr\.com|smartrecruiters\.com|jobvite\.com|icims\.com|myworkdayjobs\.com|recruitee\.com|jazzhr\.com|applytojob\.com|paylocity\.com|jobtarget\.com|snaprecruit\.com|career\.com|tallo\.com|hiringcafe\.com|ziprecruiter\.com|simplyhired\.com|monster\.com|careerbuilder\.com|computrabajo\.com|elempleo\.com|occ\.com\.mx|bumeran\.[a-z.]+|laborum\.[a-z.]+|trabajando\.[a-z.]+|magneto365\.com|getonbrd\.com|jooble\.org|talent\.com|jobted\.[a-z.]+|opcionempleo\.[a-z.]+|hireline\.io|tecoloco\.[a-z.]+|wellfound\.com|builtin\.com|dice\.com)$/i
 export const excludedHosts = /(^|\.)(google|facebook|instagram|linkedin|youtube|tiktok|twitter|x|pinterest|yelp|tripadvisor|wikipedia|reddit|quora|medium|blogspot|wordpress|wix|shopify|squarespace|bbb|yellowpages|paginasamarillas|doctoralia|zocdoc|healthgrades|zillow|realtor|redfin|idealista|fotocasa|inmuebles24|lamudi|vivanuncios|metrocuadrado|fincaraiz|groupon|booking|expedia|vagaro|fresha|mindbody|booksy|treatwell|amazon|mercadolibre|etsy|ebay|workana|upwork|fiverr|indeed|glassdoor|clutch|goodfirms|sortlist|trustpilot|forbes|nytimes|elpais|cnn|resend|openai|cloudflare|github|apple|microsoft|gob|gov)\.[a-z.]+$/i
 const normalize = value => String(value || '').trim().toLowerCase()
 const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '').toLowerCase() } catch { return '' } }
@@ -176,7 +178,7 @@ export async function realWebsite(env, company, website, hint = '') {
   const r = await placesSearch(env, company + (hint ? ' ' + hint : ''), { minReviews: 0 }).catch(() => null)
   const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '')
   const hit = (r?.items || []).find(p => norm(p.company).includes(norm(company).slice(0, 8)) || norm(company).includes(norm(p.company).slice(0, 8)))
-  return hit && !excludedHosts.test(hostOf(hit.website)) ? hit.website : null
+  return hit && !excludedHosts.test(hostOf(hit.website)) && !jobBoardHosts.test(hostOf(hit.website)) ? hit.website : null
 }
 
 // Señal de contratación: la vacante es la evidencia de intención; el contacto sale SIEMPRE de la web oficial de la empresa.
@@ -191,7 +193,7 @@ async function searchHiringSignals(env, segment) {
   const out = new Map()
   for (const c of r.data.companies || []) {
     const h = hostOf(c.website)
-    if (!h || excludedHosts.test(h) || out.has(h) || !c.jobTitle) continue
+    if (!h || excludedHosts.test(h) || jobBoardHosts.test(h) || out.has(h) || !c.jobTitle) continue
     // La vacante debe venir de una URL que el buscador realmente devolvió; si no, no es evidencia.
     const jobUrl = String(c.jobUrl || '')
     if (!jobUrl.startsWith('https://') || (cited.size && ![...cited].some(u => hostOf(u) === hostOf(jobUrl)))) continue

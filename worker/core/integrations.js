@@ -142,7 +142,7 @@ export async function researchWebsite(url) {
 const SIGNALS = {
   reservas: /vagaro|mindbody|fresha|joinblvd|boulevard|squareup\.com\/appointments|square\.site|calendly|acuityscheduling|setmore|zenoti|booksy|treatwell|glofox|simplybook|timely|doctoralia|zocdoc|nexhealth|localmed|jane\.app|agendapro|reservio|goldie|glossgenius|schedulicity/i,
   whatsapp: /wa\.me\/|api\.whatsapp\.com|web\.whatsapp\.com/i,
-  chat: /intercom|tidio|driftt|crisp\.chat|livechatinc|tawk\.to|zdassets|zopim|hs-scripts|manychat|chatbase|botpress|landbot|freshchat|olark|smartsupp|elfsight.*chat|getbutton|podium|wati\.io|respond\.io|botmaker|callbell|leadsales|treble\.ai|b2chat|gupshup|yalo|sirena\.app|chatwoot|trengo|kommo|aisensy|interakt|whatsform|joinchat-bot|voiceflow|tidiochat/i,
+  chat: /intercom|tidio|driftt|crisp\.chat|livechatinc|tawk\.to|zdassets|zopim|hs-scripts|manychat|chatbase|botpress|landbot|freshchat|olark|smartsupp|elfsight.*chat|getbutton|podium|wati\.io|respond\.io|botmaker|callbell|leadsales|treble\.ai|b2chat|gupshup|yalo\.ai|yalochat|sirena\.app|chatwoot|trengo\.com|kommo|aisensy|interakt\.(?:ai|shop)|whatsform|joinchat-bot|voiceflow|tidiochat/i,
   tienda: /cdn\.shopify|myshopify|woocommerce|tiendanube|vtex|bigcommerce|wixstatic.*ecom|magento|prestashop|squarespace-commerce/i,
   email_marketing: /klaviyo|mailchimp|list-manage|activecampaign|convertkit|brevo|sendinblue/i,
   crm: /hubspot|salesforce|zoho|gohighlevel|leadconnector|pipedrive|kommo/i,
