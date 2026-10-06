@@ -141,3 +141,16 @@ test('opportunity score: target roles grade high, SEO PM and off-profile roles a
   const o = { title: 'AI Automation Specialist', company: 'Spreetail', description: 'Build AI agents workflow automation shopify operations fulfillment' }
   assert.equal(proposalQuality('Hi, I saw your offer and I am very passionate. ' + 'word '.repeat(150), o), 'company_not_mentioned')
 })
+
+test('dry-run 6-oct regressions: on-site events, spoken-English sales roles and false claims are blocked', async () => {
+  const { scoreOpportunity, proposalQuality } = await import('../worker/prospecting/opportunities.js')
+  assert.equal(scoreOpportunity({ title: 'Maisa Career Day MADRID: AI Automation Consultant', company: 'Maisa', description: 'AI automation digital workers. Join us in person at our Career Day in Madrid.' }).grade, 'C')
+  assert.equal(scoreOpportunity({ title: 'Sales & Partnerships Specialist', company: 'MoveWise', description: 'Close inbound leads on consultative calls. Fluent English required. CRM automation, WhatsApp.' }).grade, 'C')
+  const o = { title: 'AI Automation Consultant', company: 'Maisa', description: 'digital workers automation consultant maisa studio connectors production deployment testing' }
+  const base = 'En Maisa los digital workers necesitan pruebas en produccion. Diseñé LAURA, un sistema multiagente, y CAROLINA. Propongo auditar connectors, testing y deployment en Maisa Studio para production con documentation y runbooks. ' + 'Detalle operativo concreto del despliegue y medición del resultado. '.repeat(14) + ' https://soycatalinajaramillo.com'
+  assert.equal(proposalQuality(base, o), true)
+  assert.equal(proposalQuality(base + ' I have working professional English.', o), 'language_claim')
+  assert.equal(proposalQuality(base + ' Tengo disponibilidad para viajar a Alicante.', o), 'invented_availability')
+  assert.equal(proposalQuality(base + ' LAURA handles thousands of live interactions.', o), 'unverified_volume')
+  assert.equal(proposalQuality(base + ' En mis primeros 30 días con el equipo de Laura.', o), 'laura_as_person')
+})

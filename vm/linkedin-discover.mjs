@@ -5,9 +5,9 @@ import { chromium } from 'playwright'
 
 const PROFILE = process.env.CAROLINA_AUTH_PROFILE || '/data/browser-profile'
 const API = process.env.CAROLINA_OPPS_URL || 'https://soycatalinajaramillo.com/ops/vm-opportunities'
-const MAX_JOBS = Number(process.env.MAX_JOBS || 36)
+const MAX_JOBS = Number(process.env.MAX_JOBS || 48)
 const TARGET_PREPARED = Number(process.env.TARGET_PREPARED || 10)
-const QUERIES = (process.env.QUERIES || 'AI Automation|AI Operations|AI Agents|Ecommerce Operations|CRM Automation|Automatización IA|Shopify Automation|Customer Experience Automation|Growth Operations|WhatsApp Automation').split('|')
+const QUERIES = (process.env.QUERIES || 'AI Automation Specialist|Automatización con IA LATAM|Ecommerce Operations Manager remote|Operaciones ecommerce remoto|AI Operations|AI Agents|Ecommerce Operations|CRM Automation|Automatización IA|Shopify Automation|Customer Experience Automation|Growth Operations|WhatsApp Automation').split('|')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const jitter = (a, b) => a + Math.floor(Math.random() * (b - a))
 
@@ -17,13 +17,13 @@ const ids = new Map()
 try {
   for (const q of QUERIES) {
     if (ids.size >= MAX_JOBS) break
-    const url = 'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(q) + '&f_WT=2&f_TPR=r604800&sortBy=R'
+    const url = 'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(q) + '&f_WT=2&f_TPR=r604800&sortBy=R&geoId=92000000'
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {})
     await sleep(jitter(3500, 5500))
     if (/\/login|authwall|checkpoint/i.test(page.url())) { console.log('linkedin: session lost', page.url()); process.exit(3) }
     const found = await page.$$eval('a[href*="/jobs/view/"]', as => [...new Set(as.map(a => (a.href.match(/\/jobs\/view\/(\d+)/) || [])[1]).filter(Boolean))]).catch(() => [])
     let n = 0
-    for (const id of found) { if (!ids.has(id) && n < 5) { ids.set(id, q); n++ } }
+    for (const id of found) { if (!ids.has(id) && n < 6) { ids.set(id, q); n++ } }
     console.log('search', JSON.stringify({ q, found: found.length, added: n }))
   }
   const items = []

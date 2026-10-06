@@ -36,7 +36,11 @@ const AVOID = [
   [/\b(senior|staff|principal|lead)\s+(software|backend|frontend|full[-\s]?stack|ml|machine\s+learning|data)\s+engineer\b|kubernetes|\bgolang\b|\brust\b|\bc\+\+\b|phd/i, 'ingeniería senior especializada'],
   [/\bproject\s+manager\b(?![\s\S]{0,60}(ai|automation|ecommerce|operations))/i, 'gestión de proyectos no relacionada'],
 ]
-const SPOKEN_EN = /(fluent|native|excellent|advanced)\s+(spoken\s+)?english|c1|c2|english\s+(fluency|native)|phone\s+(sales|support)|cold\s+calling|outbound\s+calls/i
+const SPOKEN_EN = /(fluent|native|excellent|advanced|business[-\s]level)\s+(spoken\s+)?english|\bc1\b|\bc2\b|english\s+(fluency|native|\(c1|\(c2)|ingl[eé]s\s+(fluido|avanzado|nativo|c1|c2)|phone\s+(sales|support)|cold\s+calling|outbound\s+calls/i
+// Roles cuyo núcleo es HABLAR (llamadas de venta/cierre, presentaciones a clientes): inglés oral crítico.
+const SPOKEN_CORE = /(consultative|sales|discovery|closing|client)\s+(calls|presentations)|close\s+(inbound\s+)?leads\s+(on|in|via)\s+(consultative\s+)?calls|llamadas\s+(de\s+venta|consultivas|comerciales)|presentaciones\s+a\s+clientes/i
+// Presencial / eventos / reubicación: Catalina trabaja remoto desde Colombia/EE. UU.
+const ONSITE = /career\s+day|in[-\s]person|presencial(?!mente\s+no)|hybrid|h[ií]brido|on[-\s]?site|must\s+(be\s+)?(based|located|reside)\s+in|relocat|reubicaci[oó]n|residencia\s+(legal\s+)?en\s+espa|permiso\s+de\s+trabajo\s+(en|para)\s+(espa|la\s+ue|europa)|right\s+to\s+work\s+in\s+(the\s+)?(eu|uk|spain)/i
 
 const usd = v => { const n = Number(String(v || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null }
 
@@ -59,7 +63,9 @@ export function scoreOpportunity(o) {
   // 4. Idioma (0-10).
   const spanish = /\b(el|la|los|para|con|experiencia|empresa|buscamos)\b/i.test(text) && (text.match(/\b(el|la|los|las|para|con|que)\b/gi) || []).length > 25
   parts.language = spanish ? 10 : SPOKEN_EN.test(text) ? 0 : 6
-  if (!spanish && SPOKEN_EN.test(text)) reasons.push('exige inglés hablado avanzado')
+  if (SPOKEN_EN.test(text) && SPOKEN_CORE.test(text)) rejects.push('inglés hablado crítico (llamadas/presentaciones)')
+  else if (!spanish && SPOKEN_EN.test(text)) reasons.push('exige inglés hablado avanzado')
+  if (ONSITE.test(title + ' ' + (o.location || '')) || ONSITE.test(desc.slice(0, 4000))) rejects.push('presencial, híbrido o requiere residencia/reubicación')
   // 5. Urgencia (0-5) · 6. Competencia (0-5).
   parts.urgency = /urgent|asap|immediately|inmediat|start\s+now/i.test(text) ? 5 : 2
   const applicants = Number(String(o.applicants || '').replace(/[^0-9]/g, '')) || null
@@ -88,7 +94,12 @@ export function proposalQuality(proposal, o) {
   if (company && company.length > 2 && !norm(t).includes(company)) return 'company_not_mentioned'
   if (/^(hi|hello|hola)[^\n]{0,40}(i saw|vi (esta|tu|su) (oportunidad|oferta|proyecto))/i.test(t)) return 'generic_opening'
   if (/i('m| am) (very )?(passionate|excited|a perfect fit)|me apasiona|perfect(a)? candidat/i.test(t)) return 'generic_cliche'
-  if (/\b(fluent|native)\s+english\b|\bc1\b|\bc2\b/i.test(t)) return 'language_claim'
+  // Hallazgos del dry-run 6-oct: inglés "working professional", viajes inventados, volúmenes de LAURA, "equipo de Laura".
+  if (/\b(fluent|native)\s+english\b|\bc1\b|\bc2\b|working\s+(professional\s+)?(spoken\s+)?english|professional\s+(working\s+)?english|ingl[eé]s\s+(profesional|fluido|avanzado)/i.test(t)) return 'language_claim'
+  if (/disponibilidad\s+para\s+(viajar|reubicar|mudar)|willing\s+to\s+(relocate|travel)|available\s+to\s+(relocate|travel)|can\s+relocate|me\s+(mudo|traslado)/i.test(t)) return 'invented_availability'
+  if (/(thousands|hundreds|millions|miles|cientos|millones)\s+(of\s+)?(live\s+)?(interactions|interacciones|conversations|conversaciones|users|usuarios|messages|mensajes)/i.test(t)) return 'unverified_volume'
+  if (/across\s+colombia\s+and\s+the\s+us|en\s+colombia\s+y\s+(estados\s+unidos|ee\.?\s?uu)/i.test(t)) return 'unverified_volume'
+  if (/(equipo|team)\s+de\s+laura|laura'?s\s+team|con\s+laura\b(?!,?\s+(un|el|mi|su)\s+sistema)/i.test(t)) return 'laura_as_person'
   const keys = new Set(norm(o.title + ' ' + String(o.description || '').slice(0, 1500)).split(/[^a-z0-9]+/).filter(w => w.length > 5))
   const hits = new Set(norm(t).split(/[^a-z0-9]+/).filter(w => keys.has(w)))
   if (hits.size < 4) return 'not_specific_to_role'
@@ -105,7 +116,8 @@ const PROPOSAL_RULES = `Escribe EN PRIMERA PERSONA, con la voz de Catalina Jaram
 - Nombra a la empresa y conecta 2-3 requisitos literales del aviso con experiencia REAL de Catalina.
 - Muestra cómo abordaría los primeros 30 días (2-3 pasos concretos) y qué resultado mediría.
 - Credibilidad solo con hechos del portafolio: Professional Glam (fundadora; 3 sedes; Shopify; operación DTC), LAURA (sistema multiagente que diseñó y dirige: ventas, atención, pedidos, postventa con WhatsApp/Shopify/Dropi), CAROLINA (agente de desarrollo comercial: prospección, research, propuestas, seguimiento), consultoría desde 2013 en ventas, servicio y cierre por WhatsApp; directora comercial y de marketing 2009-2013. No inventes clientes, años, herramientas ni métricas. No atribuyas resultados del negocio a la IA.
-- Si el aviso exige inglés: Catalina es nativa en español con inglés oral básico; para reuniones usa interpretación IA en tiempo real y escribe con asistencia de IA. Dilo en una frase solo si el aviso menciona reuniones/inglés.
+- Si el aviso exige inglés: usa EXACTAMENTE esta idea en una sola frase: "Mi idioma nativo es español y mi inglés oral es básico; en reuniones uso interpretación con IA en tiempo real y escribo con asistencia de IA." (en inglés: "I'm a native Spanish speaker with basic spoken English; in meetings I use real-time AI interpretation and I write with AI assistance."). Nunca digas working/professional/fluent English.
+- NO ofrezcas viajar, mudarte ni disponibilidad presencial. NO cuantifiques LAURA ni CAROLINA (sin "miles de interacciones", usuarios ni %). Professional Glam: solo las cifras del portafolio (COP 1.000 millones en Shopify, 9.296 pedidos online, 7.531 clientas en sede, 3 sedes en Colombia, empresa en Florida); no digas que vendió en EE. UU. LAURA y CAROLINA son sistemas, nunca personas ni equipos.
 - Branding: firma "Catalina Jaramillo · AI Commerce Operations & Automation" e incluye ${SITE} y el portafolio ${PORTFOLIO}.
 - Un solo CTA concreto. Sin precios. Tono senior, cálido y directo.
 - aligned=false si en realidad NO corresponde al perfil (p. ej., SEO puro, ingeniería senior especializada, diseño o video).`
@@ -130,7 +142,7 @@ export async function briefAndPropose(env, o, s) {
     if (!r.ok) return { ok: false, error: r.error }
     const q = r.data.aligned === false ? 'not_aligned' : proposalQuality(r.data.proposal, o)
     if (q === true || q === 'not_aligned') return { ok: true, ...r.data, quality: q === true ? 'passed' : 'not_aligned', model: r.model, tier: r.tier, cost: r.cost }
-    feedback = { too_short: 'es demasiado corta', too_long: 'es demasiado larga', company_not_mentioned: 'no menciona a la empresa por su nombre', generic_opening: 'abre como plantilla', generic_cliche: 'usa clichés', language_claim: 'afirma un nivel de inglés falso', not_specific_to_role: 'no conecta con los requisitos literales del aviso', missing_brand_link: `falta ${SITE} y el portafolio` }[q] || q
+    feedback = { too_short: 'es demasiado corta', too_long: 'es demasiado larga', company_not_mentioned: 'no menciona a la empresa por su nombre', generic_opening: 'abre como plantilla', generic_cliche: 'usa clichés', language_claim: 'afirma un nivel de inglés falso: usa la frase exacta de inglés oral básico con interpretación IA', not_specific_to_role: 'no conecta con los requisitos literales del aviso', missing_brand_link: `falta ${SITE} y el portafolio`, invented_availability: 'ofrece viajar o reubicarse: elimínalo', unverified_volume: 'cuantifica sin evidencia (interacciones/usuarios o ventas en EE. UU.): elimínalo', laura_as_person: 'trata a LAURA como persona o equipo: LAURA es un sistema' }[q] || q
     if (attempt === 1) return { ok: true, ...r.data, quality: 'failed:' + q, model: r.model, tier: r.tier, cost: r.cost }
   }
 }
