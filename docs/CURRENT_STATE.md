@@ -18,7 +18,7 @@ Fuente única de verdad de la arquitectura. Los documentos de `docs/archive/` de
 Todas las llamadas pasan por `worker/core/modelRouter.js` (tiers gratis → DeepSeek → Gemini → Claude), con costo registrado en `ai_calls` y tope de USD 2 al día.
 
 ## Pendientes conocidos
-- Programar `vm/linkedin-discover.mjs` (lo hace `vm/install-schedule.sh`).
+- Descubrimiento de LinkedIn programado en la VM: `carolina-linkedin-discover.timer` (13:00 y 21:00 UTC). El timer de 15 min solo corre CloudSessionHealth.
 - Registrar contratos ganados en la tabla `deals`.
 - Intérprete en tiempo real (`worker/interpreter/`): existe pero no está desplegado.
 - Repositorio público: hacerlo privado. Despliegue automático: renovar `CLOUDFLARE_API_TOKEN` en GitHub.
