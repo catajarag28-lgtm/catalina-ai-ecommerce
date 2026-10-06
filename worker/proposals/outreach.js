@@ -4,7 +4,7 @@ import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
 import { skill, skillsPrompt } from '../skills/registry.js'
 import { learnedPlaybook } from '../core/meetings.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
-import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachable, automationVisible } from '../core/integrations.js'
+import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachable, automationVisible, verifyMailbox } from '../core/integrations.js'
 import { segments as discoverySegments } from '../prospecting/discovery.js'
 import { brandedProposal, escapeHtml } from './proposalPage.js'
 import { catalog } from '../../src/offers.js'
@@ -198,6 +198,13 @@ export async function runOutreach(env, now = Date.now()) {
   try {
     if (!validPublicEmail(row.email) || (row.kind !== 'inbound' && !row.source_url?.startsWith('https://'))) throw new Error('contact_not_verified')
     if (row.kind !== 'inbound' && !(await emailDomainReachable(row.email))) throw new Error('email_domain_unreachable')
+    if (row.kind !== 'inbound' && !testTo) {
+      const mv = await verifyMailbox(env, row.email)
+      if (!mv.sendable) {
+        if (['invalid', 'disposable'].includes(mv.result)) await env.DB.prepare('INSERT OR REPLACE INTO suppression(email,reason,created_at) VALUES (?,?,?)').bind(row.email.toLowerCase(), 'mailbox_' + mv.result, Date.now()).run()
+        throw new Error('low_fit: buzón no verificado (' + (mv.result || 'error') + ')')
+      }
+    }
     if (await env.DB.prepare('SELECT 1 FROM suppression WHERE email=?').bind(row.email.toLowerCase()).first()) throw new Error('suppressed')
     if (row.kind !== 'inbound' && !testTo && await env.DB.prepare("SELECT 1 FROM emails WHERE direction='out' AND lower(to_addr)=?").bind(row.email.toLowerCase()).first()) throw new Error('already_contacted')
     let research

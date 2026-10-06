@@ -221,3 +221,17 @@ export function pickBusinessEmail(emails, host) {
   return clean.find(e => /@(gmail|hotmail|outlook|yahoo|icloud)\./i.test(e)) || null
 }
 
+
+// Verificación de buzón con MillionVerifier antes de cada correo frío: las pymes publican direcciones viejas
+// (21% de rebote el 6-oct). Solo se envía a 'ok' y 'catch_all'; 'invalid'/'disposable' se suprimen.
+// Sin clave configurada, no bloquea (se mantiene el comportamiento anterior).
+export async function verifyMailbox(env, email) {
+  if (!env.MILLIONVERIFIER_API_KEY) return { checked: false, sendable: true }
+  try {
+    const r = await fetch('https://api.millionverifier.com/api/v3/?api=' + encodeURIComponent(env.MILLIONVERIFIER_API_KEY) + '&email=' + encodeURIComponent(email) + '&timeout=10', { signal: AbortSignal.timeout(15000) })
+    const d = await r.json().catch(() => ({}))
+    const result = String(d.result || 'unknown').toLowerCase()
+    if (d.error) return { checked: false, sendable: false, result: 'error', error: String(d.error).slice(0, 80) }
+    return { checked: true, result, sendable: ['ok', 'catch_all'].includes(result) }
+  } catch { return { checked: false, sendable: false, result: 'error' } }
+}
