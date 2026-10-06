@@ -14,6 +14,7 @@ const RUN_LIMIT = Number(process.env.CAROLINA_ACTION_LIMIT || 10);
 const DAILY_LIMIT = Number(process.env.CAROLINA_DAILY_LIMIT || 50);
 const PER_PLATFORM_LIMIT = Number(process.env.CAROLINA_PER_PLATFORM_LIMIT || 5);
 const DAILY_PLATFORM_LIMIT = Number(process.env.CAROLINA_DAILY_PLATFORM_LIMIT || 20);
+const ONLY_URLS = new Set(String(process.env.CAROLINA_ONLY_URLS || '').split(',').map(x=>x.trim()).filter(Boolean));
 const WORKER_BASE = String(process.env.CAROLINA_WORKER_BASE || 'https://soycatalinajaramillo.com').replace(/\/$/, '');
 const VM_TOKEN = process.env.CAROLINA_VM_TOKEN || '';
 const CV_EN = '/public/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf';
@@ -84,7 +85,8 @@ function validCandidate(x){
   const canonicalProposal=String(x.proposal||'').trim();
   if(canonicalProposal.split(/\s+/).length<80) return false;
   if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url) || !RELEVANT_RX.test(`${title} ${url}`)) return false;
-  if(p==='linkedin' && (!/linkedin\.com\/jobs\/view\//i.test(url) || x.easyApply!==true)) return false;
+  // LinkedIn: no depender de easyApply del discovery. La página real decide si es Easy Apply, Apply externo o requiere humano.
+  if(p==='linkedin' && !/linkedin\.com\/jobs\/view\//i.test(url)) return false;
   if((p==='n8n'||p==='make') && (!/\/t\//i.test(url) || !HIRING_COMMUNITY_RX.test(title))) return false;
   if(p==='workana') return false;
   if(!sessionConnected(p)) return false;
@@ -264,6 +266,7 @@ async function main(){
   const recentByUrl=new Map();
   for(const x of ledger){ if(x.url) recentByUrl.set(x.url,x); }
   const candidates=(q.items||[])
+    .filter(x=>!ONLY_URLS.size || ONLY_URLS.has(String(x.url||'')))
     .filter(x=>['ENVIABLE_PRIORIDAD_ALTA','ENVIABLE_PRIORIDAD_MEDIA'].includes(x.status))
     .filter(validCandidate)
     .filter(x=>{
