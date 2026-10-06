@@ -1,4 +1,5 @@
 import { notifyCatalina } from './notify.js'
+import { allocateCapacity, targetsFromAllocation } from './revenueMetrics.js'
 
 const DAY=86400000
 const PROFILE='https://soycatalinajaramillo.com/perfil-catalina.html'
@@ -39,7 +40,9 @@ export async function buildRevenuePlan(env, now=Date.now()){
   ])
   const paused=!!control?.paused
   // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legÃ­timas.
-  const targets=revenueTargets(paused)
+  // Capacidad por INGRESO ESPERADO (Revenue Capacity Allocator); las cuotas fijas quedan solo como respaldo.
+  const allocation=await allocateCapacity(env,{now}).catch(()=>null)
+  const targets=allocation?targetsFromAllocation(allocation):revenueTargets(paused)
   const actual={
     outbound:n(outbound),directApplications:n(direct),marketplaces:n(market),intent:n(intent),
     partners:n(partners),abm:n(abm),followups:n(followups),meetings:n(meetings)

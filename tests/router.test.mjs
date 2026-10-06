@@ -161,3 +161,9 @@ test('brief veto: on-site or spoken-English-critical roles found in the brief ar
   assert.equal(briefVeto({ risk: "Exigencia de 'excellent spoken English' para llamadas activas" }), 'spoken_english_critical')
   assert.equal(briefVeto({ risk: 'El cliente es de EE. UU.; comunicación escrita asíncrona' }), null)
 })
+
+test('allocator: targets follow expected revenue and blocked channels get zero', async () => {
+  const { targetsFromAllocation } = await import('../worker/core/revenueMetrics.js')
+  const t = targetsFromAllocation({ channels: [{ channel: 'direct_outbound', actions: 0 }, { channel: 'job_applications', actions: 15 }, { channel: 'project_bids', actions: 0 }, { channel: 'intent_signals', actions: 12 }, { channel: 'partnerships', actions: 0 }] })
+  assert.equal(t.outbound, 0); assert.equal(t.marketplaces, 0); assert.equal(t.directApplications, 15); assert.equal(t.intent, 12)
+})
