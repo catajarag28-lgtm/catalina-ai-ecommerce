@@ -29,6 +29,7 @@ export const TASK_TIERS = {
   'intent.qualify': 2,         // ¿es comprador real y encaja?
   'outreach.critique': 2,      // rúbrica de calidad sobre el borrador
   'outreach.evidence': 2,      // cita literal que respalda la observación
+  'outreach.first_touch': 2,   // primer contacto frío: breve y barato; busca respuesta/diagnóstico
   'intent.proposal': 2,        // texto final que lee el comprador
   'application.write': 3,
   'outreach.proposal': 3,

@@ -209,11 +209,12 @@ test('automation filter: chat/bot or automated CRM is visible; manual WhatsApp i
   assert.equal(automationVisible(detectSignals('<a href="https://wa.me/573001112233">WhatsApp</a><form></form>')), false)
 })
 
-test('whatsapp opener is short, human and links the proposal', async () => {
+test('whatsapp opener is short, human and asks for a diagnosis before any proposal', async () => {
   const { whatsappOpener } = await import('../worker/proposals/whatsappChannel.js')
-  const msg = whatsappOpener({ id: 'abc', company: 'Spa Luna' }, { observation: 'Vi que reciben citas solo por WhatsApp y atienden hasta las 7 p. m. Además tienen tres sedes.', hypothesis: '¿Qué pasa con las consultas que llegan de noche?' })
+  const msg = whatsappOpener({ id: 'abc', company: 'Spa Luna' }, { firstTouch: { observation: 'Vi que reciben citas solo por WhatsApp y atienden hasta las 7 p. m. Además tienen tres sedes.', hypothesis: '¿Qué pasa con las consultas que llegan de noche?' } })
   assert.match(msg, /^Hola, ¿hablo con Spa Luna\?/)
-  assert.match(msg, /soycatalinajaramillo\.com\/propuesta\/abc/)
+  assert.match(msg, /15 minutos/)
+  assert.ok(!/propuesta\/abc|soycatalinajaramillo\.com\/propuesta/i.test(msg))
   assert.ok(!/\bIA\b|inteligencia artificial|bot/i.test(msg))
   assert.ok(msg.length < 600)
 })
@@ -231,12 +232,13 @@ test('tracker CSV escapes commas and quotes', async () => {
   assert.match(csv, /"Spa ""Luna"", Miami",x/)
 })
 
-test('linkedin note fits 300 chars and carries the proposal link in the follow-up', async () => {
+test('linkedin note fits 300 chars and asks for a diagnosis without a proposal link', async () => {
   const { linkedinNote } = await import('../worker/proposals/whatsappChannel.js')
-  const li = linkedinNote({ id: 'xyz', company: 'Inmobiliaria Sol' }, { contactName: 'Ana Pérez', observation: 'Vi que publican más de 40 propiedades en Doral y responden solo por formulario en horario de oficina, lo que deja muchas consultas nocturnas sin atención inmediata.', hypothesis: '¿Qué pasa con quien pregunta por una casa a las 10 p. m.?' })
+  const li = linkedinNote({ id: 'xyz', company: 'Inmobiliaria Sol' }, { firstTouch: { contactName: 'Ana Pérez', observation: 'Vi que publican propiedades en Doral y reciben consultas por formulario.', hypothesis: '¿Cómo retoman hoy las consultas que no avanzan en el primer contacto?' } })
   assert.ok(li.note.length <= 300)
   assert.match(li.note, /^Hola Ana, soy Catalina Jaramillo/)
-  assert.match(li.followup, /propuesta\/xyz/)
+  assert.match(li.followup, /15 minutos/)
+  assert.ok(!/propuesta\/xyz|soycatalinajaramillo\.com\/propuesta/i.test(li.followup))
 })
 
 test('platform batches are spread across platforms', async () => {

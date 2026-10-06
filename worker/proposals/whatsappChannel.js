@@ -1,41 +1,38 @@
-// Canal WhatsApp: empresas que no publican correo pero sí WhatsApp (la mayoría de pymes que atienden a mano).
-// Carolina investiga y prepara la propuesta completa (misma calidad y página que el correo); el primer mensaje
-// lo envía Catalina desde su WhatsApp con un toque: no se automatiza contra las reglas de la plataforma.
+// Canal WhatsApp: empresas que no publican correo pero sí WhatsApp.
+// Carolina investiga y prepara SOLO un first-touch corto para validar el problema; no manda la propuesta completa en frío.
+// El primer mensaje lo envía Catalina desde su WhatsApp con un toque: no se automatiza contra las reglas de la plataforma.
 import { researchBusiness, automationVisible } from '../core/integrations.js'
-import { pickAngle } from './creative.js'
-import { prepare } from './outreach.js'
-import { brandedProposal } from './proposalPage.js'
-import { schedulingUrl } from '../skills/salesStrategy.js'
+import { prepareFirstTouch, renderFirstTouchHtml } from './outreach.js'
 
 const SITE = 'https://soycatalinajaramillo.com'
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const firstSentence = (t, max = 170) => { const s = String(t || '').split(/(?<=[.!?])\s+/)[0] || ''; return s.length > max ? s.slice(0, max).replace(/\s+\S*$/, '') + '…' : s }
 
-// Mensaje corto y humano: saludo, una observación concreta, la pregunta comercial y el enlace. Sin jerga de IA.
+// Mensaje corto y humano: primero valida el problema; no manda propuesta ni precio en frío.
 export function whatsappOpener(row, p = {}) {
-  const who = p.contactName ? p.contactName.split(/\s+/)[0] : ''
-  const obs = firstSentence(p.observation)
-  const ask = firstSentence(p.hypothesis, 190)
+  const ft = p.firstTouch || p
+  const who = ft.contactName ? ft.contactName.split(/\s+/)[0] : ''
+  const obs = firstSentence(ft.observation)
+  const ask = firstSentence(ft.hypothesis, 190)
   return [
     who ? `Hola, ${who}. ¿Cómo estás?` : `Hola, ¿hablo con ${row.company}?`,
     `Soy Catalina Jaramillo. ${obs}`,
     ask,
-    `Les preparé una idea concreta solo para ${row.company}, aquí la pueden ver: ${SITE}/propuesta/${row.id}`,
-    '¿Con quién del equipo lo puedo conversar?',
+    'Si te sirve, te muestro en 15 minutos cómo comprobar ese punto en el flujo actual y qué parte tendría sentido automatizar.',
+    '¿Te lo muestro?',
   ].filter(Boolean).join('\n\n')
 }
 
-// LinkedIn (lo envía Catalina): nota de conexión ≤300 caracteres + mensaje al aceptar. Mejor que el típico
-// mensaje de plataforma: observación concreta de SU empresa, prueba real (LAURA, 5.000+ clientes) y una propuesta
-// hecha solo para ellos en lugar de "llena el formulario".
+// LinkedIn: conexión breve y follow-up de diagnóstico. Nada de propuesta completa en frío.
 export function linkedinNote(row, p = {}) {
-  const who = p.contactName ? p.contactName.split(/\s+/)[0] : ''
-  const obs = firstSentence(p.observation, 120)
-  let note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. ${obs} Diseño sistemas de ventas y atención con IA; mi agente LAURA ya atendió a más de 5.000 clientes por WhatsApp. ¿Conectamos?`
-  if (note.length > 300) note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Diseño sistemas de ventas y atención con IA para empresas como ${row.company}; mi agente LAURA ya atendió a más de 5.000 clientes. ¿Conectamos?`
-  const followup = `Gracias por conectar${who ? ', ' + who : ''}. Preparé una idea concreta para ${row.company}: ${firstSentence(p.hypothesis, 200)} La dejé aquí, pensada solo para ustedes: ${SITE}/propuesta/${row.id}
+  const ft = p.firstTouch || p
+  const who = ft.contactName ? ft.contactName.split(/\s+/)[0] : ''
+  const obs = firstSentence(ft.observation, 125)
+  let note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. ${obs} Estoy revisando un punto concreto de su flujo comercial. ¿Conectamos?`
+  if (note.length > 300) note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Estoy revisando un punto concreto del flujo comercial de ${row.company}. ¿Conectamos?`
+  const followup = `Gracias por conectar${who ? ', ' + who : ''}. La hipótesis que quería validar es esta: ${firstSentence(ft.hypothesis, 220)}
 
-Si te hace sentido, lo vemos en 20 minutos esta semana.`
+Si te sirve, en 15 minutos te muestro cómo comprobarlo en el flujo actual y qué parte tendría sentido automatizar. ¿Te lo muestro?`
   const search = 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(row.company + ' (fundador OR CEO OR gerente OR director OR dueño)')
   return { note: note.slice(0, 300), followup, search }
 }
@@ -53,17 +50,15 @@ export async function runWhatsappProposals(env, { limit = 1, now = Date.now() } 
       const research = await researchBusiness(row.website, env)
       if (!research.ok || research.publicText.length < 300) throw new Error('website_unavailable')
       if (automationVisible(research.signals)) throw new Error('low_fit: ya tiene automatización visible')
-      const angle = await pickAngle(env)
-      const proposal = await prepare(env, row, research, angle)
+      const firstTouch = await prepareFirstTouch(env, row, research)
       let dossier = {}; try { dossier = JSON.parse(row.dossier || '{}') } catch {}
-      proposal.contactName = typeof dossier.decisionMaker === 'string' ? dossier.decisionMaker.trim().slice(0, 120) : ''
-      proposal.contactRole = typeof dossier.role === 'string' ? dossier.role.trim().slice(0, 120) : ''
-      proposal.sourceUrl = research.pages?.[0] || research.source
-      const subject = String(proposal.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
-      const html = brandedProposal(row.company, proposal, `${SITE}/propuesta/${row.id}`, schedulingUrl(env), { postal: env.SENDER_POSTAL_ADDRESS })
-      await env.DB.prepare("UPDATE outreach SET research=?,subject=?,html=?,angle=?,status='wa_ready',error=NULL,updated_at=? WHERE id=?")
-        .bind(JSON.stringify({ source: research.source, signals: research.signals, pages: research.pages, phones: research.publicPhones || [], socialLinks: research.socialLinks || [], logo: research.logo || '', publicText: String(research.publicText || '').slice(0, 7000), ...proposal }), subject, html, angle.id, Date.now(), row.id).run()
-      out.push({ id: row.id, company: row.company, ready: true })
+      firstTouch.contactName = typeof dossier.decisionMaker === 'string' ? dossier.decisionMaker.trim().slice(0, 120) : ''
+      firstTouch.contactRole = typeof dossier.role === 'string' ? dossier.role.trim().slice(0, 120) : ''
+      const subject = String(firstTouch.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
+      const html = renderFirstTouchHtml(row, firstTouch, env.SENDER_POSTAL_ADDRESS || '')
+      await env.DB.prepare("UPDATE outreach SET research=?,subject=?,html=?,angle='diagnosis-first',status='wa_ready',error=NULL,updated_at=? WHERE id=?")
+        .bind(JSON.stringify({ source: research.source, signals: research.signals, pages: research.pages, phones: research.publicPhones || [], socialLinks: research.socialLinks || [], logo: research.logo || '', publicText: String(research.publicText || '').slice(0, 7000), firstTouch }), subject, html, Date.now(), row.id).run()
+      out.push({ id: row.id, company: row.company, ready: true, mode: 'first_touch' })
     } catch (e) {
       const skip = /^low_fit/.test(e.message)
       await env.DB.prepare('UPDATE outreach SET status=?,error=?,updated_at=? WHERE id=?').bind(skip ? 'skipped' : 'wa_review', e.message.slice(0, 400), Date.now(), row.id).run()
@@ -94,14 +89,13 @@ export async function sendWhatsappList(env, now = Date.now()) {
 <p style="margin:0 0 4px;font-weight:bold">${i + 1}. ${esc(r.company)}</p>
 <p style="margin:0 0 8px;font-size:13px;color:#68625b">${esc(r.website)}${vacante ? ' · 🔥 Está contratando: ' + esc(vacante) : ''}</p>
 <div style="white-space:pre-wrap;background:#f5f4f2;border-radius:8px;padding:10px;font-size:14px">${esc(msg)}</div>
-<p style="margin:10px 0 0"><a href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" style="background:#1f7a4d;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:bold">Abrir WhatsApp con el mensaje</a>
-&nbsp; <a href="${SITE}/propuesta/${esc(r.id)}" style="color:#7a4f34">Ver su propuesta</a></p>
+<p style="margin:10px 0 0"><a href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" style="background:#1f7a4d;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:bold">Abrir WhatsApp con el mensaje</a></p>
 <details style="margin-top:10px"><summary style="cursor:pointer;color:#0a66c2;font-weight:bold">También por LinkedIn</summary><p style="margin:8px 0 4px;font-size:13px"><a href="${li.search}" style="color:#0a66c2">Buscar al dueño o gerente en LinkedIn</a> · Nota de conexión:</p><div style="white-space:pre-wrap;background:#eef3f8;border-radius:8px;padding:8px;font-size:13px">${esc(li.note)}</div><p style="margin:8px 0 4px;font-size:13px">Cuando acepte:</p><div style="white-space:pre-wrap;background:#eef3f8;border-radius:8px;padding:8px;font-size:13px">${esc(li.followup)}</div></details></div>`
   }).join('')
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#1c1a18;line-height:1.5">
 <p style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7a4f34;margin:0 0 4px">Carolina · Lista de WhatsApp</p>
 <h1 style="font-size:20px;margin:0 0 8px">${rows.length} empresas listas para escribirles hoy</h1>
-<p style="margin:0 0 16px">No publican correo, solo WhatsApp. Cada una ya tiene su propuesta personalizada. Toca el botón, revisa el mensaje y envíalo. Si te responden, pásales el enlace de su propuesta y Carolina sigue la conversación.</p>
+<p style="margin:0 0 16px">No publican correo, solo WhatsApp. Cada una ya tiene un primer contacto personalizado para validar una fricción real. Toca el botón, revisa el mensaje y envíalo. Si responden con interés, Carolina continúa el diagnóstico antes de preparar una propuesta.</p>
 ${cards}</div>`
   const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.CATALINA_EMAIL || env.NOTIFY_TO], subject: `WhatsApp de hoy: ${rows.length} empresas listas (${rows.slice(0, 3).map(r => r.company).join(', ')}…)`.slice(0, 180), html }), signal: AbortSignal.timeout(15000) })
   if (!res.ok) return { due: true, sent: false, reason: 'email_failed' }
@@ -115,10 +109,11 @@ ${cards}</div>`
 // Envío automático por el formulario de contacto de su web, firmado por Catalina (las respuestas llegan a clientes@
 // y a su WhatsApp). Si el formulario no se puede usar (CAPTCHA, campos desconocidos), la empresa queda para WhatsApp.
 export function contactFormMessage(row, p = {}) {
-  const who = p.contactName ? 'Hola, ' + p.contactName.split(/\s+/)[0] + ':' : `Hola, equipo de ${row.company}:`
-  return [who, firstSentence(p.observation, 220), firstSentence(p.hypothesis, 220),
-    `Preparé una idea concreta solo para ${row.company}; la pueden ver aquí: ${SITE}/propuesta/${row.id}`,
-    'Si les hace sentido, lo conversamos 20 minutos esta semana.',
+  const ft = p.firstTouch || p
+  const who = ft.contactName ? 'Hola, ' + ft.contactName.split(/\s+/)[0] + ':' : `Hola, equipo de ${row.company}:`
+  return [who, firstSentence(ft.observation, 220), firstSentence(ft.hypothesis, 220),
+    'Si les sirve, en 15 minutos puedo mostrarles cómo comprobar ese punto en su flujo actual y qué parte tendría sentido automatizar.',
+    '¿Les sirve verlo?',
     'Catalina Jaramillo\nAI Automation & Commerce Systems\nsoycatalinajaramillo.com'].filter(Boolean).join('\n\n')
 }
 
