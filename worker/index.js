@@ -397,7 +397,7 @@ export default {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       const body = safeJson(await request.text())
       const { ingestOpportunities } = await import('./prospecting/opportunities.js')
-      const result = await ingestOpportunities(env, String(body.source || 'vm').slice(0, 30), Array.isArray(body.items) ? body.items : [], { limit: Math.min(12, Number(body.limit || 10)) })
+      const result = await ingestOpportunities(env, String(body.source || 'vm').slice(0, 30), Array.isArray(body.items) ? body.items : [], { limit: Math.max(1, Math.min(50, Number(body.limit || 25))) })
       console.log('vm_opportunities', JSON.stringify({ received: result.received, A: result.A, B: result.B, C: result.C, prepared: result.prepared }))
       return json(result)
     }
@@ -417,7 +417,7 @@ export default {
     // Cola canónica para el navegador persistente: SOLO propuestas A/B que ya pasaron quality gate.
     if (url.pathname === '/ops/vm-queue' && request.method === 'GET') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
-      return json(await vmApplicationQueue(env, { limit: Math.max(1, Math.min(40, Number(url.searchParams.get('limit') || 20))) }))
+      return json(await vmApplicationQueue(env, { limit: Math.max(1, Math.min(50, Number(url.searchParams.get('limit') || 50))) }))
     }
     // Resultado real/dry-run del navegador de la VM → D1. Nunca confiar en archivos locales como fuente final.
     if (url.pathname === '/ops/vm-result' && request.method === 'POST') {

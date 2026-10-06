@@ -39,9 +39,9 @@ Nice=10
 EOS
 tee /etc/systemd/system/carolina-linkedin-discover.timer >/dev/null <<'EOS'
 [Unit]
-Description=Carolina LinkedIn discovery 2 veces al día
+Description=Carolina LinkedIn discovery 4 veces al día
 [Timer]
-OnCalendar=*-*-* 13,21:00:00 UTC
+OnCalendar=*-*-* 12,16,20,00:00:00 UTC
 Persistent=true
 RandomizedDelaySec=600
 [Install]
@@ -63,10 +63,52 @@ Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
 EOS
-systemctl daemon-reload
-systemctl enable --now carolina-linkedin-discover.timer >/dev/null
+# 3) Ejecutor periódico de postulaciones: consume SOLO /ops/vm-queue (A/B + quality gate) y devuelve evidencia a D1.
+cp /tmp/carolina-vm/action-runner.js $R/vm/action-runner.js
+tee /usr/local/bin/carolina-application-runner >/dev/null <<'EOS'
+#!/usr/bin/env bash
+set -u
+R=/home/cataj/carolina-cloud-runner
+trap 'systemctl start carolina-cloud-runner.timer' EXIT
+systemctl stop carolina-cloud-runner.timer
+for i in $(seq 1 60); do systemctl is-active --quiet carolina-cloud-runner.service || break; sleep 5; done
+docker ps --format '{{.Names}}' | grep -qx carolina-browser && { echo "navegador remoto abierto: se omite este turno"; exit 0; }
+find "$R/data/browser-profile" -maxdepth 1 -name 'Singleton*' -delete
+docker run --rm --name carolina-application-runner --memory=1400m --cpus=0.9 \
+  --env-file "$R/.vm-health.env" \
+  -e CAROLINA_AUTOSUBMIT_APPROVED=yes -e CAROLINA_ACTION_MODE=live \
+  -e CAROLINA_ACTION_LIMIT=5 -e CAROLINA_DAILY_LIMIT=50 -e CAROLINA_PER_PLATFORM_LIMIT=5 -e CAROLINA_DAILY_PLATFORM_LIMIT=20 \
+  -v "$R/data:/data" -v "$R/vm:/vm" -v "$R/public:/public" \
+  carolina-cloud-runner:latest bash -c 'cp /vm/action-runner.js /app/action-runner.js && timeout 1200 node /app/action-runner.js'
+EOS
+chmod 755 /usr/local/bin/carolina-application-runner
+tee /etc/systemd/system/carolina-application-runner.service >/dev/null <<'EOS'
+[Unit]
+Description=Carolina applications executor (canonical Worker queue -> persistent cloud browser)
+After=network-online.target docker.service
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/carolina-application-runner
+TimeoutStartSec=1500
+Nice=10
+EOS
+tee /etc/systemd/system/carolina-application-runner.timer >/dev/null <<'EOS'
+[Unit]
+Description=Carolina application executor every 90 minutes
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=90min
+Persistent=true
+RandomizedDelaySec=300
+[Install]
+WantedBy=timers.target
+EOS
 
-# 3) Retirar copias viejas y restos (todo está en el backup tgz). Se conservan: app/, vm/, data/, public/ (CVs), .vm-health.env.
+systemctl daemon-reload
+systemctl enable --now carolina-linkedin-discover.timer carolina-application-runner.timer >/dev/null
+
+# 4) Retirar copias viejas y restos (todo está en el backup tgz). Se conservan: app/, vm/, data/, public/ (CVs), .vm-health.env.
 cd $R
 rm -rf worker src tests docs migrations scripts config browser browser-profile profile profiles .github
 rm -f Dockerfile cloud-loop.sh index.html vite.config.js wrangler.jsonc package.json package-lock.json README.md OUTREACH_SETUP.md CAROLINA_ACQUISITION_CONSTITUTION.md .gitignore

@@ -5,8 +5,8 @@ import { chromium } from 'playwright'
 
 const PROFILE = process.env.CAROLINA_AUTH_PROFILE || '/data/browser-profile'
 const API = process.env.CAROLINA_OPPS_URL || 'https://soycatalinajaramillo.com/ops/vm-opportunities'
-const MAX_JOBS = Number(process.env.MAX_JOBS || 48)
-const TARGET_PREPARED = Number(process.env.TARGET_PREPARED || 10)
+const MAX_JOBS = Number(process.env.MAX_JOBS || 70)
+const TARGET_PREPARED = Number(process.env.TARGET_PREPARED || 25)
 const QUERIES = (process.env.QUERIES || 'AI Automation Specialist|Automatización con IA LATAM|Ecommerce Operations Manager remote|Operaciones ecommerce remoto|AI Operations|AI Agents|Ecommerce Operations|CRM Automation|Automatización IA|Shopify Automation|Customer Experience Automation|Growth Operations|WhatsApp Automation').split('|')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const jitter = (a, b) => a + Math.floor(Math.random() * (b - a))
