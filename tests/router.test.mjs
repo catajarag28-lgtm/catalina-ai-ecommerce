@@ -159,6 +159,9 @@ test('brief veto: on-site or spoken-English-critical roles found in the brief ar
   const { briefVeto } = await import('../worker/prospecting/opportunities.js')
   assert.equal(briefVeto({ risk: 'Hybrid work in Portugal / language barrier' }), 'onsite')
   assert.equal(briefVeto({ risk: "Exigencia de 'excellent spoken English' para llamadas activas" }), 'spoken_english_critical')
+  assert.equal(briefVeto({ risk: 'Requires fluent English client presentations' }), 'spoken_english_critical')
+  assert.equal(briefVeto({ risk: 'Language constraint for live calls' }), 'spoken_english_critical')
+  assert.equal(briefVeto({ risk: 'Idioma portugués / ubicación en Brasil' }), 'language_not_spanish_or_english')
   assert.equal(briefVeto({ risk: 'El cliente es de EE. UU.; comunicación escrita asíncrona' }), null)
 })
 

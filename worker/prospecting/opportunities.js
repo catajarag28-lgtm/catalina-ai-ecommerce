@@ -152,7 +152,8 @@ export async function briefAndPropose(env, o, s) {
 export function briefVeto(brief = {}) {
   const t = [brief.risk, brief.whyCatalina, brief.realNeed].filter(Boolean).join(' ')
   if (/\b(hybrid|h[ií]brid[oa]|on[-\s]?site|presencial|in[-\s]office|relocat|reubicaci)/i.test(t)) return 'onsite'
-  if (/(excellent|fluent|advanced|native)\s+spoken\s+english|ingl[eé]s\s+(oral\s+)?(fluido|avanzado)\s+(para|en)\s+llamadas|spoken\s+english\s+for\s+(active\s+)?calls/i.test(t)) return 'spoken_english_critical'
+  if (/(excellent|fluent|advanced|native)\s+spoken\s+english|ingl[eé]s\s+(oral\s+)?(fluido|avanzado)\s+(para|en)\s+llamadas|spoken\s+english\s+for\s+(active\s+)?calls|fluent\s+english\s+client\s+presentations|client\s+presentations|live\s+calls|llamadas\s+en\s+vivo/i.test(t)) return 'spoken_english_critical'
+  if (/portugu[eé]s|portuguese/i.test(t)) return 'language_not_spanish_or_english'
   return null
 }
 
