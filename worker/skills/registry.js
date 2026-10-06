@@ -24,13 +24,19 @@ Principios que Catalina definió:
     id: 'posicionamiento-senior', nombre: 'Quién es Catalina (posicionamiento senior)', usos: ['chat', 'propuesta', 'seguimiento'],
     contenido: `Presenta a Catalina como arquitecta senior de sistemas comerciales con inteligencia artificial: diseña cómo debe vender, atender y operar una empresa, y dirige la construcción del sistema que lo hace realidad. Nunca como principiante ni como alguien que "hace chatbots".
 Trayectoria real: desde 2009 directora comercial y de marketing (Biboban, textil colombiana); desde 2013 consultora de empresas y expertos (servicio, equipos de ventas, cierre por WhatsApp, retención y lanzamientos; un referente de neuroventas en México, una marca de muebles en Ecuador); en 2018 fundó Professional Glam (3 sedes en Colombia, empresa en Florida, más de COP 1.000 millones en Shopify, 7.531 clientas en sede, 9.296 pedidos online; resultados de su negocio, no atribuidos a la IA).
-Agentes y sistemas que Catalina diseñó y tiene funcionando (cada uno es independiente y se implementa por separado; elige SOLO el que más se parezca al problema de este negocio y descríbelo por lo que hace):
-1) LAURA, agente de ventas y atención por WhatsApp para e-commerce: ha atendido a más de 5.000 clientes; asesora, cotiza, crea y modifica pedidos conectado a la logística, confirma pagos contraentrega, informa el envío, recupera carritos abandonados y acompaña la recompra.
-2) CAROLINA, agente de desarrollo comercial: encuentra empresas, estudia su negocio, escribe propuestas personalizadas, hace seguimiento y agenda reuniones (la propuesta que el prospecto está leyendo la preparó ella).
-3) Agente financiero: calcula la rentabilidad real del negocio, detecta fugas de dinero y costos ocultos, y concilia ventas, pedidos y pagos.
-4) Agente de creación de contenido: crea guiones y piezas para redes con avatar y voz, alineados con la marca.
-5) Agente de postulación: busca vacantes y proyectos, estudia cada oferta y prepara y envía postulaciones personalizadas.
-6) Agente CEO de estrategia: analiza los datos del negocio, plantea hipótesis, propone decisiones con evidencia y entrega informes ejecutivos y alertas al dueño.
+Agentes y sistemas que Catalina diseñó y tiene funcionando. Su sistema principal es un Business OS multiagente de más de 190 módulos que opera una marca real de punta a punta; cada agente también se implementa por separado. Elige SOLO el que más se parezca al problema de este negocio y descríbelo por lo que hace:
+1) LAURA, ventas y atención por WhatsApp para e-commerce: más de 5.000 clientes atendidos; asesora, cotiza, crea y modifica pedidos conectada a la logística, confirma contraentrega e informa el envío.
+2) CAROLINA, desarrollo comercial: encuentra empresas, estudia su negocio, escribe propuestas personalizadas, da seguimiento y agenda (la propuesta que el prospecto lee la preparó ella).
+3) Agente CEO de estrategia: reúne los datos de todas las áreas, plantea hipótesis, propone decisiones con evidencia, mide el resultado y entrega informes ejecutivos y alertas al dueño.
+4) Agente financiero: rentabilidad real por pedido y producto, conciliación de ventas, pagos y logística, lectura automática de facturas y alertas de fraude y fugas de dinero.
+5) Agente de pauta (Meta Ads): vigila rendimiento, salud del píxel y creativos, y propone qué escalar, pausar o renovar.
+6) Espionaje viral e inteligencia de mercado: monitorea tendencias, competidores y contenido ganador para decidir qué publicar y qué anunciar.
+7) Fábrica de contenido: convierte esa inteligencia en guiones, piezas y videos con avatar y voz alineados con la marca, y los publica.
+8) CRM e inteligencia de clientes: une el historial de cada cliente, puntúa leads, segmenta, predice quién está por irse y escucha la voz del cliente.
+9) Retención y fidelización: recuperación de carritos por etapa, acompañamiento postventa, recompra y reactivación de clientes inactivos, testimonios.
+10) Operaciones e-commerce: sincroniza tienda, inventario y transportadora, vigila pedidos atascados y recupera devoluciones.
+11) Agente de postulación: busca vacantes y proyectos, estudia cada oferta y prepara postulaciones personalizadas.
+12) Creación de apps con IA: Sin Autosabotaje (app de reprogramación mental: la IA descubre la creencia que sabotea a la persona y le arma rituales diarios con meditaciones con voz y cobro integrado) y Serenidad 40, más una plataforma propia para crear, desplegar y verificar webs, apps y agentes en producción.
 Professional Glam (3 sedes, 7.531 clientas en sede, 9.296 pedidos online) son resultados de su negocio, nunca atribuidos a la IA. No inventes clientes externos, porcentajes ni resultados de estos agentes.
 Lo que diseña: ventas (respuesta 24/7, calificación, agenda, seguimiento), atención y postventa, e-commerce (carritos, pedidos, recompra), marketing y redes, crecimiento (funnels, Meta Ads, remarketing, analítica), operaciones (flujos automatizados entre formularios, CRM, WhatsApp, correo, agenda y reportes), finanzas y control (tableros de rentabilidad, alertas de fugas, conciliación) y sistemas integrales multiagente (Business OS).
 Idioma: reuniones en español; otros idiomas por escrito con traducción aceptada por el cliente.`,
