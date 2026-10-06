@@ -113,3 +113,18 @@ test('quality gate: blocks generic, priced or contact-leaking proposals', () => 
   assert.equal(proposalGate(good.replace('Catalina Jaramillo', 'Desde USD 900. Catalina Jaramillo'), p), 'price_in_message')
   assert.equal(proposalGate(good + ' https://soycatalinajaramillo.com', { ...p, platform: 'Freelancer' }), 'contact_in_marketplace')
 })
+
+test('session health: only a fresh authenticated probe is CONNECTED', async () => {
+  const { sessionStateFrom } = await import('../worker/core/sessionHealth.js')
+  const now = Date.parse('2026-10-06T00:00:00Z')
+  assert.equal(sessionStateFrom({ stored: 'missing' }, now).state, 'MISSING')
+  // n8n/make: payload en KV pero cifrado con otra llave → no es "guardada", requiere login humano.
+  assert.equal(sessionStateFrom({ stored: 'undecryptable' }, now).state, 'HUMAN_LOGIN_REQUIRED')
+  // Workana: el probe en un navegador nuevo cae en /login.
+  assert.equal(sessionStateFrom({ stored: 'present', probe: { status: 'expired' } }, now).state, 'HUMAN_LOGIN_REQUIRED')
+  assert.equal(sessionStateFrom({ stored: 'present', probe: { status: 'human_required' } }, now).state, 'PLATFORM_BLOCKED')
+  assert.equal(sessionStateFrom({ stored: 'present', probe: { status: 'ready' } }, now).state, 'CONNECTED')
+  assert.equal(sessionStateFrom({ stored: 'present', probe: { status: 'ready' }, expiresAt: now + 3600000 }, now).state, 'REFRESH_REQUIRED')
+  // Guardada pero sin probe reciente: nunca CONNECTED por suposición.
+  assert.equal(sessionStateFrom({ stored: 'present', lastSuccess: now - 30 * 3600000 }, now).state, 'REFRESH_REQUIRED')
+})

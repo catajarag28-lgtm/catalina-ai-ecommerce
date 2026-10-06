@@ -1,6 +1,7 @@
 import { launch, connect } from '@cloudflare/playwright'
 import { notifyCatalina } from './notify.js'
 import { callModel } from './modelRouter.js'
+import { sessionStateFrom } from './sessionHealth.js'
 
 const enc=new TextEncoder()
 const dec=new TextDecoder()
@@ -45,18 +46,34 @@ async function cryptoKey(env){
   }
   return crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt'])
 }
+// Huella pública de la llave (no permite reconstruirla): prueba qué llave cifró cada sesión.
+async function keyFingerprint(env){
+  const secret=String(env.BROWSER_SESSION_KEY||'').trim()
+  if(!secret)return null
+  let raw=null
+  try{const d=b64ToBytes(secret);if(d.length===32)raw=d}catch{}
+  if(!raw)raw=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(secret)))
+  const h=new Uint8Array(await crypto.subtle.digest('SHA-256',raw))
+  return [...h.slice(0,6)].map(b=>b.toString(16).padStart(2,'0')).join('')
+}
 async function seal(env,value){
   const iv=crypto.getRandomValues(new Uint8Array(12))
   const key=await cryptoKey(env)
   const data=enc.encode(JSON.stringify(value))
   const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data))
-  return JSON.stringify({v:1,iv:bytesToB64(iv),cipher:bytesToB64(cipher)})
+  // v2: kid + sealedAt en claro → si la llave rota, la causa queda demostrada en vez de "sesión perdida".
+  return JSON.stringify({v:2,kid:await keyFingerprint(env),sealedAt:Date.now(),iv:bytesToB64(iv),cipher:bytesToB64(cipher)})
 }
 async function unseal(env,payload){
   const x=JSON.parse(payload||'{}')
-  if(x.v!==1||!x.iv||!x.cipher)throw new Error('browser_session_payload_invalid')
+  if(![1,2].includes(x.v)||!x.iv||!x.cipher)throw new Error('browser_session_payload_invalid')
   const key=await cryptoKey(env)
-  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(x.iv)},key,b64ToBytes(x.cipher))
+  let plain
+  try{plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(x.iv)},key,b64ToBytes(x.cipher))}
+  catch{
+    const kid=await keyFingerprint(env)
+    throw new Error(x.kid&&x.kid!==kid?'decrypt_failed_key_rotated':'decrypt_failed_wrong_key_or_corrupt')
+  }
   return JSON.parse(dec.decode(plain))
 }
 function cfg(platform){
@@ -105,21 +122,17 @@ async function reconnectLink(env,platform,reason='session_missing'){
   let last=0
   try{last=Number(JSON.parse(prior?.value||'{}').sentAt||0)}catch{}
   if(Date.now()-last<12*3600000)return {sent:false,reason:'recently_notified'}
-  const nonce=crypto.randomUUID().replace(/-/g,'')
-  const expiresAt=Date.now()+30*60*1000
-  await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
-    .bind('browser_setup_request:'+p.id,JSON.stringify({platform:p.id,nonce,expiresAt}),Date.now()).run()
-  const url='https://soycatalinajaramillo.com/browser/setup/start?platform='+encodeURIComponent(p.id)+'&nonce='+encodeURIComponent(nonce)
-  await notifyCatalina(env,'🔐 Conecta '+p.label+' con Carolina',[
-    'Carolina necesita una sesión autenticada para seguir trabajando en '+p.label+'.',
-    'Motivo: '+reason,
+  // Flujo canónico único: /browser/connect?platform=X (crea el enlace seguro al abrirlo; no vence por correo leído tarde).
+  const url='https://soycatalinajaramillo.com/browser/connect?platform='+encodeURIComponent(p.id)
+  await notifyCatalina(env,'🔐 '+p.label+' requiere renovar sesión',[
+    p.label+' requiere renovar sesión. El resto de Carolina sigue trabajando.',
+    'Estado: '+reason,
     '',
-    'Abre este enlace:',
+    'Abre este enlace (solo '+p.label+', nube; no uses perfiles locales del PC):',
     url,
     '',
-    'Usa «Continuar con Google» si la plataforma lo ofrece. Completa MFA/CAPTCHA si aparece y luego pulsa «Guardar sesión».',
-    'Carolina no guarda tu contraseña; guarda únicamente el estado de sesión cifrado.',
-    'El enlace vence en 30 minutos.'
+    'Inicia sesión, completa MFA/CAPTCHA si aparece. Carolina guarda la sesión cifrada, la prueba en un navegador nuevo y solo entonces la marca CONNECTED.',
+    'Carolina no guarda tu contraseña.'
   ].join('\n')).catch(()=>{})
   await setting(env,key,{sentAt:Date.now(),reason})
   return {sent:true,url}
@@ -134,19 +147,69 @@ export async function saveBrowserState(env,platform,state,meta={}){
   return {platform:p.id,status:'saved',savedAt:record.savedAt}
 }
 export async function loadBrowserState(env,platform){
-  if(!env.BROWSER_SESSIONS)return null
+  return (await inspectBrowserState(env,platform)).record
+}
+
+// Lee la sesión guardada SIN tragarse errores: missing | present | undecryptable, con causa.
+// Diagnóstico de cookies solo con nombres y vencimientos (nunca valores).
+export async function inspectBrowserState(env,platform){
+  if(!env.BROWSER_SESSIONS)return {stored:'missing',reason:'kv_binding_missing',record:null}
   const p=cfg(platform)
   const raw=await env.BROWSER_SESSIONS.get('session:'+p.id)
-  if(!raw)return null
-  try{return await unseal(env,raw)}catch{return null}
+  if(!raw)return {stored:'missing',record:null}
+  let envelope={}
+  try{envelope=JSON.parse(raw)}catch{}
+  try{
+    const record=await unseal(env,raw)
+    const cookies=record?.state?.cookies||[]
+    const auth=cookies.filter(c=>p.authCookies?.includes(c.name))
+    const expiring=cookies.filter(c=>Number(c.expires)>0).map(c=>Number(c.expires)*1000)
+    const authExp=auth.filter(c=>Number(c.expires)>0).map(c=>Number(c.expires)*1000)
+    return {stored:'present',record,envelope:{v:envelope.v,kid:envelope.kid||null,sealedAt:envelope.sealedAt||null},
+      cookieCount:cookies.length,sessionCookies:cookies.filter(c=>!(Number(c.expires)>0)).length,
+      authCookiePresent:p.authCookies?.length?auth.length>0:null,
+      expiresAt:authExp.length?Math.min(...authExp):expiring.length?Math.max(...expiring):null,
+      cookieNames:cookies.map(c=>c.name+(Number(c.expires)>0?'@'+new Date(Number(c.expires)*1000).toISOString().slice(0,10):'@session')).slice(0,40)}
+  }catch(e){
+    return {stored:'undecryptable',reason:String(e?.message||e),record:null,envelope:{v:envelope.v,kid:envelope.kid||null,sealedAt:envelope.sealedAt||null},currentKid:await keyFingerprint(env)}
+  }
 }
+
+// ── Session Health Manager ──────────────────────────────────────────────
+// Estados únicos: CONNECTED | REFRESH_REQUIRED | HUMAN_LOGIN_REQUIRED | MISSING | PLATFORM_BLOCKED.
+// CONNECTED exige: estado cifrado en KV + descifrable + probe autenticado en un Browser Run NUEVO.
+export { SESSION_STATES, sessionStateFrom } from './sessionHealth.js'
+
+async function readHealth(env,id){
+  try{const row=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('session_health:'+id).first();return row?JSON.parse(row.value):null}catch{return null}
+}
+
+export async function recordSessionHealth(env,platform,probe=null,now=Date.now()){
+  const p=cfg(platform)
+  const inspected=await inspectBrowserState(env,p.id)
+  const prior=await readHealth(env,p.id)||{}
+  const lastSuccess=probe?.status==='ready'?now:(prior.last_success||null)
+  const {state,failure}=sessionStateFrom({stored:inspected.stored,probe,lastSuccess,expiresAt:inspected.expiresAt},now)
+  const health={platform:p.id,label:p.label,state,connected:state==='CONNECTED',stored:inspected.stored,
+    last_probe:probe?now:(prior.last_probe||null),last_probe_status:probe?.status||prior.last_probe_status||null,
+    last_success:lastSuccess,last_url:probe?.url||prior.last_url||null,expires_at:inspected.expiresAt||null,
+    failure_reason:failure?(failure+(inspected.reason?': '+inspected.reason:'')):null,refresh_required:state!=='CONNECTED',
+    diagnostics:{envelope:inspected.envelope||null,currentKid:inspected.currentKid||null,cookieCount:inspected.cookieCount??null,sessionCookies:inspected.sessionCookies??null,authCookiePresent:inspected.authCookiePresent??null,cookieNames:inspected.cookieNames||null},
+    updated_at:now}
+  await setting(env,'session_health:'+p.id,health)
+  return health
+}
+
 export async function browserSessionSummary(env){
   const out=[]
   for(const id of browserPlatforms){
-    const saved=await loadBrowserState(env,id)
-    let meta=null
-    try{const row=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('browser_session:'+id).first();meta=row?JSON.parse(row.value):null}catch{}
-    out.push({platform:id,label:PLATFORM_CONFIG[id].label,saved:!!saved,status:meta?.status|| (saved?'saved':'missing'),lastChecked:meta?.lastChecked||null,lastUrl:meta?.lastUrl||null})
+    const inspected=await inspectBrowserState(env,id)
+    const h=await readHealth(env,id)
+    // Sin probe registrado no hay CONNECTED: se deriva del estado guardado.
+    const derived=h||{state:sessionStateFrom({stored:inspected.stored,probe:null}).state}
+    out.push({platform:id,label:PLATFORM_CONFIG[id].label,saved:inspected.stored==='present',stored:inspected.stored,
+      state:derived.state,connected:derived.state==='CONNECTED',lastProbe:h?.last_probe||null,lastSuccess:h?.last_success||null,
+      lastUrl:h?.last_url||null,expiresAt:h?.expires_at||inspected.expiresAt||null,failureReason:h?.failure_reason||(inspected.reason||null)})
   }
   return out
 }
@@ -167,8 +230,8 @@ export async function createBrowserSetup(env,platform){
   const token=crypto.randomUUID().replace(/-/g,'')
   const setup={platform:p.id,sessionId:browser.sessionId(),targetId:live.id,createdAt:Date.now()}
   await env.BROWSER_SESSIONS.put('setup:'+token,await seal(env,setup),{expirationTtl:7200})
-  const existing=await loadBrowserState(env,p.id)
-  await setting(env,'browser_session:'+p.id,{status:existing?'saved_refresh_pending':'setup_waiting_human',setupAt:Date.now(),savedAt:existing?.savedAt||null})
+  // Abrir un enlace de conexión NO cambia el estado de la sesión: solo un probe exitoso lo hace.
+  await setting(env,'browser_setup_open:'+p.id,{openedAt:Date.now()})
   return {platform:p.id,label:p.label,token,liveViewUrl:live.devtoolsFrontendUrl,expiresInSeconds:3600}
 }
 
@@ -200,7 +263,11 @@ export async function probeBrowserSetup(env,token,{saveWhenReady=true}={}){
     await saveBrowserState(env,p.id,state,{lastUrl:verified.url||page.url(),lastChecked:Date.now()})
     await env.BROWSER_SESSIONS.delete('setup:'+String(token||''))
     await browser.close().catch(()=>{})
-    return {platform:p.id,status:'saved',lastUrl:verified.url||page.url()}
+    browser=null
+    // Prueba de persistencia: Browser Run NUEVO, solo con el estado guardado en KV.
+    const probe=await checkBrowserSession(env,p.id,{persistFresh:true})
+    if(probe.status!=='ready')return {platform:p.id,status:'saved_but_not_reusable',authStatus:probe.status,url:probe.url||null}
+    return {platform:p.id,status:'saved',connected:true,lastUrl:probe.url||verified.url}
   }catch(e){
     return {platform:p.id,status:'error',error:String(e?.message||e).slice(0,500)}
   }
@@ -209,6 +276,7 @@ export async function probeBrowserSetup(env,token,{saveWhenReady=true}={}){
 export async function finishBrowserSetup(env,token){
   const result=await probeBrowserSetup(env,token,{saveWhenReady:true})
   if(result.status==='saved')return result
+  if(result.status==='saved_but_not_reusable')throw new Error('session_saved_but_not_reusable_in_fresh_browser:'+result.authStatus)
   if(result.status==='waiting')throw new Error(result.authStatus==='human_required'?'human_verification_required':'still_on_login_page')
   throw new Error(result.error||'browser_setup_probe_failed')
 }
@@ -323,11 +391,16 @@ async function classifyPage(page,p){
 }
 export async function checkBrowserSession(env,platform,{persistFresh=true}={}){
   const p=cfg(platform)
-  const saved=await loadBrowserState(env,p.id)
-  if(!saved?.state)return {platform:p.id,status:'missing'}
+  const inspected=await inspectBrowserState(env,p.id)
+  const saved=inspected.record
+  if(!saved?.state){
+    const health=await recordSessionHealth(env,p.id,null)
+    return {platform:p.id,label:p.label,status:inspected.stored==='undecryptable'?'undecryptable':'missing',state:health.state,reason:inspected.reason||null}
+  }
   if(!env.BROWSER)return {platform:p.id,status:'browser_binding_missing'}
   let browser
   try{
+    // Browser Run nuevo en cada probe: si la sesión sobrevive aquí, sobrevive a reinicios y al PC apagado.
     browser=await launch(env.BROWSER,{keep_alive:120000})
     const context=await browser.newContext({storageState:saved.state})
     const page=await context.newPage()
@@ -335,15 +408,17 @@ export async function checkBrowserSession(env,platform,{persistFresh=true}={}){
     await page.waitForTimeout(1200)
     const result=await verifyAuthenticated(context,page,p)
     if(result.status==='ready'&&persistFresh){
+      // Refresh: las cookies rotadas por la plataforma se vuelven a cifrar y guardar.
       const state=await context.storageState()
       await saveBrowserState(env,p.id,state,{lastUrl:result.url,lastChecked:Date.now()})
     }
-    await setting(env,'browser_session:'+p.id,{...result,lastChecked:Date.now(),savedAt:saved.savedAt||null})
-    return {platform:p.id,label:p.label,...result}
+    const health=await recordSessionHealth(env,p.id,result)
+    console.log('session_probe',JSON.stringify({platform:p.id,status:result.status,state:health.state,url:String(result.url||'').slice(0,120)}))
+    return {platform:p.id,label:p.label,...result,state:health.state}
   }catch(e){
     const result={platform:p.id,label:p.label,status:'error',error:String(e?.message||e).slice(0,300)}
-    await setting(env,'browser_session:'+p.id,{...result,lastChecked:Date.now()})
-    return result
+    const health=await recordSessionHealth(env,p.id,result)
+    return {...result,state:health.state}
   }finally{if(browser)await browser.close().catch(()=>{})}
 }
 
@@ -352,12 +427,12 @@ export async function runBrowserSessionHealth(env){
   const idxRow=await env.DB.prepare("SELECT value FROM app_settings WHERE key='browser_health_index'").first().catch(()=>null)
   const idx=(Number(idxRow?.value||0)||0)%browserPlatforms.length
   const platform=browserPlatforms[idx]
-  const saved=await loadBrowserState(env,platform)
-  let result={platform,status:'missing'}
-  if(saved)result=await checkBrowserSession(env,platform)
-  if(['missing','expired','human_required','error'].includes(result.status)){
-    await reconnectLink(env,platform,result.status).catch(()=>{})
-  }
+  const prior=await readHealth(env,platform)
+  // Las que nunca se conectaron no abren Browser Run cada ciclo: solo se registran como MISSING.
+  const result=await checkBrowserSession(env,platform)
+  // Solo se avisa cuando una sesión que existía deja de servir; un enlace para ESA plataforma.
+  const lost=prior&&prior.stored==='present'&&['HUMAN_LOGIN_REQUIRED','PLATFORM_BLOCKED','REFRESH_REQUIRED'].includes(result.state)
+  if(lost||result.status==='undecryptable')await reconnectLink(env,platform,result.state+(result.reason?' · '+result.reason:'')).catch(()=>{})
   await setting(env,'browser_health_index',String((idx+1)%browserPlatforms.length))
   return result
 }
@@ -1038,21 +1113,12 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
       results.push({platform:'generic',sourcePlatform:row.platform,url:row.url,...result})
       continue
     }
-    const saved=await loadBrowserState(env,platform)
-    if(!saved){
-      diagnostics.missingSession++;diagnostics.blocked.push({platform,url:row.url,reason:'missing_session'})
-      await reconnectLink(env,platform,'missing_session').catch(()=>{})
-      continue
-    }
-    let sessionMeta={}
-    try{
-      const metaRow=await env.DB.prepare('SELECT value FROM app_settings WHERE key=?').bind('browser_session:'+platform).first()
-      sessionMeta=metaRow?.value?JSON.parse(metaRow.value):{}
-    }catch{}
-    if(['expired','human_required','error','missing'].includes(sessionMeta.status)){
-      diagnostics.blockedSession++
-      diagnostics.blocked.push({platform,url:row.url,reason:'session_'+String(sessionMeta.status||'unknown')})
-      await reconnectLink(env,platform,'session_'+String(sessionMeta.status||'unknown')).catch(()=>{})
+    // Solo plataformas CONNECTED (probe autenticado reciente). Lo demás no gasta navegador ni modelo.
+    const health=await readHealth(env,platform)
+    if(!health||health.state!=='CONNECTED'){
+      const reason=health?.state||'MISSING'
+      if(reason==='MISSING')diagnostics.missingSession++;else diagnostics.blockedSession++
+      diagnostics.blocked.push({platform,url:row.url,reason})
       continue
     }
     diagnostics.eligible++
@@ -1062,8 +1128,8 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     else result=await submitMarketplaceApplication(env,row,platform)
     results.push({platform,url:row.url,...result})
     if(result.status==='expired'||result.status==='human_required'){
-      await setting(env,'browser_session:'+platform,{status:result.status,lastChecked:Date.now(),lastUrl:result.url||row.url})
-      await notifyCatalina(env,`🔐 Carolina necesita reautenticar ${PLATFORM_CONFIG[platform].label}`,`La sesión cloud ya no permite continuar. Carolina conservó la oportunidad y no la marcó como enviada.\n\n${row.url}`).catch(()=>{})
+      const h=await recordSessionHealth(env,platform,{status:result.status,url:result.url||row.url})
+      await reconnectLink(env,platform,h.state+' durante una postulación (no se marcó como enviada)').catch(()=>{})
     }
   }
   return {enabled:true,processed:results.length,diagnostics,results}
