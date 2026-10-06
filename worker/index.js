@@ -619,9 +619,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (event?.cron === '7,37 * * * *') {
       const quick = { at: new Date().toISOString(), kind: 'send-only' }
       try { quick.hot = await runHotFollowup(env) } catch (e) { quick.hot = { error: e?.message } }
-      try { quick.outreach = await runOutreach(env) } catch (e) { quick.outreach = { error: e?.message } }
-      // Segundo envío por ciclo rápido: capacidad para ~100/día en horario hábil (el tope diario y el freno siguen mandando).
-      try { quick.outreach2 = await runOutreach(env) } catch (e) { quick.outreach2 = { error: e?.message } }
+      try { quick.outreach = await (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }) } catch (e) { quick.outreach = { error: e?.message } }
       console.log('carolina_cycle', JSON.stringify(quick))
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_send_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(quick).slice(0, 2000), Date.now()).run().catch(() => {})
       return
@@ -645,7 +643,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('discovery', () => discoverProspects(env))
     if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
-    await step('outreach', () => runOutreach(env))
+    await step('outreach', async () => (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }))
     // Canal WhatsApp: propuestas para empresas que solo publican WhatsApp + lista diaria para Catalina.
     await step('whatsappProposals', async () => (await import('./proposals/whatsappChannel.js')).runWhatsappProposals(env, { limit: 2 }))
     await step('whatsappList', async () => (await import('./proposals/whatsappChannel.js')).sendWhatsappList(env))

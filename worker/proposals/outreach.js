@@ -345,3 +345,19 @@ export async function recoverCopyRejected(env, now = Date.now()) {
   }
   return { recovered }
 }
+
+// Ráfaga: una empresa descartada (contacto ya no publicado, encaje bajo, calidad) no debe frenar el ciclo.
+// Sigue con la siguiente hasta lograr `sends` envíos confirmados o agotar `attempts`. El tope diario,
+// la pausa por entregabilidad y el horario hábil siguen mandando en cada intento.
+export async function runOutreachBurst(env, { sends = 2, attempts = 6, now = Date.now() } = {}) {
+  const out = { sent: 0, tried: 0, results: [] }
+  const stop = /^(paused_new_outreach|daily_cap|empty_queue|outside_business_hours|connections_missing|postal_address_missing|metrics_missing)$/
+  for (let i = 0; i < attempts && out.sent < sends; i++) {
+    const r = await runOutreach(env, now).catch(e => ({ sent: false, reason: e?.message }))
+    out.tried++
+    out.results.push(r?.sent ? { sent: true, angle: r.angle } : { reason: String(r?.reason || '').slice(0, 80) })
+    if (r?.sent) out.sent++
+    else if (stop.test(String(r?.reason || '')) || r?.enabled === false) break
+  }
+  return out
+}
