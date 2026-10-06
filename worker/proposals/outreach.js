@@ -33,8 +33,8 @@ export function evidenceFound(text, evidence) {
 }
 
 // Redacción de la propuesta final = tier 3; crítica y extracción de evidencia = tier 2 (vía router).
-async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, task = 'outreach.proposal', dealValue = 1500 } = {}) {
-  const r = await callModel(env, { task, messages, json: true, temperature, maxTokens: max_tokens, dealValue, timeoutMs: 40000 })
+async function llm(env, messages, { temperature = 0.4, max_tokens = 4000, task = 'outreach.proposal', dealValue = 1500, confidence = null } = {}) {
+  const r = await callModel(env, { task, messages, json: true, temperature, maxTokens: max_tokens, dealValue, confidence, timeoutMs: confidence !== null ? 70000 : 40000 })
   if (!r.ok) throw new Error(r.error === 'truncated' ? 'model_output_truncated' : r.error === 'not_json' ? 'model_output_not_json' : 'research_model_failed')
   return r.data
 }
@@ -97,7 +97,7 @@ export async function prepare(env, row, research, angle) {
   for (let qualityAttempt = 0; qualityAttempt < 2 && finalCritique?.scores && !qualityPass(finalCritique); qualityAttempt++) {
     const scoreText = Object.entries(finalCritique.scores || {}).map(([k,v]) => k + '=' + v).join(', ')
     const issues = [...(finalCritique.issues || []), 'scores actuales: ' + scoreText]
-    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Mejora la propuesta para superar el quality gate SIN inventar hechos ni cambiar la evidencia. Corrige específicamente: ' + issues.join('; ') + '. Mantén una sola oportunidad comercial y un CTA claro.' }], { temperature: 0.25, max_tokens: 4500 }).catch(() => null)
+    const rewritten = await llm(env, [{ role: 'system', content: system }, { role: 'user', content: user }, { role: 'assistant', content: JSON.stringify(p) }, { role: 'user', content: 'Mejora la propuesta para superar el quality gate SIN inventar hechos ni cambiar la evidencia. Corrige específicamente: ' + issues.join('; ') + '. Mantén una sola oportunidad comercial y un CTA claro.' }], { temperature: 0.25, max_tokens: 4500, ...(qualityAttempt === 1 ? { dealValue: 3000, confidence: 0.5 } : {}) }).catch(() => null)
     if (!rewritten) break
     p = rewritten
     const qLint = lintCopy(p, row.company)
