@@ -109,7 +109,7 @@ export async function prepare(env, row, research, angle) {
   p.critiqueIssues = finalCritique?.issues || []
   if (critiqueError) p.critiqueError = critiqueError
   if (p.critique) {
-    if (!qualityPass(finalCritique)) throw new Error('low_fit: copy no supera quality gate comercial tras reparación')
+    if (!qualityPass(finalCritique)) throw new Error('low_fit: copy no supera quality gate comercial tras reparación · ' + Object.entries(finalCritique?.scores || {}).map(([k, v]) => k + '=' + v).join(',') + ' · ' + (finalCritique?.issues || []).join(' | ').slice(0, 200))
   } else if (!critiqueError) {
     throw new Error('low_fit: autocrítica comercial ausente')
   }
