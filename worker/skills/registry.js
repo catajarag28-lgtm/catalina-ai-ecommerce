@@ -24,14 +24,13 @@ Principios que Catalina definió:
     id: 'posicionamiento-senior', nombre: 'Quién es Catalina (posicionamiento senior)', usos: ['chat', 'propuesta', 'seguimiento'],
     contenido: `Presenta a Catalina como arquitecta senior de sistemas comerciales con inteligencia artificial: diseña cómo debe vender, atender y operar una empresa, y dirige la construcción del sistema que lo hace realidad. Nunca como principiante ni como alguien que "hace chatbots".
 Trayectoria real: desde 2009 directora comercial y de marketing (Biboban, textil colombiana); desde 2013 consultora de empresas y expertos (servicio, equipos de ventas, cierre por WhatsApp, retención y lanzamientos; un referente de neuroventas en México, una marca de muebles en Ecuador); en 2018 fundó Professional Glam (3 sedes en Colombia, empresa en Florida, más de COP 1.000 millones en Shopify, 7.531 clientas en sede, 9.296 pedidos online; resultados de su negocio, no atribuidos a la IA).
-Agentes y sistemas que Catalina diseñó y tiene funcionando (cada uno es independiente y se implementa por separado; elige SOLO el que más se parezca al problema de este negocio y descríbelo por lo que hace, no por su nombre interno):
-1) Agente de ventas y atención por WhatsApp para e-commerce: responde al instante, asesora, cotiza, crea y modifica pedidos conectado a la logística, confirma pagos contraentrega y avisa el estado del envío.
-2) Agente de desarrollo comercial: encuentra empresas, estudia su negocio, escribe propuestas personalizadas, hace seguimiento y agenda reuniones (la propuesta que el prospecto está leyendo la preparó este agente).
-3) Agente de recuperación de carritos abandonados: escribe distinto según la etapa en que la persona dejó la compra y se detiene en cuanto responde.
-4) Agente de fidelización postventa: acompaña a cada cliente durante meses después de la entrega con mensajes útiles y una recompra en el momento adecuado, sin bombardear.
-5) Agente moderador de redes: detecta y elimina al instante comentarios ofensivos o de estafa en Instagram y Facebook y bloquea a quien reincide.
-6) Inteligencia comercial: detecta clientes en riesgo de no volver, audita precios y envía cada noche el resumen de ventas y alertas al dueño.
-7) Aplicación de bienestar con guía de IA y meditaciones con voz, con cobro integrado (producto digital propio).
+Agentes y sistemas que Catalina diseñó y tiene funcionando (cada uno es independiente y se implementa por separado; elige SOLO el que más se parezca al problema de este negocio y descríbelo por lo que hace):
+1) LAURA, agente de ventas y atención por WhatsApp para e-commerce: ha atendido a más de 5.000 clientes; asesora, cotiza, crea y modifica pedidos conectado a la logística, confirma pagos contraentrega, informa el envío, recupera carritos abandonados y acompaña la recompra.
+2) CAROLINA, agente de desarrollo comercial: encuentra empresas, estudia su negocio, escribe propuestas personalizadas, hace seguimiento y agenda reuniones (la propuesta que el prospecto está leyendo la preparó ella).
+3) Agente financiero: calcula la rentabilidad real del negocio, detecta fugas de dinero y costos ocultos, y concilia ventas, pedidos y pagos.
+4) Agente de creación de contenido: crea guiones y piezas para redes con avatar y voz, alineados con la marca.
+5) Agente de postulación: busca vacantes y proyectos, estudia cada oferta y prepara y envía postulaciones personalizadas.
+6) Agente CEO de estrategia: analiza los datos del negocio, plantea hipótesis, propone decisiones con evidencia y entrega informes ejecutivos y alertas al dueño.
 Professional Glam (3 sedes, 7.531 clientas en sede, 9.296 pedidos online) son resultados de su negocio, nunca atribuidos a la IA. No inventes clientes externos, porcentajes ni resultados de estos agentes.
 Lo que diseña: ventas (respuesta 24/7, calificación, agenda, seguimiento), atención y postventa, e-commerce (carritos, pedidos, recompra), marketing y redes, crecimiento (funnels, Meta Ads, remarketing, analítica), operaciones (flujos automatizados entre formularios, CRM, WhatsApp, correo, agenda y reportes), finanzas y control (tableros de rentabilidad, alertas de fugas, conciliación) y sistemas integrales multiagente (Business OS).
 Idioma: reuniones en español; otros idiomas por escrito con traducción aceptada por el cliente.`,
