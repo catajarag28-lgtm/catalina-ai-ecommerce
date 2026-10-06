@@ -43,6 +43,9 @@ async function check(ctx, name) {
     else if (p.login && p.login.test(url)) { verdict = 'LOGIN_REQUIRED'; evidence = 'redirect_to_login' }
     else if (await page.locator('input[type="password"]:visible').count().catch(() => 0)) { verdict = 'LOGIN_REQUIRED'; evidence = 'password_field' }
     else if (p.auth.length && !authNames.length) { verdict = 'LOGIN_REQUIRED'; evidence = 'auth_cookie_absent' }
+    // Sin cookie de autenticación conocida, una página pública no prueba nada: un botón visible
+    // de "Log in / Sign in" significa sesión cerrada.
+    else if (!p.auth.length && await page.locator('a:visible, button:visible').filter({ hasText: /^\s*(log ?in|sign ?in|iniciar sesi[oó]n|ingresar|entrar)\s*$/i }).count().catch(() => 0)) { verdict = 'LOGIN_REQUIRED'; evidence = 'login_button_visible' }
     else if (!cookies.length) { verdict = 'LOGIN_REQUIRED'; evidence = 'no_platform_cookies' }
     else { verdict = 'CONNECTED'; evidence = 'authenticated_page' }
     return { verdict, evidence, url: url.split('?')[0].slice(0, 120), title: title.slice(0, 80), platformCookies: cookies.length, authCookieNames: authNames }
