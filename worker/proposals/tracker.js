@@ -13,7 +13,7 @@ export async function trackerToken(env) {
 
 const day = ms => ms ? new Date(Number(ms)).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
 const yes = n => (Number(n) > 0 ? 'Sí' : 'No')
-const STATUS = { sent: 'Enviada', replied: 'Respondió', bounced: 'Rebotó', complained: 'Queja', suppressed: 'Baja', wa_ready: 'WhatsApp listo para enviar', wa_listed: 'WhatsApp enviado a tu lista', external_email_sent: 'Postulación enviada', submitted: 'Postulación enviada (formulario)' }
+const STATUS = { sent: 'Enviada', replied: 'Respondió', bounced: 'Rebotó', complained: 'Queja', suppressed: 'Baja', wa_ready: 'WhatsApp listo para enviar', wa_listed: 'WhatsApp enviado a tu lista', form_sent: 'Enviada por su formulario de contacto', external_email_sent: 'Postulación enviada', submitted: 'Postulación enviada (formulario)' }
 
 export async function trackerRows(env) {
   const out = (await env.DB.prepare(`SELECT o.id,o.company,o.email,o.kind,o.segment,o.subject,o.status,o.sent_at,o.updated_at,
@@ -21,11 +21,11 @@ export async function trackerRows(env) {
       SUM(e.type='page.viewed') viewed, SUM(e.type IN ('chat.started','demo.used','cta.clicked','booking.opened','whatsapp.opened')) engaged,
       SUM(e.type IN ('followup.sent','hot.followup')) followups
     FROM outreach o LEFT JOIN outreach_events e ON e.outreach_id=o.id
-    WHERE o.id NOT LIKE 'test-%' AND (o.sent_at IS NOT NULL OR o.status IN ('wa_ready','wa_listed'))
+    WHERE o.id NOT LIKE 'test-%' AND (o.sent_at IS NOT NULL OR o.status IN ('wa_ready','wa_listed','form_sent'))
     GROUP BY o.id ORDER BY coalesce(o.sent_at,o.updated_at) DESC LIMIT 3000`).all()).results || []
   const rows = out.map(r => ({
-    fecha: day(r.sent_at || r.updated_at), tipo: r.kind === 'whatsapp' ? 'Propuesta WhatsApp' : r.kind === 'partner' ? 'Propuesta aliado' : 'Propuesta correo',
-    empresa: r.company, segmento: r.segment || '', contacto: String(r.email).replace(/^wa:/, 'WhatsApp '), asunto: r.subject || '',
+    fecha: day(r.sent_at || r.updated_at), tipo: r.status === 'form_sent' ? 'Propuesta formulario web' : r.kind === 'whatsapp' ? 'Propuesta WhatsApp' : r.kind === 'partner' ? 'Propuesta aliado' : 'Propuesta correo',
+    empresa: r.company, segmento: r.segment || '', contacto: String(r.email).replace(/^wa:/, 'WhatsApp ').replace(/^form:/, 'Formulario de '), asunto: r.subject || '',
     estado: STATUS[r.status] || r.status, entregado: r.kind === 'whatsapp' ? '' : yes(r.delivered), abrio: r.kind === 'whatsapp' ? '' : yes(r.opened), vecesAbierto: Number(r.opened || 0),
     clic: yes(r.clicked), vioPropuesta: yes(r.viewed), hablóConCarolina: yes(r.engaged), respondio: r.status === 'replied' ? 'Sí' : 'No', seguimientos: Number(r.followups || 0),
     enlace: SITE + '/propuesta/' + r.id,

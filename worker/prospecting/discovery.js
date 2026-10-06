@@ -237,6 +237,8 @@ export async function verifyCandidate(env, cand, segment) {
   if (segment?.kind !== 'partner' && automationVisible(site.signals)) return { ok: false, reason: 'automation_visible: ' + (site.signals.chat || site.signals.crm) }
   let email = pickBusinessEmail(site.publicEmails, site.host), channel = 'email'
   if (!email && segment?.kind !== 'partner' && site.signals?.whatsapp && site.publicPhones?.length) { email = 'wa:' + site.publicPhones[0]; channel = 'whatsapp' }
+  // Sin correo ni WhatsApp pero con formulario de contacto: se le escribe por su formulario.
+  if (!email && segment?.kind !== 'partner' && Number(site.signals?.formularios || 0) > 0) { email = 'form:' + site.host; channel = 'whatsapp' }
   if (!email) return { ok: false, reason: 'no_published_email' }
   const r = await callModel(env, { task: 'discovery.verify', json: true, maxTokens: 1200, temperature: 0, timeoutMs: 30000,
     validate: d => typeof d?.fit === 'boolean' || 'fit_missing', messages: [

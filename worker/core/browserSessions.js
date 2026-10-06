@@ -1188,3 +1188,58 @@ export async function renderHtml(env, url) {
     return { html, finalUrl: page.url() }
   } catch { return null } finally { await browser?.close().catch(() => {}) }
 }
+
+// Formulario de contacto de la web de una empresa: el canal que el propio negocio publica para recibir mensajes.
+// Llena solo campos reconocibles; si hay CAPTCHA, campos obligatorios desconocidos o pago, no envía (sin evasión).
+export async function submitContactForm(env, { url, name, email, phone, company, subject, message }) {
+  if (!env?.BROWSER || !/^https:\/\//.test(String(url || ''))) return { status: 'unsupported' }
+  let browser
+  try {
+    browser = await launch(env.BROWSER, { keep_alive: 120000 })
+    const page = await browser.newPage()
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {})
+    await page.waitForTimeout(2500)
+    const form = page.locator('form:has(textarea)').first()
+    if (!(await form.count())) return { status: 'no_form', url: page.url() }
+    const captcha = await page.locator('iframe[src*="recaptcha"],iframe[src*="hcaptcha"],iframe[src*="turnstile"],.g-recaptcha,.h-captcha,.cf-turnstile').count()
+    if (captcha) return { status: 'captcha', url: page.url() }
+    const [first, ...rest] = String(name).split(' ')
+    const fields = await form.locator('input:visible,textarea:visible,select:visible').all()
+    const unknownRequired = []
+    for (const el of fields) {
+      const tag = (await el.evaluate(n => n.tagName).catch(() => '')).toLowerCase()
+      const type = String(await el.getAttribute('type').catch(() => '') || '').toLowerCase()
+      if (['hidden', 'submit', 'button', 'file', 'password'].includes(type)) continue
+      const hint = (await el.evaluate(n => [n.name, n.id, n.placeholder, n.getAttribute('aria-label'), n.labels?.[0]?.innerText, n.closest('label,div,p')?.innerText?.slice(0, 80)].join(' ')).catch(() => '')).toLowerCase()
+      const required = await el.evaluate(n => n.required || n.getAttribute('aria-required') === 'true').catch(() => false)
+      if (type === 'checkbox') { if (/privac|acept|agree|t[eé]rminos|terms|consent|pol[ií]tica/.test(hint)) await el.check().catch(() => {}); else if (required) unknownRequired.push(hint.slice(0, 60)); continue }
+      let v = null
+      if (tag === 'textarea') v = message
+      else if (type === 'email' || /e-?mail|correo/.test(hint)) v = email
+      else if (type === 'tel' || /phone|tel[eé]fono|celular|m[oó]vil|whatsapp/.test(hint)) v = phone
+      else if (/apellido|last ?name|surname/.test(hint)) v = rest.join(' ') || first
+      else if (/first ?name|primer nombre/.test(hint)) v = first
+      else if (/empresa|company|negocio|organi/.test(hint)) v = 'Catalina Jaramillo · AI Automation & Commerce Systems'
+      else if (/asunto|subject|motivo/.test(hint) && tag !== 'select') v = subject
+      else if (/nombre|name/.test(hint)) v = name
+      else if (/web|sitio|url/.test(hint)) v = 'https://soycatalinajaramillo.com'
+      if (v !== null && tag !== 'select') { await el.fill(String(v)).catch(() => {}); continue }
+      if (tag === 'select' && required) { const opts = await el.locator('option').allInnerTexts().catch(() => []); const pick = opts.find(o => /otro|other|general|consulta|informaci/i.test(o)); if (pick) await el.selectOption({ label: pick }).catch(() => {}); else unknownRequired.push(hint.slice(0, 60)); continue }
+      if (required) unknownRequired.push(hint.slice(0, 60))
+    }
+    if (unknownRequired.length) return { status: 'unknown_required', fields: unknownRequired.slice(0, 4), url: page.url() }
+    let submit = form.locator('button[type="submit"]:visible,input[type="submit"]:visible').last()
+    if (!(await submit.count())) submit = form.getByRole('button', { name: /enviar|send|submit|contact|solicitar/i }).last()
+    if (!(await submit.count())) return { status: 'no_submit', url: page.url() }
+    const label = String(await submit.innerText().catch(() => '') || await submit.getAttribute('value').catch(() => '') || '')
+    if (/pay|pagar|comprar|buy|checkout|suscrib/i.test(label)) return { status: 'payment_button' }
+    const before = page.url()
+    await submit.click().catch(() => {})
+    await page.waitForTimeout(4000)
+    const body = (await page.locator('body').innerText({ timeout: 5000 }).catch(() => '')).slice(0, 20000)
+    const ok = /gracias|thank you|thanks|mensaje (?:ha sido |fue )?enviado|message (?:has been |was )?sent|recibimos|hemos recibido|received your|nos pondremos en contacto|we.ll be in touch|we will get back|enviado con [eé]xito|successfully sent/i.test(body)
+      || page.url() !== before || !(await page.locator('form:has(textarea)').first().isVisible().catch(() => false))
+    if (/captcha|verify you are human|robot/i.test(body) && !ok) return { status: 'captcha', url: page.url() }
+    return { status: ok ? 'submitted' : 'unconfirmed', url: page.url() }
+  } catch (e) { return { status: 'error', reason: String(e?.message || e).slice(0, 120) } } finally { await browser?.close().catch(() => {}) }
+}

@@ -79,7 +79,7 @@ export async function sendWhatsappList(env, now = Date.now()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', weekday: 'short', hour: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(p => [p.type, p.value]))
   const hour = Number(parts.hour)
   if (['Sat', 'Sun'].includes(parts.weekday) || ![8, 14].includes(hour)) return { due: false }
-  const rows = (await env.DB.prepare("SELECT * FROM outreach WHERE kind='whatsapp' AND status='wa_ready' ORDER BY (segment LIKE 'senal-%') DESC, updated_at LIMIT 15").all()).results || []
+  const rows = (await env.DB.prepare("SELECT * FROM outreach o WHERE kind='whatsapp' AND status='wa_ready' AND email LIKE 'wa:%' AND EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type='form.unavailable') ORDER BY (segment LIKE 'senal-%') DESC, updated_at LIMIT 15").all()).results || []
   if (!rows.length) return { due: true, sent: false }
   const key = 'walist-' + parts.year + parts.month + parts.day + '-' + hour
   const mark = await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind(key, 'system', 'walist.sent', now).run()
@@ -110,4 +110,37 @@ ${cards}</div>`
     await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind('walisted-' + r.id, r.id, 'wa.listed', now).run()
   }
   return { due: true, sent: true, count: rows.length }
+}
+
+// Envío automático por el formulario de contacto de su web, firmado por Catalina (las respuestas llegan a clientes@
+// y a su WhatsApp). Si el formulario no se puede usar (CAPTCHA, campos desconocidos), la empresa queda para WhatsApp.
+export function contactFormMessage(row, p = {}) {
+  const who = p.contactName ? 'Hola, ' + p.contactName.split(/\s+/)[0] + ':' : `Hola, equipo de ${row.company}:`
+  return [who, firstSentence(p.observation, 220), firstSentence(p.hypothesis, 220),
+    `Preparé una idea concreta solo para ${row.company}; la pueden ver aquí: ${SITE}/propuesta/${row.id}`,
+    'Si les hace sentido, lo conversamos 20 minutos esta semana.',
+    'Catalina Jaramillo\nAI Automation & Commerce Systems\nsoycatalinajaramillo.com'].filter(Boolean).join('\n\n')
+}
+
+export async function runContactForms(env, { limit = 2, now = Date.now() } = {}) {
+  const cap = Number(env.CONTACT_FORM_DAILY_LIMIT || 30)
+  const done = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach_events WHERE type='form.sent' AND occurred_at>?").bind(now - 86400000).first())?.n || 0
+  if (done >= cap) return { reason: 'daily_cap', done }
+  const rows = (await env.DB.prepare(`SELECT o.* FROM outreach o WHERE o.kind='whatsapp' AND o.status='wa_ready'
+    AND NOT EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type IN ('form.sent','form.unavailable'))
+    ORDER BY (o.segment LIKE 'senal-%') DESC, o.updated_at LIMIT ?`).bind(limit).all()).results || []
+  const { submitContactForm } = await import('../core/browserSessions.js')
+  const out = []
+  for (const row of rows) {
+    let p = {}; try { p = JSON.parse(row.research || '{}') } catch {}
+    const pages = Array.isArray(p.pages) ? p.pages : []
+    const url = pages.find(u => /contact|contacto/i.test(u)) || p.source || row.website
+    const r = await submitContactForm(env, { url, name: 'Catalina Jaramillo', email: 'clientes@soycatalinajaramillo.com', phone: env.CATALINA_WHATSAPP || '', company: row.company, subject: `Una idea para ${row.company}`, message: contactFormMessage(row, p) })
+    const sent = r.status === 'submitted'
+    await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind((sent ? 'formsent-' : 'formna-') + row.id, row.id, sent ? 'form.sent' : 'form.unavailable', Date.now()).run()
+    if (sent) await env.DB.prepare("UPDATE outreach SET status='form_sent',error=NULL,updated_at=? WHERE id=?").bind(Date.now(), row.id).run()
+    else await env.DB.prepare('UPDATE outreach SET error=?,updated_at=? WHERE id=?').bind(('contact_form: ' + r.status + (r.fields ? ' ' + r.fields.join('|') : '')).slice(0, 300), Date.now(), row.id).run()
+    out.push({ company: row.company, status: r.status })
+  }
+  return { tried: out.length, results: out }
 }
