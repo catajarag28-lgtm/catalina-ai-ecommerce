@@ -127,6 +127,22 @@ async function clickByText(page, rx){
   }
   return '';
 }
+async function clickApplyRoute(page,p){
+  if(p==='linkedin'){
+    const els=page.locator('button, input[type=submit], input[type=button]');
+    const n=await els.count();
+    for(let i=0;i<n;i++){
+      const el=els.nth(i);
+      if(!(await el.isVisible().catch(()=>false)) || await el.isDisabled().catch(()=>true)) continue;
+      const txt=((await el.innerText().catch(()=>'')) || (await el.getAttribute('value').catch(()=>'')) || (await el.getAttribute('aria-label').catch(()=>'')) || '').trim().replace(/\s+/g,' ');
+      if(/^(easy apply|apply now|apply|solicitud sencilla|solicitar|postularme)$/i.test(txt) || /easy apply/i.test(txt)){
+        await el.click({timeout:5000}).catch(()=>{}); return txt;
+      }
+    }
+    return '';
+  }
+  return clickByText(page,PRE_APPLY_RX);
+}
 async function fillProposal(page, text){
   let filled=0;
   const areas=page.locator('textarea');
@@ -193,7 +209,7 @@ async function actOn(page,item){
     result.contacts=unique.slice(0,3);
     return result;
   }
-  const pre=await clickByText(page,PRE_APPLY_RX);
+  const pre=await clickApplyRoute(page,p);
   if(!pre){ result.status='WAITING_HUMAN_NO_APPLY_ROUTE'; result.reason='no clear apply/proposal button'; return result; }
   result.openedWith=pre;
   await page.waitForTimeout(1800);
