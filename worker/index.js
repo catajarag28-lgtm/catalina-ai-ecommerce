@@ -632,6 +632,9 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', () => runOutreach(env))
+    // Canal WhatsApp: propuestas para empresas que solo publican WhatsApp + lista diaria para Catalina.
+    await step('whatsappProposals', async () => (await import('./proposals/whatsappChannel.js')).runWhatsappProposals(env, { limit: 2 }))
+    await step('whatsappList', async () => (await import('./proposals/whatsappChannel.js')).sendWhatsappList(env))
     // Intent normal + barrido extra cuando el Revenue Balancer detecta déficit/cold email pausado.
     await step('intentClean', () => cleanIntentQueue(env))
     await step('intent', () => runIntentScan(env))

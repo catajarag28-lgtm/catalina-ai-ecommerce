@@ -195,3 +195,12 @@ test('automation filter: chat/bot or automated CRM is visible; manual WhatsApp i
   assert.equal(automationVisible(detectSignals('<script src="https://widgets.leadconnectorhq.com/x.js"></script>')), true)
   assert.equal(automationVisible(detectSignals('<a href="https://wa.me/573001112233">WhatsApp</a><form></form>')), false)
 })
+
+test('whatsapp opener is short, human and links the proposal', async () => {
+  const { whatsappOpener } = await import('../worker/proposals/whatsappChannel.js')
+  const msg = whatsappOpener({ id: 'abc', company: 'Spa Luna' }, { observation: 'Vi que reciben citas solo por WhatsApp y atienden hasta las 7 p. m. Además tienen tres sedes.', hypothesis: '¿Qué pasa con las consultas que llegan de noche?' })
+  assert.match(msg, /^Hola, ¿hablo con Spa Luna\?/)
+  assert.match(msg, /soycatalinajaramillo\.com\/propuesta\/abc/)
+  assert.ok(!/\bIA\b|inteligencia artificial|bot/i.test(msg))
+  assert.ok(msg.length < 600)
+})

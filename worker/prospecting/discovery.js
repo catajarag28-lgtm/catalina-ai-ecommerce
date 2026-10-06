@@ -235,7 +235,8 @@ export async function verifyCandidate(env, cand, segment) {
   if (excludedHosts.test(site.host)) return { ok: false, reason: 'excluded_host' }
   // Objetivo: empresas SIN automatización visible. Si ya tienen chat/bot o CRM automatizado, no se les escribe.
   if (segment?.kind !== 'partner' && automationVisible(site.signals)) return { ok: false, reason: 'automation_visible: ' + (site.signals.chat || site.signals.crm) }
-  const email = pickBusinessEmail(site.publicEmails, site.host)
+  let email = pickBusinessEmail(site.publicEmails, site.host), channel = 'email'
+  if (!email && segment?.kind !== 'partner' && site.signals?.whatsapp && site.publicPhones?.length) { email = 'wa:' + site.publicPhones[0]; channel = 'whatsapp' }
   if (!email) return { ok: false, reason: 'no_published_email' }
   const r = await callModel(env, { task: 'discovery.verify', json: true, maxTokens: 1200, temperature: 0, timeoutMs: 30000,
     validate: d => typeof d?.fit === 'boolean' || 'fit_missing', messages: [
@@ -255,7 +256,7 @@ export async function verifyCandidate(env, cand, segment) {
     decisionMaker = String(p.decisionMaker).trim().slice(0, 120)
     role = String(p.role || '').trim().slice(0, 120)
   }
-  return { ok: true, kind: segment?.kind === 'partner' ? 'partner' : 'outbound', email, company: String(p.company).slice(0, 200), website: site.source, sourceUrl: site.emailPages[email] || site.source, evidence: p.evidence, signals: site.signals, decisionMaker, role }
+  return { ok: true, kind: segment?.kind === 'partner' ? 'partner' : channel === 'whatsapp' ? 'whatsapp' : 'outbound', email, company: String(p.company).slice(0, 200), website: site.source, sourceUrl: site.emailPages[email] || site.source, evidence: p.evidence, signals: site.signals, decisionMaker, role }
 }
 
 async function alreadyKnown(env, email, host) {
@@ -311,8 +312,8 @@ export async function discoverProspects(env, options = {}) {
     try { v = await verifyCandidate(env, cand, seg) } catch (e) { v = { ok: false, reason: 'error: ' + e.message } }
     if (v.ok && await alreadyKnown(env, v.email, host)) v = { ok: false, reason: 'duplicate' }
     if (v.ok) {
-      const r = await env.DB.prepare("INSERT OR IGNORE INTO outreach(id,email,company,kind,website,source_url,authorized,status,dossier,segment,created_at,updated_at) VALUES (?,?,?,?,?,?,1,'pending',?,?,?,?)")
-        .bind(crypto.randomUUID(), v.email, v.company, v.kind || 'outbound', v.website, v.sourceUrl, JSON.stringify({ evidence: v.evidence, source: v.sourceUrl, region: seg.region || '', sector: seg.sector || '', signals: v.signals, decisionMaker: v.decisionMaker || '', role: v.role || '', directorio: cand.meta ? JSON.parse(cand.meta) : undefined }), seg.id, Date.now(), Date.now()).run()
+      const r = await env.DB.prepare("INSERT OR IGNORE INTO outreach(id,email,company,kind,website,source_url,authorized,status,dossier,segment,created_at,updated_at) VALUES (?,?,?,?,?,?,1,?,?,?,?,?)")
+        .bind(crypto.randomUUID(), v.email, v.company, v.kind || 'outbound', v.website, v.sourceUrl, v.kind === 'whatsapp' ? 'wa_pending' : 'pending', JSON.stringify({ evidence: v.evidence, source: v.sourceUrl, region: seg.region || '', sector: seg.sector || '', signals: v.signals, decisionMaker: v.decisionMaker || '', role: v.role || '', directorio: cand.meta ? JSON.parse(cand.meta) : undefined }), seg.id, Date.now(), Date.now()).run()
       if (r.meta.changes) queued++
     }
     await env.DB.prepare('UPDATE prospect_candidates SET status=?,company=coalesce(company,?),reason=?,updated_at=? WHERE website=?').bind(v.ok ? 'queued' : 'rejected', v.company || null, v.ok ? null : String(v.reason).slice(0, 200), Date.now(), cand.website).run()

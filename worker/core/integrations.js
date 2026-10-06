@@ -38,6 +38,7 @@ export async function book(env, { start, email, name, summary }, conversationId)
   let recorded = true
   try { await env.DB.prepare('INSERT INTO meetings (id,conversation_id,email,starts_at,ends_at,calendar_event_id,created_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(), conversationId, email, proposed.toISOString(), end, event.id, Date.now()).run() } catch { recorded = false }
   const confirmation = await sendEmail(env, email, 'Tu reunión con Catalina', `Hola ${name},\n\nTu reunión está programada para ${proposed.toLocaleString('es-CO', { timeZone: 'America/Bogota' })} (hora Colombia). Revisa y acepta la invitación de Google Calendar.\n\n${event.hangoutLink || event.htmlLink || ''}`).catch(() => ({ ok: false }))
+  await import('../proposals/meetingBrief.js').then(m => m.sendMeetingBrief(env, { email, name, start: proposed.toISOString(), summary })).catch(() => {})
   return { ok: true, recorded, start: proposed.toISOString(), timezone: 'America/Bogota', calendarEventId: event.id, invitationSentByCalendar: true, confirmationEmailSent: confirmation.ok }
 }
 
