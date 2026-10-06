@@ -154,3 +154,10 @@ test('dry-run 6-oct regressions: on-site events, spoken-English sales roles and 
   assert.equal(proposalQuality(base + ' LAURA handles thousands of live interactions.', o), 'unverified_volume')
   assert.equal(proposalQuality(base + ' En mis primeros 30 días con el equipo de Laura.', o), 'laura_as_person')
 })
+
+test('brief veto: on-site or spoken-English-critical roles found in the brief are not prepared', async () => {
+  const { briefVeto } = await import('../worker/prospecting/opportunities.js')
+  assert.equal(briefVeto({ risk: 'Hybrid work in Portugal / language barrier' }), 'onsite')
+  assert.equal(briefVeto({ risk: "Exigencia de 'excellent spoken English' para llamadas activas" }), 'spoken_english_critical')
+  assert.equal(briefVeto({ risk: 'El cliente es de EE. UU.; comunicación escrita asíncrona' }), null)
+})

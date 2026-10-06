@@ -38,7 +38,7 @@ const AVOID = [
 ]
 const SPOKEN_EN = /(fluent|native|excellent|advanced|business[-\s]level)\s+(spoken\s+)?english|\bc1\b|\bc2\b|english\s+(fluency|native|\(c1|\(c2)|ingl[eé]s\s+(fluido|avanzado|nativo|c1|c2)|phone\s+(sales|support)|cold\s+calling|outbound\s+calls/i
 // Roles cuyo núcleo es HABLAR (llamadas de venta/cierre, presentaciones a clientes): inglés oral crítico.
-const SPOKEN_CORE = /(consultative|sales|discovery|closing|client)\s+(calls|presentations)|close\s+(inbound\s+)?leads\s+(on|in|via)\s+(consultative\s+)?calls|llamadas\s+(de\s+venta|consultivas|comerciales)|presentaciones\s+a\s+clientes/i
+const SPOKEN_CORE = /(consultative|sales|discovery|closing|client|active|customer|daily)\s+(calls|presentations)|spoken\s+english\s+for\s+(calls|meetings|clients)|close\s+(inbound\s+)?leads\s+(on|in|via)\s+(consultative\s+)?calls|llamadas\s+(de\s+venta|consultivas|comerciales)|presentaciones\s+a\s+clientes/i
 // Presencial / eventos / reubicación: Catalina trabaja remoto desde Colombia/EE. UU.
 const ONSITE = /career\s+day|in[-\s]person|presencial(?!mente\s+no)|hybrid|h[ií]brido|on[-\s]?site|must\s+(be\s+)?(based|located|reside)\s+in|relocat|reubicaci[oó]n|residencia\s+(legal\s+)?en\s+espa|permiso\s+de\s+trabajo\s+(en|para)\s+(espa|la\s+ue|europa)|right\s+to\s+work\s+in\s+(the\s+)?(eu|uk|spain)/i
 
@@ -65,7 +65,7 @@ export function scoreOpportunity(o) {
   parts.language = spanish ? 10 : SPOKEN_EN.test(text) ? 0 : 6
   if (SPOKEN_EN.test(text) && SPOKEN_CORE.test(text)) rejects.push('inglés hablado crítico (llamadas/presentaciones)')
   else if (!spanish && SPOKEN_EN.test(text)) reasons.push('exige inglés hablado avanzado')
-  if (ONSITE.test(title + ' ' + (o.location || '')) || ONSITE.test(desc.slice(0, 4000))) rejects.push('presencial, híbrido o requiere residencia/reubicación')
+  if (ONSITE.test(title + ' ' + (o.location || '')) || ONSITE.test(desc)) rejects.push('presencial, híbrido o requiere residencia/reubicación')
   // 5. Urgencia (0-5) · 6. Competencia (0-5).
   parts.urgency = /urgent|asap|immediately|inmediat|start\s+now/i.test(text) ? 5 : 2
   const applicants = Number(String(o.applicants || '').replace(/[^0-9]/g, '')) || null
@@ -147,6 +147,15 @@ export async function briefAndPropose(env, o, s) {
   }
 }
 
+// Evidencia dry-run 6-oct: Zendesk ("Hybrid work in Portugal") y Wing ("excellent spoken English for active calls")
+// pasaron el score porque el dato estaba al final del aviso; el brief sí lo detectó en `risk`.
+export function briefVeto(brief = {}) {
+  const t = [brief.risk, brief.whyCatalina, brief.realNeed].filter(Boolean).join(' ')
+  if (/\b(hybrid|h[ií]brid[oa]|on[-\s]?site|presencial|in[-\s]office|relocat|reubicaci)/i.test(t)) return 'onsite'
+  if (/(excellent|fluent|advanced|native)\s+spoken\s+english|ingl[eé]s\s+(oral\s+)?(fluido|avanzado)\s+(para|en)\s+llamadas|spoken\s+english\s+for\s+(active\s+)?calls/i.test(t)) return 'spoken_english_critical'
+  return null
+}
+
 let ready = false
 async function ensureTable(env) {
   if (ready) return
@@ -187,6 +196,9 @@ export async function ingestOpportunities(env, source, items, { limit = 10, chan
     if (!r?.ok) { out.results.push({ title: o.title, company: o.company, score: s.score, grade: s.grade, error: r?.error }); continue }
     if (r.quality === 'not_aligned') out.notAligned++
     if (String(r.quality).startsWith('failed')) out.genericBlocked++
+    // Segunda capa: el propio brief (que leyó el aviso completo) puede vetar por presencialidad o inglés oral crítico.
+    const veto = briefVeto(r.brief)
+    if (veto) { r.aligned = false; r.quality = 'not_aligned:' + veto; out.notAligned++ }
     const action = String(r.quality).startsWith('failed') ? 'NEEDS_REWRITE' : actionFor(o, s.grade, r.aligned)
     if (action !== 'SKIP_LOW_SCORE' && action !== 'NEEDS_REWRITE') out.prepared++
     await env.DB.prepare('UPDATE opportunities SET brief=?,proposal=?,quality=?,action=?,status=?,model=?,cost=?,updated_at=? WHERE url=?')
