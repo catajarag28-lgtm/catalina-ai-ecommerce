@@ -5,6 +5,7 @@ import { manualApplicationQueue } from '../core/revenueOS.js'
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const SLOTS = [8, 10, 12, 14, 16]
+export const langOf = t => (String(t).match(/(the|and|your|with|I am|I have|experience)/gi) || []).length > (String(t).match(/(el|la|los|con|para|tengo|experiencia|su)/gi) || []).length ? 'en' : 'es'
 
 // Reparte por plataforma (round-robin) para no concentrar todo en una sola.
 export function spreadByPlatform(items, max) {
@@ -34,7 +35,7 @@ export async function sendPlatformBatch(env, now = Date.now(), { force = false }
   if (!force && !mark.meta.changes) return { due: false }
   const cards = batch.map((b, i) => `<div style="border:1px solid #e2ddd6;border-radius:10px;padding:14px;margin:0 0 14px">
 <p style="margin:0 0 4px;font-weight:bold">${i + 1}. ${esc(String(b.platform).toUpperCase())} · ${esc(b.title).slice(0, 140)}</p>
-<p style="margin:0 0 8px;font-size:13px;color:#68625b">${esc(b.who)}</p>
+<p style="margin:0 0 8px;font-size:13px;color:#68625b">${esc(b.who)} · <b>${langOf(b.text) === 'en' ? '🇺🇸 EN INGLÉS: envíalo tal cual, la oferta está en inglés' : '🇪🇸 EN ESPAÑOL'}</b></p>
 <div style="white-space:pre-wrap;background:#f5f4f2;border-radius:8px;padding:10px;font-size:14px">${esc(b.text)}</div>
 <p style="margin:10px 0 0"><a href="${esc(b.url)}" style="background:#7a4f34;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:bold">Abrir el proyecto y pegar la propuesta</a></p></div>`).join('')
   const plats = [...new Set(batch.map(b => b.platform))].join(', ')

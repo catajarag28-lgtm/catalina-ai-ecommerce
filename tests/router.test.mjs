@@ -231,3 +231,9 @@ test('platform batches are spread across platforms', async () => {
   const b = spreadByPlatform([{ platform: 'upwork' }, { platform: 'upwork' }, { platform: 'upwork' }, { platform: 'workana' }, { platform: 'linkedin' }], 3)
   assert.deepEqual(b.map(x => x.platform).sort(), ['linkedin', 'upwork', 'workana'])
 })
+
+test('platform batch labels proposal language', async () => {
+  const { langOf } = await import('../worker/prospecting/platformBatches.js')
+  assert.equal(langOf('I have experience building automations with your team and the CRM'), 'en')
+  assert.equal(langOf('Tengo experiencia con la automatización para su equipo y los clientes'), 'es')
+})
