@@ -20,5 +20,5 @@ Todas las llamadas pasan por `worker/core/modelRouter.js` (tiers gratis → Deep
 ## Pendientes conocidos
 - Descubrimiento de LinkedIn programado en la VM: `carolina-linkedin-discover.timer` (13:00 y 21:00 UTC). El timer de 15 min solo corre CloudSessionHealth.
 - Registrar contratos ganados en la tabla `deals`.
-- Intérprete en tiempo real (`worker/interpreter/`): existe pero no está desplegado.
+- Intérprete en tiempo real en producción (`/interprete`, ver `worker/interpreter/README.md`); requiere el secreto `OPENAI_API_KEY`.
 - Repositorio público: hacerlo privado. Despliegue automático: renovar `CLOUDFLARE_API_TOKEN` en GitHub.
