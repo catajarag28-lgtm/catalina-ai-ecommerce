@@ -108,6 +108,10 @@ async function verifyAuthenticated(context,page,p,{navigateHome=false}={}){
   if(result.status!=='ready')return result
   const hasAuth=await authCookiePresent(context,p)
   if(hasAuth===false)return {status:'expired',url:page.url(),title:await page.title().catch(()=>''),reason:'auth_cookie_missing'}
+  // Evidencia 5-oct: Workana se "guardó" con 0 cookies porque solo se miraba la URL.
+  // Sin ninguna cookie del dominio de la plataforma no existe sesión, diga lo que diga la página.
+  const own=(await context.cookies().catch(()=>[])).filter(c=>domainAllowed(c.domain,p))
+  if(!own.length)return {status:'expired',url:page.url(),title:await page.title().catch(()=>''),reason:'no_platform_cookies'}
   return result
 }
 
@@ -141,7 +145,9 @@ async function reconnectLink(env,platform,reason='session_missing'){
 export async function saveBrowserState(env,platform,state,meta={}){
   if(!env.BROWSER_SESSIONS)throw new Error('browser_sessions_binding_missing')
   const p=cfg(platform)
-  const record={platform:p.id,label:p.label,state:scopedStorageState(p,state),savedAt:Date.now(),...meta}
+  const scoped=scopedStorageState(p,state)
+  if(!scoped.cookies.length)throw new Error('no_platform_cookies_in_state')
+  const record={platform:p.id,label:p.label,state:scoped,savedAt:Date.now(),...meta}
   await env.BROWSER_SESSIONS.put('session:'+p.id,await seal(env,record))
   await setting(env,'browser_session:'+p.id,{status:'saved',savedAt:record.savedAt,lastUrl:meta.lastUrl||null})
   return {platform:p.id,status:'saved',savedAt:record.savedAt}
