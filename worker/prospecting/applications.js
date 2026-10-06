@@ -366,7 +366,7 @@ export async function runDirectApplications(env,now=Date.now()){
   const out={enabled,reviewed:0,sent:0,waitingHuman:0,skipped:0}
   if(!enabled) return out
   if(!env.OPENROUTER_API_KEY||!env.RESEND_API_KEY) return {...out,reason:'connections_missing'}
-  const limit=Math.max(1,Math.min(30,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||20)))
+  const limit=Math.max(1,Math.min(50,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||20)))
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status IN ('sent','external_email_sent','replied') AND coalesce(sent_at,updated_at)>=?").bind(bogotaStart(now)).first()
   if((count?.n||0)>=limit) return {...out,reason:'daily_cap',limit}
 

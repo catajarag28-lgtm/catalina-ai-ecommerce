@@ -204,3 +204,16 @@ test('whatsapp opener is short, human and links the proposal', async () => {
   assert.ok(!/\bIA\b|inteligencia artificial|bot/i.test(msg))
   assert.ok(msg.length < 600)
 })
+
+test('job feeds keep profile-fit roles and drop pure engineering', async () => {
+  const { PROFILE_FIT, PROFILE_REJECT } = await import('../worker/prospecting/jobFeeds.js')
+  const { profileFit: keep } = await import('../worker/prospecting/jobFeeds.js')
+  assert.equal(keep('AI Automation Specialist (n8n)'), true)
+  assert.equal(keep('Ecommerce Operations Manager - LATAM'), true)
+  assert.equal(keep('Senior Backend Software Engineer, AI Platform'), false)
+})
+test('tracker CSV escapes commas and quotes', async () => {
+  const { toCsv } = await import('../worker/proposals/tracker.js')
+  const csv = toCsv([{ a: 'Spa "Luna", Miami', b: 'x' }])
+  assert.match(csv, /"Spa ""Luna"", Miami",x/)
+})

@@ -204,7 +204,7 @@ export async function currentDailyCap(env) {
   const ceiling = outreachDailyLimit(env)
   if (env.OUTREACH_FIXED_DAILY_CAP === 'true') return ceiling
   const control = await env.DB.prepare('SELECT daily_cap FROM outreach_control WHERE id=1').first().catch(() => null)
-  return Math.min(ceiling, control?.daily_cap || 5)
+  return Math.min(ceiling, Math.max(Number(env.OUTREACH_MIN_DAILY_CAP || 0), control?.daily_cap || 5))
 }
 
 export async function webhookSecret(env) {

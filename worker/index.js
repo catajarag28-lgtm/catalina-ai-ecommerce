@@ -393,6 +393,20 @@ export default {
       return !!env.CAROLINA_VM_TOKEN && a.every((x, i) => x === b[i])
     }
     // Vista previa de la estructura de propuestas a Catalina (antes de encender el envío automático).
+    if (url.pathname === '/seguimiento.csv' && request.method === 'GET') {
+      const t = await import('./proposals/tracker.js')
+      const k = url.searchParams.get('k') || ''
+      if (k.length < 32 || k !== (await t.trackerToken(env))) return new Response('No autorizado', { status: 401 })
+      return new Response(t.toCsv(await t.trackerRows(env)), { headers: { 'content-type': 'text/csv; charset=utf-8', 'cache-control': 'no-store', 'content-disposition': 'inline; filename="carolina-seguimiento.csv"' } })
+    }
+    if (url.pathname === '/ops/vm-tracker-link' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      return json(await (await import('./proposals/tracker.js')).sendTrackerLink(env))
+    }
+    if (url.pathname === '/ops/vm-jobfeeds' && request.method === 'POST') {
+      if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
+      return json(await (await import('./prospecting/jobFeeds.js')).runJobFeeds(env, Date.now(), { force: true }))
+    }
     if (url.pathname === '/ops/vm-preview' && request.method === 'POST') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       try { return json(await (await import('./proposals/preview.js')).sendStructurePreview(env)) } catch (e) { return json({ error: e?.message }, 500) }
@@ -644,7 +658,9 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     await step('applications', () => runDirectApplications(env))
     // Cola inteligente → formularios ATS (solo A/B con propuesta aprobada; respeta AUTO_SUBMIT y tope diario).
-    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 2 }))
+    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 4 }))
+    // Bolsas de empleo remoto con API pública (7 a. m. y 1 p. m. Colombia) → embudo de oportunidades.
+    await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
     if (plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
