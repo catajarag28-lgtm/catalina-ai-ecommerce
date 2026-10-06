@@ -1,5 +1,5 @@
 import { salesStrategy } from '../skills/salesStrategy.js'
-import { researchBusiness, pickBusinessEmail, automationVisible } from '../core/integrations.js'
+import { researchBusiness, pickBusinessEmail, automationVisible, GENERIC_MAILBOX } from '../core/integrations.js'
 import { currentDailyCap } from '../proposals/creative.js'
 import { skill } from '../skills/registry.js'
 import { placesSearch, osmSearch } from './sources.js'
@@ -246,6 +246,10 @@ export async function verifyCandidate(env, cand, segment) {
   if (!email && segment?.kind !== 'partner' && site.signals?.whatsapp && site.publicPhones?.length) { email = 'wa:' + site.publicPhones[0]; channel = 'whatsapp' }
   // Sin correo ni WhatsApp pero con formulario de contacto: se le escribe por su formulario.
   if (!email && segment?.kind !== 'partner' && Number(site.signals?.formularios || 0) > 0) { email = 'form:' + site.host; channel = 'whatsapp' }
+  if (email && !email.includes(':') && GENERIC_MAILBOX.test(email) && segment?.kind !== 'partner') {
+    if (Number(site.signals?.formularios || 0) > 0) { email = 'form:' + site.host; channel = 'whatsapp' }
+    else if (site.copyrightYear && site.copyrightYear < new Date().getFullYear() - 1) return { ok: false, reason: 'stale_generic_email (© ' + site.copyrightYear + ')' }
+  }
   if (!email) return { ok: false, reason: 'no_published_email' }
   const r = await callModel(env, { task: 'discovery.verify', json: true, maxTokens: 1200, temperature: 0, timeoutMs: 30000,
     validate: d => typeof d?.fit === 'boolean' || 'fit_missing', messages: [

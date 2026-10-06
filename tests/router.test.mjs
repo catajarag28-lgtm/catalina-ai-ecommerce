@@ -237,3 +237,13 @@ test('platform batch labels proposal language', async () => {
   assert.equal(langOf('I have experience building automations with your team and the CRM'), 'en')
   assert.equal(langOf('Tengo experiencia con la automatización para su equipo y los clientes'), 'es')
 })
+
+test('public obfuscated emails are decoded and generic mailboxes detected', async () => {
+  const { decodeCfEmail, GENERIC_MAILBOX, pageFromHtml } = await import('../worker/core/integrations.js')
+  const key = 0x2a, hex = key.toString(16).padStart(2, '0') + [...'ana@spa.co'].map(c => (c.charCodeAt(0) ^ key).toString(16).padStart(2, '0')).join('')
+  assert.equal(decodeCfEmail(hex), 'ana@spa.co')
+  assert.ok(GENERIC_MAILBOX.test('info@clinica.com') && !GENERIC_MAILBOX.test('dra.ana@clinica.com'))
+  const p = pageFromHtml('<p>Escríbenos: ana.perez [arroba] spaluna . com</p><footer>© 2019 Spa Luna</footer>', new URL('https://spaluna.com/'))
+  assert.ok(p.publicEmails.includes('ana.perez@spaluna.com'))
+  assert.equal(p.copyrightYear, 2019)
+})

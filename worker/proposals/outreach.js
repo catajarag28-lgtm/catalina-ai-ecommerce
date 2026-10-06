@@ -4,7 +4,7 @@ import { critiqueRubric, lintCopy } from '../skills/copywriting.js'
 import { skill, skillsPrompt } from '../skills/registry.js'
 import { learnedPlaybook } from '../core/meetings.js'
 import { pickAngle, learningExamples, currentDailyCap, webhookSecret } from './creative.js'
-import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachable, automationVisible, verifyMailbox } from '../core/integrations.js'
+import { researchWebsite, researchBusiness, validPublicEmail, emailDomainReachable, automationVisible, verifyMailbox, GENERIC_MAILBOX } from '../core/integrations.js'
 import { segments as discoverySegments } from '../prospecting/discovery.js'
 import { brandedProposal, escapeHtml } from './proposalPage.js'
 import { catalog } from '../../src/offers.js'
@@ -219,6 +219,8 @@ export async function runOutreach(env, now = Date.now()) {
       research = await researchBusiness(row.website, env)
       if (!research.ok || research.publicText.length < 300) throw new Error('website_unavailable')
       if (row.kind !== 'partner' && automationVisible(research.signals)) throw new Error('low_fit: ya tiene automatización visible (' + (research.signals.chat || research.signals.crm) + ')')
+      // Correo genérico en una web sin formulario y sin actualizar hace años: alto riesgo de rebote.
+      if (!testTo && row.kind !== 'partner' && GENERIC_MAILBOX.test(row.email) && !Number(research.signals?.formularios || 0) && research.copyrightYear && research.copyrightYear < new Date().getFullYear() - 1) throw new Error('low_fit: correo genérico en web sin actualizar (© ' + research.copyrightYear + ')')
     }
     const angle = await pickAngle(env)
     const proposal = await prepare(env, row, research, angle)
@@ -227,6 +229,13 @@ export async function runOutreach(env, now = Date.now()) {
     proposal.contactName = typeof dossier.decisionMaker === 'string' ? dossier.decisionMaker.trim().slice(0, 120) : ''
     proposal.contactRole = typeof dossier.role === 'string' ? dossier.role.trim().slice(0, 120) : ''
     proposal.sourceUrl = research.pages?.[0] || research.source
+    // Correo genérico (info@, contacto@…) y la web tiene formulario: la misma propuesta sale por su formulario (no rebota).
+    if (row.kind !== 'inbound' && row.kind !== 'partner' && !testTo && GENERIC_MAILBOX.test(row.email) && Number(research.signals?.formularios || 0) > 0) {
+      const subj = String(proposal.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
+      const page = brandedProposal(row.company, proposal, `${SITE}/propuesta/${row.id}`, schedulingUrl(env), { postal: env.SENDER_POSTAL_ADDRESS })
+      await env.DB.prepare("UPDATE outreach SET kind='whatsapp',status='wa_ready',research=?,subject=?,html=?,angle=?,error=NULL,updated_at=? WHERE id=?").bind(JSON.stringify({ source: research.source, signals: research.signals, pages: research.pages, phones: research.publicPhones || [], socialLinks: research.socialLinks || [], logo: research.logo || '', publicText: String(research.publicText || '').slice(0, 7000), ...proposal }), subj, page, angle.id, Date.now(), row.id).run()
+      return { sent: false, reason: 'routed_to_form' }
+    }
     const subject = String(proposal.subject).replace(/[\r\n]/g, ' ').trim().slice(0, 62)
     const html = brandedProposal(row.company, proposal, `${SITE}/propuesta/${row.id}`, schedulingUrl(env), { postal: env.SENDER_POSTAL_ADDRESS })
     const greeting = proposal.contactName ? `Hola, ${proposal.contactName}:` : `Hola, equipo de ${row.company}:`

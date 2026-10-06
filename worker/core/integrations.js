@@ -128,10 +128,15 @@ export async function researchWebsite(url) {
 }
 
 // Extrae texto, contactos, enlaces y señales de un HTML (servido o renderizado por el navegador en la nube).
+export const decodeCfEmail = hex => { try { const k = parseInt(hex.slice(0, 2), 16); let out = ''; for (let i = 2; i < hex.length; i += 2) out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ k); return out } catch { return '' } }
+export const GENERIC_MAILBOX = /^(info|hola|hello|contacto|contact|contactanos|citas|reservas|ventas|sales|admin|office|oficina|recepcion|front|frontdesk|booking|appointments|support|soporte|help|ayuda|atencion|servicio|mail|correo|team|equipo|general|consultas|inquiries|enquiries)@/i
 export function pageFromHtml(html, target) {
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 3500)
   const mailtoEmails=[...html.matchAll(/href=["']mailto:([^"'?\s<>]+)/gi)].map(m=>m[1])
   const textEmails=html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}/g) || []
+  // Correos públicos disfrazados: Cloudflare Email Protection y "nombre [arroba] dominio . com".
+  for (const m of html.matchAll(/data-cfemail=["']([0-9a-f]{8,})["']/gi)) textEmails.push(decodeCfEmail(m[1]))
+  for (const m of html.replace(/<[^>]*>/g, ' ').matchAll(/([a-z0-9._%+-]{2,40})\s*(?:\[\s*(?:at|arroba)\s*\]|\(\s*(?:at|arroba)\s*\)|\s(?:arroba)\s)\s*([a-z0-9-]{2,40})\s*(?:\[\s*(?:dot|punto)\s*\]|\(\s*(?:dot|punto)\s*\)|\.)\s*([a-z]{2,10}(?:\.[a-z]{2})?)/gi)) textEmails.push(m[1] + '@' + m[2] + '.' + m[3])
   const publicEmails = [...new Set([...mailtoEmails,...textEmails].map(e => e.toLowerCase()).filter(validPublicEmail))]
   const links = [...html.matchAll(/href=["']([^"'<>\s]+)["']/gi)].map(m => { try { return new URL(m[1].replace(/&amp;/g, '&'), target).toString().split('#')[0] } catch { return '' } })
   const publicLinks = [...new Set(links.filter(u => { try { const h = new URL(u); return h.protocol === 'https:' && !socialHosts.test(h.hostname) } catch { return false } }))].slice(0, 60)
@@ -140,7 +145,8 @@ export function pageFromHtml(html, target) {
   // Logo del negocio (para personalizar la propuesta): logo explícito, ícono de alta resolución o imagen social.
   const abs = u => { try { const x = new URL(u.replace(/&amp;/g, '&'), target); return x.protocol === 'https:' ? x.toString() : '' } catch { return '' } }
   const logo = abs((html.match(/<img[^>]+src=["']([^"']*logo[^"']*\.(?:png|svg|webp|jpe?g)[^"']*)["']/i) || html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i) || [])[1] || '')
-  return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, socialLinks, publicPhones, logo, signals: detectSignals(html, links) }
+  const years = [...html.replace(/<[^>]*>/g, ' ').matchAll(/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20\d{2})/gi)].map(m => Number(m[1]))
+  return { ok: true, source: target.toString(), publicText: text, publicEmails, publicLinks, socialLinks, publicPhones, logo, signals: detectSignals(html, links), copyrightYear: years.length ? Math.max(...years) : null }
 }
 
 // Señales verificables en el HTML. La ausencia de una señal NO demuestra que el negocio carezca de esa herramienta.
@@ -182,6 +188,12 @@ export async function researchBusiness(url, env = null) {
   for (const group of [/contact|contacto/i, /servicio|service|tratamiento|treatment|menu|productos|shop|tienda/i, /reserv|book|cita|appointment|about|nosotros|sobre/i]) { const u = pages.find(x => group.test(x) && !pick.includes(x)); if (u) pick.push(u) }
   const extra = []
   for (const u of pick) { const r = await researchWebsite(u); if (r.ok) extra.push(r) }
+  // Si solo hay correos genéricos, se buscan personas: equipo, nosotros, aviso legal y privacidad (responsable del tratamiento).
+  const onlyGeneric = () => { const e = [home, ...extra].flatMap(r => r.publicEmails || []); return !e.some(x => !GENERIC_MAILBOX.test(x)) }
+  if (onlyGeneric()) {
+    const people = home.publicLinks.filter(u => { try { const h = new URL(u); return h.hostname.replace(/^www\./, '') === host && /equipo|team|nosotros|about|quienes|staff|doctor|abogad|agentes|asesores|aviso-legal|legal|privacidad|privacy|terminos/i.test(h.pathname) && !pick.includes(u) } catch { return false } }).slice(0, 3)
+    for (const u of people) { const r = await researchWebsite(u); if (r.ok) extra.push(r); if (!onlyGeneric()) break }
+  }
   // Muchas webs no enlazan su página de contacto en la portada: si aún no hay correo, se prueban rutas habituales.
   if (![home, ...extra].some(r => r.publicEmails?.length)) {
     const origin = new URL(home.source).origin
@@ -202,6 +214,7 @@ export async function researchBusiness(url, env = null) {
     publicText: all.map(r => `[${new URL(r.source).pathname}] ${r.publicText}`).join('\n').slice(0, 9000),
     publicEmails: Object.keys(emailPages), emailPages, pages: all.map(r => r.source), signals,
     publicPhones: [...new Set(all.flatMap(r => r.publicPhones || []))].slice(0, 4),
+    copyrightYear: Math.max(0, ...all.map(r => r.copyrightYear || 0)) || null,
     socialLinks: [...new Set(all.flatMap(r => r.socialLinks || []))].slice(0, 20),
     logo: home.logo || '',
     publicLinks: home.publicLinks,
