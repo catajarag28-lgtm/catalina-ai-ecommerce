@@ -56,10 +56,10 @@ export function scoreOpportunity(o) {
   for (const [re, why] of AVOID) if (re.test(title) || (why !== 'SEO puro' && why !== 'gestión de proyectos no relacionada' && re.test(desc.slice(0, 1500)))) rejects.push(why)
   // 2. Posibilidad real de ejecutar (0-15).
   parts.execution = rejects.some(r => /ingeniería senior/.test(r)) ? 2 : /\b(\d{2,}\+?\s*years|\d+\+\s*años)\b/i.test(text) && /engineer|developer|desarrollador/i.test(title) ? 8 : 15
-  // 3. Presupuesto (0-15). Proyectos desde ~USD 300; prioridad 500–5.000+.
+  // 3. Presupuesto (0-15). Proyectos con presupuesto explícito: piso USD 500; prioridad 1.000–5.000+.
   const b = usd(o.budgetUsd)
-  parts.budget = b == null ? 8 : b < 300 ? 0 : b < 500 ? 7 : b <= 5000 ? 13 : 15
-  if (b != null && b < 300) rejects.push('presupuesto < USD 300')
+  parts.budget = b == null ? 8 : b < 500 ? 0 : b < 1000 ? 10 : b <= 5000 ? 13 : 15
+  if (b != null && b < 500) rejects.push('presupuesto < USD 500')
   // 4. Idioma (0-10).
   const spanish = /\b(el|la|los|para|con|experiencia|empresa|buscamos)\b/i.test(text) && (text.match(/\b(el|la|los|las|para|con|que)\b/gi) || []).length > 25
   parts.language = spanish ? 10 : SPOKEN_EN.test(text) ? 0 : 6
@@ -96,7 +96,7 @@ export function expectedContractPriority(o, s = {}) {
   const fit = Number(s?.score || 0)
   const b = usd(o.budgetUsd)
 
-  const budgetScore = b == null ? 8 : b >= 5000 ? 20 : b >= 2000 ? 18 : b >= 1000 ? 15 : b >= 500 ? 12 : b >= 300 ? 7 : 0
+  const budgetScore = b == null ? 8 : b >= 5000 ? 20 : b >= 2000 ? 18 : b >= 1000 ? 15 : b >= 500 ? 12 : 0
   let priority = Math.round(
     Math.min(35, fit * 0.35) +
     (explicit ? 18 : 0) +
@@ -110,7 +110,7 @@ export function expectedContractPriority(o, s = {}) {
   priority = Math.max(0, Math.min(100, priority))
 
   const expectedValue = b != null
-    ? Math.max(300, Math.min(10000, b))
+    ? Math.max(500, Math.min(10000, b))
     : partner ? 3500
       : recurring >= 10 ? 2500
         : explicit && fit >= 70 ? 1800
