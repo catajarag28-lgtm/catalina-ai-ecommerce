@@ -17,6 +17,8 @@ const DAILY_PLATFORM_LIMIT = Number(process.env.CAROLINA_DAILY_PLATFORM_LIMIT ||
 const ONLY_URLS = new Set(String(process.env.CAROLINA_ONLY_URLS || '').split(',').map(x=>x.trim()).filter(Boolean));
 const WORKER_BASE = String(process.env.CAROLINA_WORKER_BASE || 'https://soycatalinajaramillo.com').replace(/\/$/, '');
 const VM_TOKEN = process.env.CAROLINA_VM_TOKEN || '';
+const PRIORITY_QUEUE = process.env.CAROLINA_PRIORITY_QUEUE_FILE || path.join(DATA, 'carolina-priority-queue.json');
+const LOCAL_QUEUE_ONLY = process.env.CAROLINA_LOCAL_QUEUE_ONLY === 'yes';
 const CV_EN = '/public/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf';
 const CV_ES = '/public/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf';
 
@@ -42,6 +44,11 @@ function append(row){
 }
 function loadJson(file, fallback){ try { return JSON.parse(fs.readFileSync(file,'utf8')); } catch { return fallback; } }
 async function fetchCanonicalQueue(){
+  if(LOCAL_QUEUE_ONLY){
+    const q=loadJson(PRIORITY_QUEUE,null);
+    if(!q||!Array.isArray(q.items)) throw new Error('priority_queue_missing_or_invalid');
+    return {source:'priority_local_verified',items:q.items};
+  }
   if(!VM_TOKEN) throw new Error('CAROLINA_VM_TOKEN missing');
   const res=await fetch(WORKER_BASE+'/ops/vm-queue?limit=50',{headers:{authorization:'Bearer '+VM_TOKEN},signal:AbortSignal.timeout(30000)});
   if(!res.ok) throw new Error('vm_queue_http_'+res.status);
@@ -131,15 +138,19 @@ async function clickByText(page, rx){
 }
 async function clickApplyRoute(page,p){
   if(p==='linkedin'){
-    const els=page.locator('button, input[type=submit], input[type=button]');
+    const els=page.locator('button, a, input[type=submit], input[type=button]');
     const n=await els.count();
     for(let i=0;i<n;i++){
       const el=els.nth(i);
       if(!(await el.isVisible().catch(()=>false)) || await el.isDisabled().catch(()=>true)) continue;
       const txt=((await el.innerText().catch(()=>'')) || (await el.getAttribute('value').catch(()=>'')) || (await el.getAttribute('aria-label').catch(()=>'')) || '').trim().replace(/\s+/g,' ');
-      if(/^(easy apply|apply now|apply|solicitud sencilla|solicitar|postularme)$/i.test(txt) || /easy apply/i.test(txt)){
-        await el.click({timeout:5000}).catch(()=>{}); return txt;
-      }
+      const href=await el.getAttribute('href').catch(()=>null);
+      const tag=await el.evaluate(n=>n.tagName).catch(()=>'');
+      const applyText=/^(easy apply|apply(?: now| for (?:this )?(?:job|role))?|solicitud sencilla|solicitar|postularme)$/i.test(txt) || (txt.length<=60 && /easy apply/i.test(txt));
+      if(!applyText) continue;
+      if(tag==='A' && href && /linkedin\.com\/jobs\/view\//i.test(href)) continue;
+      if(href && /^https?:\/\//i.test(href)){ await page.goto(href,{waitUntil:'domcontentloaded',timeout:45000}); return txt; }
+      await el.click({timeout:5000}).catch(()=>{}); return txt;
     }
     return '';
   }
@@ -246,8 +257,16 @@ async function actOn(page,item){
       await page.waitForTimeout(1200);
       continue;
     }
+    const nextApply=await clickApplyRoute(page,p);
+    if(nextApply){
+      result.applyHops=(result.applyHops||0)+1;
+      await page.waitForTimeout(1500);
+      continue;
+    }
     result.status='PREPARED_NO_FINAL_BUTTON';
     result.reason='proposal prepared but no safe final/next button';
+    result.currentUrl=page.url();
+    result.visibleActions=(await visibleButtons(page)).slice(0,12).map(x=>x.text);
     return result;
   }
   result.status='WAITING_HUMAN_MULTISTEP';
@@ -273,6 +292,7 @@ async function main(){
       const prev=recentByUrl.get(x.url);
       if(!prev) return true;
       if(['SUBMITTED_CONFIRMED','ALREADY_APPLIED_OR_CONFIRMED','SUBMIT_CLICKED_UNCONFIRMED'].includes(prev.status)) return false;
+      if(LOCAL_QUEUE_ONLY) return true;
       const age=Date.now()-Date.parse(prev.ts||0);
       return age>24*3600*1000;
     });
