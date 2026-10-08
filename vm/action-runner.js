@@ -201,6 +201,26 @@ async function attachResume(page, lang='en'){
   }
   return attached;
 }
+async function fillKnownIdentity(page){
+  const email=process.env.CAROLINA_APPLICANT_EMAIL || 'catalinajaramillogirldo28@gmail.com';
+  const inputs=page.locator('input[type=text],input[type=email]');
+  let filled=0;
+  for(let i=0;i<Math.min(await inputs.count(),30);i++){
+    const el=inputs.nth(i);
+    if(!(await el.isVisible().catch(()=>false)) || await el.isDisabled().catch(()=>true)) continue;
+    if(String(await el.inputValue().catch(()=>'' )).trim()) continue;
+    const name=String(await el.getAttribute('name').catch(()=>'')||'');
+    const placeholder=String(await el.getAttribute('placeholder').catch(()=>'')||'');
+    const type=String(await el.getAttribute('type').catch(()=>'')||'');
+    let value='';
+    if(/^(cName|full[_-]?name|applicant[_-]?name)$/i.test(name) || /^(full name|nombre completo)$/i.test(placeholder)) value='Catalina Jaramillo';
+    else if(/^(first[_-]?name|cFirstName)$/i.test(name)) value='Catalina';
+    else if(/^(last[_-]?name|cLastName)$/i.test(name)) value='Jaramillo';
+    else if(type==='email' || /^(cEmail|applicant[_-]?email)$/i.test(name)) value=email;
+    if(value){ await el.fill(value).catch(()=>{}); filled++; }
+  }
+  return filled;
+}
 async function requiredUnknown(page){
   return page.locator('input,textarea,select').evaluateAll(els => els.filter(el=>{
     const visible=!!(el.offsetWidth||el.offsetHeight||el.getClientRects().length);
@@ -241,6 +261,7 @@ async function actOn(page,item){
     if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
     if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
     result.proposalFields=(result.proposalFields||0)+await fillProposal(page,proposal);
+    result.identityFields=(result.identityFields||0)+await fillKnownIdentity(page);
     result.filesAttached=(result.filesAttached||0)+await attachResume(page,/españ|colombia|latam|méxico|automatiz/i.test(s.all)?'es':'en');
     await page.waitForTimeout(500);
     const unknown=await requiredUnknown(page);
