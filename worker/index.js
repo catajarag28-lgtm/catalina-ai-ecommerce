@@ -311,8 +311,10 @@ export default {
       for(const s of summary.filter(x=>x.saved).slice(0,6)){
         sessions[s.platform]=await ops.checkBrowserSession(env,s.platform).catch(e=>({status:'error',error:e?.message}))
       }
-      const applications=await ops.runBrowserApplicationQueue(env,{limit:6}).catch(e=>({enabled:true,error:e?.message}))
-      return json({sessions,applications})
+      const direct=await runDirectApplications(env).catch(e=>({enabled:true,error:e?.message}))
+      const opportunitySubmissions=await (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env,{limit:10}).catch(e=>({error:e?.message}))
+      const applications=await ops.runBrowserApplicationQueue(env,{limit:10}).catch(e=>({enabled:true,error:e?.message}))
+      return json({sessions,direct,opportunitySubmissions,applications})
     }
     if (url.pathname === '/browser/connect' && request.method === 'GET') {
       // Flujo canónico ÚNICO de conexión: sesiones en la nube (Browser Run + KV cifrado). Nunca perfiles locales del PC.
