@@ -219,7 +219,7 @@ export async function runOutreach(env, now = Date.now()) {
   // Mercados excluidos del correo en frío por ley (España: la LSSI exige consentimiento previo).
   for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
   const eligible = r => (testTo || r.kind === 'inbound' || !blockedRegions.has(regionOf(r))) && (testTo || r.kind === 'inbound' || inBusinessHours(regionOf(r), now))
-  const row = rows.find(r => (count?.n || 0) < cap && /^senal-/.test(r.segment || '') && eligible(r)) || (partnersToday < 10 ? rows.find(r => r.kind === 'partner' && eligible(r)) : null) || rows.find(eligible)
+  const row = rows.find(r => (count?.n || 0) < cap && /^senal-/.test(r.segment || '') && eligible(r)) || (partnersToday < 10 ? (rows.find(r => r.kind === 'partner' && ['aliados-chile','aliados-texas'].includes(r.segment) && eligible(r)) || rows.find(r => r.kind === 'partner' && eligible(r))) : null) || rows.find(eligible)
   if (!row) return followed?.sent ? { followup: true, stage: followed.stage } : { reason: rows.length ? 'outside_business_hours' : 'empty_queue' }
   if (row?.kind === 'partner' && partnersToday >= 10) return { reason: 'daily_cap', channel: 'partner', cap: 10, sent: partnersToday }
   if (row && row.kind !== 'partner' && row.kind !== 'inbound' && (count?.n || 0) >= cap) return { reason: 'daily_cap', channel: 'outbound', cap, newProposals: count?.n || 0, followups: followups?.n || 0 }
