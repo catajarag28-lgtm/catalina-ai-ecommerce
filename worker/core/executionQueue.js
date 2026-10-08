@@ -20,6 +20,7 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
       CASE WHEN d.provider_id IS NOT NULL AND d.provider_id<>'' AND d.status IN ('sent','external_email_sent','replied','delivered') THEN 'SUBMITTED_CONFIRMED'
            WHEN d.status IN ('bounced','failed','suppressed','complained') THEN 'DELIVERY_FAILED'
            WHEN d.status IN ('sending','direct_email_failed') THEN 'SUBMISSION_ATTEMPTED'
+           WHEN d.status='submit_clicked_unconfirmed' THEN 'SUBMIT_CLICKED_UNCONFIRMED'
            WHEN d.status LIKE 'waiting_human%' OR i.status LIKE 'waiting_human%' THEN 'HUMAN_ACTION_REQUIRED'
            ELSE 'APPLICATION_PREPARED' END,
       d.blocker,d.provider_id,i.found_at,d.last_attempt_at,d.sent_at,?

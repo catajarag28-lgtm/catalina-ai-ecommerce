@@ -37,6 +37,7 @@
     "CATALINA_EMAIL": "catalinajaramillogirldo28@gmail.com",
     "CATALINA_WHATSAPP": "+17869299442",
     "AUTO_SUBMIT": "on",
+    "AUTO_SUBMIT_AUTHORIZED": "true",
     "OPPORTUNITY_FORM_DAILY_LIMIT": "",
     "OUTREACH_MIN_DAILY_CAP": "10",
     "WHATSAPP_DAILY_PREP": "15",

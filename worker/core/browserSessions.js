@@ -811,7 +811,7 @@ async function linkedinEasyApply(env,row){
           await notifyCatalina(env,'✅ Carolina postuló en LinkedIn',`${row.who||row.need||'Oportunidad'}\n\n${row.url}\n\nEvidencia: ${providerId}`).catch(()=>{})
           return {status:'submitted',providerId,url:page.url(),language:lang}
         }
-        return {status:'waiting_human_form',action:'submission_confirmation_missing',url:page.url(),language:lang}
+        return {status:'submit_clicked_unconfirmed',action:'submit_clicked_unconfirmed',url:page.url(),language:lang}
       }
       let next=scope.getByRole('button',{name:/next|review|continuar|siguiente|revisar/i}).last()
       if(!(await next.count()))return {status:'waiting_human_form',action:'next_button_not_found',url:page.url(),language:lang}
@@ -1043,7 +1043,7 @@ async function submitGenericApplicationForm(env,row){
         const after=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(-18000)
         if(successRe.test(after))return await markGenericSubmitted(env,row,context,page,target)
         await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:'submission_confirmation_missing'})
-        return {status:'waiting_human_form',action:'submission_confirmation_missing',url:page.url(),target}
+        return {status:'submit_clicked_unconfirmed',action:'submit_clicked_unconfirmed',url:page.url(),target}
       }
 
       let next=scope.getByRole('button',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
@@ -1134,7 +1134,7 @@ async function submitMarketplaceApplication(env,row,platform){
         await page.waitForTimeout(1800)
         const after=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(-16000)
         if(successRe.test(after))return await markBrowserSubmitted(env,row,platform,context,page,`browser_${platform}`)
-        return {status:'waiting_human_form',action:'submission_confirmation_missing',url:page.url()}
+        return {status:'submit_clicked_unconfirmed',action:'submit_clicked_unconfirmed',url:page.url()}
       }
 
       let next=scope.getByRole('button',{name:/next|continue|review|siguiente|continuar|revisar/i}).last()
@@ -1154,7 +1154,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
   if(env.BROWSER_AUTOMATION_ENABLED!=='true'||!env.BROWSER)return {enabled:false}
   const rows=(await env.DB.prepare(`SELECT i.url,i.platform,i.who,i.need,i.fit,i.reply,i.language,i.application_route,i.status,d.blocker,d.route AS resolved_route
     FROM intent_leads i LEFT JOIN direct_applications d ON d.source_url=i.url
-    WHERE i.fit IN ('alto','medio') AND i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review')
+    WHERE i.fit IN ('alto','medio') AND i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review','submit_clicked_unconfirmed')
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
     ORDER BY
       CASE WHEN i.status='waiting_human_form' OR coalesce(d.route,'')='official_form' THEN 0 ELSE 1 END,
