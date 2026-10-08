@@ -203,7 +203,9 @@ async function attachResume(page, lang='en'){
 }
 async function fillKnownIdentity(page){
   const email=process.env.CAROLINA_APPLICANT_EMAIL || 'catalinajaramillogirldo28@gmail.com';
-  const inputs=page.locator('input[type=text],input[type=email]');
+  const phone=process.env.CATALINA_WHATSAPP || '';
+  const address=process.env.SENDER_POSTAL_ADDRESS || '';
+  const inputs=page.locator('input[type=text],input[type=email],input[type=tel]');
   let filled=0;
   for(let i=0;i<Math.min(await inputs.count(),30);i++){
     const el=inputs.nth(i);
@@ -217,6 +219,8 @@ async function fillKnownIdentity(page){
     else if(/^(first[_-]?name|cFirstName)$/i.test(name)) value='Catalina';
     else if(/^(last[_-]?name|cLastName)$/i.test(name)) value='Jaramillo';
     else if(type==='email' || /^(cEmail|applicant[_-]?email)$/i.test(name)) value=email;
+    else if(type==='tel' || /phone|mobile|whatsapp|tel[eé]fono|celular/i.test(name+' '+placeholder)) value=phone;
+    else if(/address|direcci[oó]n|street|postal/i.test(name+' '+placeholder)) value=address;
     if(value){ await el.fill(value).catch(()=>{}); filled++; }
   }
   return filled;
