@@ -1,4 +1,4 @@
-// Ejecuta postulaciones directas a oportunidades públicas con una vía explícita de aplicación.
+﻿// Ejecuta postulaciones directas a oportunidades públicas con una vía explícita de aplicación.
 // No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
 // explícitamente que acepta aplicaciones por email y la dirección queda verificada.
 import { notifyCatalina } from '../core/notify.js'
@@ -13,6 +13,7 @@ const SITE='https://soycatalinajaramillo.com'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app/'
 const CV_ES='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
 const CV_EN='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf'
+const WORK_PREFERENCES = '100% remoto; disponibilidad full-time; expectativa full-time internacional USD 3000-4500/mes; referencia freelance USD 40/h; España EUR 2500-3500/mes o EUR 35-50/h; Chile CLP 2200000-3500000/mes o USD 30-45/h; Texas USD 3000-4500/mes o USD 40-65/h. Son expectativas, nunca salario actual.'
 const safe=v=>String(v??'').trim()
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
 
@@ -149,7 +150,7 @@ async function writeApplication(env,row,route){
       messages:[
         {role:'system',content:`${acquisitionConstitution}\n\n${acquisitionStrategy ? 'ESTRATEGIA ACTUAL DEL DIRECTOR DE ADQUISICIÓN:\n'+acquisitionStrategy+'\n\n' : ''}Escribes candidaturas en nombre de Catalina Jaramillo para oportunidades REALES. Tu trabajo no es sonar impresionante: es hacer que el receptor piense "esta persona entiende mi problema, ya ha construido sistemas cercanos y quiero hablar con ella".
 
-APRENDIZAJE REAL DE POSTULACIONES:
+${WORK_PREFERENCES}\n\nAPRENDIZAJE REAL DE POSTULACIONES:
 - Postulaciones enviadas registradas: ${learning.sent}
 - Respuestas registradas: ${learning.replied}
 - Tasa de respuesta observada: ${(learning.replyRate*100).toFixed(1)}%
@@ -203,7 +204,7 @@ Si una de esas herramientas aparece en la vacante, habla de cómo abordarías la
 FILTRO DE FIT:
 Antes de escribir, decide si Catalina tiene una posibilidad razonable de competir.
 - Si el requisito central es experiencia profunda demostrable en una tecnología no verificada y no es transferible, send=false.
-- Si falta un dato obligatorio imposible de responder honestamente (salario exacto, disponibilidad obligatoria, permiso legal, etc.), send=false y explica missingRequired.
+- Si falta un dato obligatorio imposible de responder honestamente (salario actual, permiso legal, teléfono, dirección o respuesta personal), send=false y explica missingRequired. La expectativa salarial se responde con la banda autorizada.
 - Si el requisito puede aprenderse/implementarse desde APIs, workflows o arquitectura y NO exige experiencia previa demostrable, sí puede competir con transparencia.
 
 MARCO FIJO DE CONVERSIÓN - PERSONALIZA SIEMPRE:
@@ -242,7 +243,7 @@ Específico al problema/proyecto, no genérico "Application". Si la publicación
 LONGITUD:
 - Email directo: 120-220 palabras; si el anuncio exige respuestas detalladas, puede ser más largo solo para cubrir lo obligatorio.
 - Si la oportunidad pide CV/portfolio, menciona portfolio y perfil visual si la URL está configurada; nunca digas "adjunto" si no hay archivo realmente adjunto.
-- Si pide rate y no existe rate obligatorio definido, di que prefieres cotizar por alcance tras ver el workflow o paid test; no inventes una tarifa.
+- Si pide rate, usa USD 40/h o la banda regional autorizada; si permite propuesta por alcance, cotiza después de revisar el workflow.
 - WhatsApp solo si la publicación lo pide explícitamente; no conviertas el email en un mensaje de WhatsApp.
 
 Devuelve SOLO JSON:

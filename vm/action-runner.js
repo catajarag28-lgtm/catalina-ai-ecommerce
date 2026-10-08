@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+﻿import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -221,7 +221,30 @@ async function fillKnownIdentity(page){
   }
   return filled;
 }
-async function requiredUnknown(page){
+async function fillKnownPreferences(page){
+  const body=String(await page.locator('body').innerText().catch(()=>''));
+  const spanish=/españa|spain|euro|eur/i.test(body), chile=/chile|clp|santiago/i.test(body), texas=/texas|united states|usa|usd|hourly/i.test(body);
+  const monthly=spanish?'3500':chile?'3000000':'3500';
+  const annual=spanish?'42000':chile?'36000000':'42000';
+  const hourly=texas?'40':'40';
+  let filled=0;
+  const fields=page.locator('input[type=text],input[type=number],input[type=tel],select');
+  for(let i=0;i<Math.min(await fields.count(),40);i++){
+    const el=fields.nth(i); if(!(await el.isVisible().catch(()=>false))||await el.isDisabled().catch(()=>true)) continue;
+    const value=String(await el.inputValue().catch(()=>'')); if(value.trim()) continue;
+    const meta=String(await el.getAttribute('name').catch(()=>'')||'')+' '+String(await el.getAttribute('id').catch(()=> '')||'')+' '+String(await el.getAttribute('placeholder').catch(()=> '')||'');
+    const parent=String(await el.evaluate(e=>(e.labels?.[0]?.innerText||e.closest('fieldset')?.innerText||e.parentElement?.innerText||'').slice(0,240)).catch(()=>''));
+    const label=(meta+' '+parent).toLowerCase();
+    if(/current|previous|actual salary|salario actual|last drawn/.test(label)) continue;
+    if(/hourly|per hour|por hora|rate|tarifa/.test(label)){ await el.fill(hourly).catch(()=>{}); filled++; continue; }
+    if(/annual|yearly|per year|anual|por año/.test(label)){ await el.fill(annual).catch(()=>{}); filled++; continue; }
+    if(/salary|compensation|sueldo|salario|monthly|mensual/.test(label)){ await el.fill(monthly).catch(()=>{}); filled++; continue; }
+    if(/availability|full.?time|dedication|disponibilidad|jornada/.test(label) && await el.evaluate(e=>e.tagName==='SELECT').catch(()=>false)){
+      const opts=await el.locator('option').allTextContents().catch(()=>[]); const idx=opts.findIndex(x=>/full.?time|tiempo completo|full time/i.test(x)); if(idx>=0){await el.selectOption({label:opts[idx]}).catch(()=>{});filled++;}
+    }
+  }
+  return filled;
+}async function requiredUnknown(page){
   return page.locator('input,textarea,select').evaluateAll(els => els.filter(el=>{
     const visible=!!(el.offsetWidth||el.offsetHeight||el.getClientRects().length);
     if(!visible || el.disabled || !el.required) return false;
@@ -263,6 +286,7 @@ async function actOn(page,item){
     if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
     result.proposalFields=(result.proposalFields||0)+await fillProposal(page,proposal);
     result.identityFields=(result.identityFields||0)+await fillKnownIdentity(page);
+    result.preferenceFields=(result.preferenceFields||0)+await fillKnownPreferences(page);
     result.filesAttached=(result.filesAttached||0)+await attachResume(page,/españ|colombia|latam|méxico|automatiz/i.test(s.all)?'es':'en');
     await page.waitForTimeout(500);
     const unknown=await requiredUnknown(page);
