@@ -658,7 +658,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('discovery', () => discoverProspects(env))
     const lowYield = env.LOW_YIELD_CHANNELS === 'on'
     const intentSlot = new Date().getUTCHours() % 2 === 0 && new Date().getUTCMinutes() < 15
-    if (lowYield && plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
+    if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
     await step('outreach', async () => (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }))
     // Canal WhatsApp: propuestas para empresas que solo publican WhatsApp + lista diaria para Catalina.
@@ -671,7 +671,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     // Barrido dedicado de mercados de alto poder de compra. Una vez por ventana de 2h por el markKey.
     if (lowYield) await step('marketIntent', () => runIntentScan(env,Date.now(),{suffix:'markets',searches:2,offset:1,highValueOnly:true}))
     if (lowYield && plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
-    if (lowYield && plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
+    if (plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     // Primero ingiere bolsas de empleo públicas para que las vacantes nuevas puedan postularse en ESTE mismo ciclo.
     await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
     await step('newOpportunityExecution', () => runExecutionBacklog(env,{quick:false}))

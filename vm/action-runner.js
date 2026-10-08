@@ -25,7 +25,7 @@ const CV_ES = '/public/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf';
 
 fs.mkdirSync(DATA, { recursive: true });
 
-const BLOCKER_RX = /(captcha|recaptcha|verify you are human|verification required|two[- ]factor|2fa|mfa|security check|just a moment|cloudflare|buy (?:more )?credits|proposal credits|connects required|purchase connects|upgrade (?:your )?plan|membership required|checkout|payment required|credit card required)/i;
+const BLOCKER_RX = /(captcha|recaptcha|verify you are human|verification required|two[- ]factor|2fa|mfa|security check|just a moment|cloudflare|buy (?:more )?credits|proposal credits|connects required|purchase connects|upgrade (?:your )?plan|membership required|payment required|credit card required)/i;
 const LOGIN_RX = /(sign in|log in|login|iniciar sesi[oó]n|ingresar)/i;
 const FALSE_TITLE_RX = /(^|\b)(for hire|available for hire|open to work|seeking work|probar premium|premium por|find jobs|saved jobs|posted jobs|portfolio projects|automation$|available for projects|hire me)(\b|$)/i;
 const FALSE_URL_RX = /\/premium\/|\/tag\/|\/tags\/|\/pricing\/|\/products\/|\/search(?:[/?]|$)/i;
@@ -281,6 +281,8 @@ async function actOn(page,item){
   }
   result.status='WAITING_HUMAN_MULTISTEP';
   result.reason='application exceeded safe automatic step limit';
+  result.currentUrl=page.url();
+  result.visibleActions=(await visibleButtons(page)).slice(0,12).map(x=>x.text);
   return result;
 }
 async function main(){
