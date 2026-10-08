@@ -631,9 +631,9 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     // Ciclo adicional solo de envío (minutos 7 y 37) para alcanzar el cupo diario sin sobrecargar el ciclo completo.
     if (event?.cron === '7,37 * * * *') {
       const quick = { at: new Date().toISOString(), kind: 'send-only' }
+      try { quick.outreach = await (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }) } catch (e) { quick.outreach = { error: e?.message } }
       try { quick.execution = await runExecutionBacklog(env,{quick:true}) } catch (e) { quick.execution = { error: e?.message } }
       try { quick.hot = await runHotFollowup(env) } catch (e) { quick.hot = { error: e?.message } }
-      try { quick.outreach = await (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }) } catch (e) { quick.outreach = { error: e?.message } }
       console.log('carolina_cycle', JSON.stringify(quick))
       await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('last_send_cycle',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(quick).slice(0, 2000), Date.now()).run().catch(() => {})
       return
@@ -653,6 +653,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('contactList', () => sendDailyContactList(env))
     await step('hot', () => runHotFollowup(env))
     const plan = cycle.revenuePlan || {}
+    await step('outreach', async () => (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }))
     await step('executionBacklog', () => runExecutionBacklog(env,{quick:true}))
     // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
     await step('discovery', () => discoverProspects(env))
@@ -660,7 +661,6 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     const intentSlot = new Date().getUTCHours() % 2 === 0 && new Date().getUTCMinutes() < 15
     if (plan.boostPartners) await step('partnerDiscovery', () => discoverProspects(env,{kind:'partner'}))
     await step('copyRecovery', () => recoverCopyRejected(env))
-    await step('outreach', async () => (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }))
     // Canal WhatsApp: propuestas para empresas que solo publican WhatsApp + lista diaria para Catalina.
     await step('whatsappProposals', async () => (await import('./proposals/whatsappChannel.js')).runWhatsappProposals(env, { limit: 2 }))
     await step('contactForms', async () => (await import('./proposals/whatsappChannel.js')).runContactForms(env, { limit: 2 }))
