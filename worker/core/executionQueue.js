@@ -57,6 +57,20 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
       provider_id=excluded.provider_id,attempted_at=excluded.attempted_at,
       confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at`).bind(now).run().catch(()=>{})
   await env.DB.prepare(`INSERT INTO execution_queue(source_url,company,opportunity,platform,channel,fit,apply_url,priority,state,blocker,provider_id,found_at,attempted_at,confirmed_at,updated_at)
+    SELECT o.url,o.company,o.title,o.platform,'authenticated_platform',o.grade,coalesce(o.apply_url,o.url),
+      CASE o.grade WHEN 'A' THEN 120 ELSE 80 END,
+      CASE WHEN d.status='sent' AND d.provider_id IS NOT NULL AND d.provider_id<>'' THEN 'SUBMITTED_CONFIRMED'
+           WHEN d.status LIKE 'waiting_human%' THEN 'HUMAN_ACTION_REQUIRED'
+           WHEN d.last_attempt_at IS NOT NULL THEN 'SUBMISSION_ATTEMPTED'
+           ELSE 'APPLICATION_PREPARED' END,
+      d.blocker,d.provider_id,o.created_at,d.last_attempt_at,d.sent_at,?
+    FROM opportunities o JOIN direct_applications d ON d.source_url=o.url
+    WHERE o.grade IN ('A','B') AND d.route LIKE 'vm_browser_%'
+      AND o.action IN ('HUMAN_SUBMIT_REQUIRED','READY_FOR_REVIEW','AUTO_SUBMIT')
+    ON CONFLICT(source_url) DO UPDATE SET state=excluded.state,blocker=excluded.blocker,
+      provider_id=excluded.provider_id,attempted_at=excluded.attempted_at,
+      confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at`).bind(now).run()
+  await env.DB.prepare(`INSERT INTO execution_queue(source_url,company,opportunity,platform,channel,fit,apply_url,priority,state,blocker,provider_id,found_at,attempted_at,confirmed_at,updated_at)
     SELECT 'marketplace:'||id,platform,title,platform,'authenticated_marketplace','A',url,85,
       CASE WHEN status='submitted' AND provider_id IS NOT NULL AND provider_id<>'' THEN 'SUBMITTED_CONFIRMED'
            WHEN status='ready_for_submission' THEN 'APPLICATION_PREPARED'

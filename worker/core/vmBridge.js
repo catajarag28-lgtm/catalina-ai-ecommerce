@@ -93,7 +93,8 @@ export async function recordVmApplicationResult(env, payload, now = Date.now()) 
   const m = mapVmResult(rawStatus)
   const platform = safe(payload?.platform).slice(0,80)
   const reason = safe(payload?.reason || payload?.error || payload?.action).slice(0,700)
-  const detail = JSON.stringify({status:rawStatus,reason,fields:Array.isArray(payload?.fields)?payload.fields.slice(0,5):[],currentUrl:safe(payload?.currentUrl),visibleActions:Array.isArray(payload?.visibleActions)?payload.visibleActions.slice(0,8):[]}).slice(0,700)
+  const fields=Array.isArray(payload?.fields)?payload.fields.slice(0,8).map(f=>({name:safe(f.name).slice(0,80),type:safe(f.type).slice(0,40),label:safe(f.label).slice(0,180)})):[]
+  const detail = JSON.stringify({status:rawStatus,reason,currentUrl:safe(payload?.currentUrl),fields,visibleActions:Array.isArray(payload?.visibleActions)?payload.visibleActions.slice(0,8):[]})
   const nextAttempt = m.terminal || !m.delay ? null : now + m.delay
   const route = ('vm_browser_' + (platform || 'web').toLowerCase().replace(/[^a-z0-9]+/g,'_')).slice(0,120)
   const sentAt = m.application === 'sent' ? now : null
