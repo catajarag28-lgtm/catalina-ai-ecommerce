@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 const DATA = process.env.CAROLINA_DATA || '/data';
 const PROFILE = process.env.CAROLINA_AUTH_PROFILE || '/data/browser-profile';
@@ -35,6 +36,14 @@ const NEXT_RX = /^(next|continue|review|siguiente|continuar|revisar)$/i;
 const FINAL_RX = /(submit application|send application|submit proposal|send proposal|send quote|submit quote|enviar postulaci[oó]n|enviar propuesta|presentar solicitud|submit$|enviar$)/i;
 const CONFIRM_RX = /(application submitted|application sent|proposal sent|quote sent|successfully applied|you applied|already applied|thanks for applying|thank you for applying|postulaci[oó]n enviada|propuesta enviada|solicitud enviada|ya te postulaste|application received)/i;
 
+function attachConfirmation(result,s){
+  const match=s.body.match(CONFIRM_RX);
+  if(!match) return false;
+  result.confirmationText=match[0].slice(0,120);
+  result.confirmationUrl=s.url;
+  result.providerId='vm:visible:'+crypto.createHash('sha256').update([result.url,s.url,match[0],s.body.slice(0,1000)].join('|')).digest('hex').slice(0,32);
+  return true;
+}
 function now(){ return new Date().toISOString(); }
 function append(row){
   const out = { ts: now(), ...row };
@@ -198,7 +207,7 @@ async function requiredUnknown(page){
     const type=(el.type||'').toLowerCase();
     if(['hidden','submit','button','file','checkbox','radio'].includes(type)) return false;
     return !String(el.value||'').trim();
-  }).map(el=>({tag:el.tagName,type:el.type||'',name:el.name||'',placeholder:el.placeholder||'',aria:el.getAttribute('aria-label')||''})).slice(0,12));
+  }).map(el=>({tag:el.tagName,type:el.type||'',name:el.name||'',placeholder:el.placeholder||'',aria:el.getAttribute('aria-label')||'',label:(el.labels?.[0]?.innerText||el.closest('fieldset')?.querySelector('legend')?.innerText||el.closest('[class*=question],[class*=field],[data-test]')?.innerText||'').trim().slice(0,180)})).slice(0,12));
 }
 async function confirm(page){
   await page.waitForTimeout(2500);
@@ -211,7 +220,7 @@ async function actOn(page,item){
   await page.goto(item.url,{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForTimeout(2500);
   let s=await snapshot(page);
-  if(CONFIRM_RX.test(s.all)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation detected'; return result; }
+  if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
   if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
   if(LOGIN_RX.test(s.title+' '+s.url) && /login|signin|auth/i.test(s.url)){ result.status='WAITING_HUMAN_LOGIN'; result.reason='session not accepted'; return result; }
   if(p==='n8n'||p==='make'){
@@ -223,12 +232,12 @@ async function actOn(page,item){
     return result;
   }
   const pre=await clickApplyRoute(page,p);
-  if(!pre){ result.status='WAITING_HUMAN_NO_APPLY_ROUTE'; result.reason='no clear apply/proposal button'; return result; }
+  if(!pre){ result.status='WAITING_HUMAN_NO_APPLY_ROUTE'; result.reason='no clear apply/proposal button'; result.currentUrl=page.url(); result.visibleActions=(await visibleButtons(page)).slice(0,12).map(x=>x.text); return result; }
   result.openedWith=pre;
   await page.waitForTimeout(1800);
   for(let step=0;step<6;step++){
     s=await snapshot(page);
-    if(CONFIRM_RX.test(s.all)){ result.status='SUBMITTED_CONFIRMED'; result.reason='visible confirmation detected'; return result; }
+    if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
     if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
     result.proposalFields=(result.proposalFields||0)+await fillProposal(page,proposal);
     result.filesAttached=(result.filesAttached||0)+await attachResume(page,/españ|colombia|latam|méxico|automatiz/i.test(s.all)?'es':'en');
@@ -238,6 +247,7 @@ async function actOn(page,item){
       result.status='WAITING_HUMAN_FIELDS';
       result.reason='required factual fields need user-specific answers';
       result.fields=unknown;
+      result.currentUrl=page.url();
       return result;
     }
     const buttons=await visibleButtons(page);
@@ -248,7 +258,7 @@ async function actOn(page,item){
       const clicked=await clickByText(page,new RegExp(final.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
       result.clicked=clicked||final.text;
       const c=await confirm(page);
-      if(c){ result.status='SUBMITTED_CONFIRMED'; result.reason='visible confirmation detected after submit'; return result; }
+      if(c && attachConfirmation(result,c)){ result.status='SUBMITTED_CONFIRMED'; result.reason='visible confirmation detected after submit'; return result; }
       result.status='SUBMIT_CLICKED_UNCONFIRMED'; result.reason='final button clicked but no clear confirmation'; return result;
     }
     const next=buttons.find(b=>NEXT_RX.test(b.text));

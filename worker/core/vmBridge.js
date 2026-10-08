@@ -93,6 +93,7 @@ export async function recordVmApplicationResult(env, payload, now = Date.now()) 
   const m = mapVmResult(rawStatus)
   const platform = safe(payload?.platform).slice(0,80)
   const reason = safe(payload?.reason || payload?.error || payload?.action).slice(0,700)
+  const detail = JSON.stringify({status:rawStatus,reason,fields:Array.isArray(payload?.fields)?payload.fields.slice(0,5):[],currentUrl:safe(payload?.currentUrl),visibleActions:Array.isArray(payload?.visibleActions)?payload.visibleActions.slice(0,8):[]}).slice(0,700)
   const nextAttempt = m.terminal || !m.delay ? null : now + m.delay
   const route = ('vm_browser_' + (platform || 'web').toLowerCase().replace(/[^a-z0-9]+/g,'_')).slice(0,120)
   const sentAt = m.application === 'sent' ? now : null
@@ -108,7 +109,7 @@ export async function recordVmApplicationResult(env, payload, now = Date.now()) 
       last_attempt_at=excluded.last_attempt_at,next_attempt_at=excluded.next_attempt_at,
       terminal=excluded.terminal,updated_at=excluded.updated_at,
       sent_at=CASE WHEN excluded.sent_at IS NOT NULL THEN excluded.sent_at ELSE direct_applications.sent_at END`)
-    .bind(url,platform,route,m.application,providerId,reason,rawStatus,now,nextAttempt,m.terminal,now,now,sentAt).run()
+    .bind(url,platform,route,m.application,providerId,reason,detail,now,nextAttempt,m.terminal,now,now,sentAt).run()
 
   await env.DB.prepare('UPDATE opportunities SET status=?,updated_at=? WHERE url=?').bind(m.opportunity,now,url).run()
   await env.DB.prepare('UPDATE intent_leads SET status=? WHERE url=?').bind(m.intent,url).run().catch(()=>{})

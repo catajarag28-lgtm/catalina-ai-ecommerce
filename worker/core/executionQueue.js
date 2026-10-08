@@ -104,14 +104,15 @@ export async function executionDashboard(env, now=Date.now()) {
     q('SELECT coalesce(SUM(amount_usd),0) n FROM deals WHERE won_at>=?',start),
     q('SELECT coalesce(SUM(cost),0) n FROM ai_calls WHERE at>=?',start)
   ])
-  const actions=(await env.DB.prepare('SELECT source_url,company,opportunity,platform,channel,state,blocker,provider_id,updated_at,apply_url FROM execution_queue ORDER BY updated_at DESC LIMIT 20').all()).results||[]
+  const rawActions=(await env.DB.prepare('SELECT source_url,company,opportunity,platform,channel,state,blocker,provider_id,updated_at,apply_url FROM execution_queue ORDER BY updated_at DESC LIMIT 20').all()).results||[]
+  const actions=rawActions.map(x=>{try{const d=JSON.parse(x.blocker||'');if(!d||typeof d!=='object')return x;const fields=(d.fields||[]).map(f=>f.label||f.aria||f.placeholder||f.name).filter(Boolean);return {...x,blocker:[d.reason,...fields].filter(Boolean).join(' · ').slice(0,450),apply_url:/^https:\/\//.test(d.currentUrl||'')?d.currentUrl:x.apply_url}}catch{return x}})
   const human=actions.filter(x=>x.state==='HUMAN_ACTION_REQUIRED').slice(0,5)
   const blocked={captcha:0,login:0,personalQuestion:0,payment:0,unsupported:0}
   for(const x of (await env.DB.prepare("SELECT blocker FROM execution_queue WHERE state='HUMAN_ACTION_REQUIRED'").all()).results||[]){
     const b=safe(x.blocker).toLowerCase()
     if(/captcha|hcaptcha|recaptcha/.test(b))blocked.captcha++
     else if(/session|login|auth|mfa/.test(b))blocked.login++
-    else if(/question|pregunta|salary|phone/.test(b))blocked.personalQuestion++
+    else if(/question|pregunta|salary|phone|fields|custom_question/.test(b))blocked.personalQuestion++
     else if(/payment|connects|credit/.test(b))blocked.payment++
     else blocked.unsupported++
   }
