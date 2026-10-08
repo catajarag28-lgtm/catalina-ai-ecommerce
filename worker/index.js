@@ -428,7 +428,7 @@ export default {
     if (url.pathname === '/ops/vm-run-opportunities' && request.method === 'POST') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
       const body = safeJson(await request.text())
-      return json(await (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: Math.min(5, Number(body.limit || 1)), force: body.force === true }))
+      return json(await (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: Math.min(500, Number(body.limit || 500)), force: body.force === true }))
     }
     // Oportunidades descubiertas por el runner de la VM → cola inteligente (score, brief, propuesta única).
     if (url.pathname === '/ops/vm-opportunities' && request.method === 'POST') {

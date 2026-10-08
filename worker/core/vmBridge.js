@@ -45,7 +45,7 @@ const parse = s => { try { return JSON.parse(s || '{}') } catch { return {} } }
 
 /** Única cola que puede consumir el navegador de la VM. Solo A/B + quality=passed + propuesta real. */
 export async function vmApplicationQueue(env, { limit = 50 } = {}) {
-  const max = Math.max(1, Math.min(50, Number(limit) || 50))
+  const max = Math.max(1, Math.min(500, Number(limit) || 500))
   const rows = (await env.DB.prepare(`SELECT
       o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.quality,o.action,o.updated_at,
       d.status AS application_status,d.terminal,d.next_attempt_at
