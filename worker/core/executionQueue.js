@@ -25,6 +25,8 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
       d.blocker,d.provider_id,i.found_at,d.last_attempt_at,d.sent_at,?
     FROM intent_leads i LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit IN ('alto','medio') AND coalesce(i.active_now,1)=1
+      AND coalesce(i.status,'') NOT LIKE 'filtered:%'
+      AND coalesce(i.status,'') NOT IN ('not_hiring','rejected_low_fit')
       AND (coalesce(i.explicit_demand,0)=1 OR i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','direct_application_pending','needs_application_review'))
     ON CONFLICT(source_url) DO UPDATE SET company=excluded.company,opportunity=excluded.opportunity,
       platform=excluded.platform,channel=excluded.channel,fit=excluded.fit,apply_url=excluded.apply_url,
@@ -68,6 +70,11 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
     ON CONFLICT(source_url) DO UPDATE SET state=excluded.state,blocker=excluded.blocker,
       provider_id=excluded.provider_id,attempted_at=excluded.attempted_at,
       confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at`).bind(now).run().catch(()=>{})
+  await env.DB.prepare(`DELETE FROM execution_queue
+    WHERE state='APPLICATION_PREPARED' AND source_url IN (
+      SELECT url FROM intent_leads WHERE status LIKE 'filtered:%'
+        OR status IN ('not_hiring','rejected_low_fit')
+    )`).run()
   return env.DB.prepare(`SELECT state,COUNT(*) n FROM execution_queue GROUP BY state`).all()
 }
 
