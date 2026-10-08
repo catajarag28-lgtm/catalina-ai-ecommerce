@@ -196,9 +196,8 @@ export async function runOutreach(env, now = Date.now()) {
   await env.DB.prepare("UPDATE outreach SET status='pending',error=NULL,updated_at=? WHERE status='review' AND sent_at IS NULL AND provider_id IS NULL AND error LIKE 'copy_rejected:%110 palabras%'").bind(Date.now()).run().catch(()=>{})
   const cap = await currentDailyCap(env)
   // Las muestras internas (id test-*) no consumen el cupo diario de prospectos.
-  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND sent_at>?").bind(now - 86400000).first()
+  const count = await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE id NOT LIKE 'test-%' AND kind!='partner' AND sent_at>?").bind(now - 86400000).first()
   const followups = await env.DB.prepare("SELECT COUNT(*) n FROM outreach_events WHERE type IN ('followup.sent','hot.followup') AND occurred_at>?").bind(now - 86400000).first()
-  if ((count?.n || 0) >= cap) return { reason: 'daily_cap', cap, newProposals: count?.n || 0, followups: followups?.n || 0 }
   // Los seguimientos NO consumen el objetivo de 30 propuestas nuevas. Pueden salir en el mismo ciclo.
   const followed = await runFollowup(env, now).catch(e => ({ sent: false, reason: e.message }))
   const testTo = (env.OUTREACH_TEST_TO || '').toLowerCase()
@@ -221,6 +220,8 @@ export async function runOutreach(env, now = Date.now()) {
   for (const r of rows.filter(r => r.kind !== 'inbound' && blockedRegions.has(regionOf(r)))) await env.DB.prepare("UPDATE outreach SET status='skipped',error='región excluida por ley',updated_at=? WHERE id=? AND status='pending'").bind(Date.now(), r.id).run()
   const row = rows.find(r => (testTo || r.kind === 'inbound' || !blockedRegions.has(regionOf(r))) && (testTo || r.kind === 'inbound' || inBusinessHours(regionOf(r), now)))
   if (!row) return followed?.sent ? { followup: true, stage: followed.stage } : { reason: rows.length ? 'outside_business_hours' : 'empty_queue' }
+  if (row?.kind === 'partner' && partnersToday >= 10) return { reason: 'daily_cap', channel: 'partner', cap: 10, sent: partnersToday }
+  if (row && row.kind !== 'partner' && row.kind !== 'inbound' && (count?.n || 0) >= cap) return { reason: 'daily_cap', channel: 'outbound', cap, newProposals: count?.n || 0, followups: followups?.n || 0 }
   if (row.kind !== 'inbound' && !env.SENDER_POSTAL_ADDRESS && !testTo) return { reason: 'postal_address_missing' }
   // Sin eventos firmados de Resend no se detectarían quejas ni rebotes a tiempo: no se escribe a prospectos nuevos.
   if (row.kind !== 'inbound' && !testTo && !(await webhookSecret(env))) return { reason: 'metrics_missing' }
