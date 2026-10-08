@@ -16,13 +16,13 @@ export const excludedHosts = /(^|\.)(google|facebook|instagram|linkedin|youtube|
 const normalize = value => String(value || '').trim().toLowerCase()
 const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '').toLowerCase() } catch { return '' } }
 
-// Prioridad: hispanos en EE. UU. (Miami primero), Puerto Rico y Panamá (USD), México con ticket alto.
+// Prioridad actual: Chile y negocios hispanohablantes de Texas; España por demanda explícita.
 // España queda fuera del correo en frío: la LSSI exige consentimiento previo incluso entre empresas.
 // Colombia solo en segmento premium con clientela internacional.
 export const segments = [
-  { id: 'cl-ecommerce', weight: 0, region: 'Chile', sector: 'ecommerce', q: 'marca chilena con tienda online propia (Shopify, WooCommerce o Jumpseller) de belleza, moda, hogar o bienestar, con despachos a todo Chile y atención por WhatsApp o Instagram' },
-  { id: 'cl-realestate', weight: 0, region: 'Chile', sector: 'inmobiliaria', q: 'corredora de propiedades o inmobiliaria independiente en Santiago, Viña del Mar o Concepción con propiedades publicadas, formulario o WhatsApp y agenda de visitas' },
-  { id: 'cl-servicios', weight: 0, region: 'Chile', sector: 'servicios', q: 'clínica dental, centro estético o estudio de abogados en Santiago de Chile con reservas o consultas en línea y atención por WhatsApp' },
+  { id: 'cl-ecommerce', weight: 6, region: 'Chile', sector: 'ecommerce', q: 'marca chilena con tienda online propia (Shopify, WooCommerce o Jumpseller) de belleza, moda, hogar o bienestar, con despachos a todo Chile y atención por WhatsApp o Instagram' },
+  { id: 'cl-realestate', weight: 4, region: 'Chile', sector: 'inmobiliaria', q: 'corredora de propiedades o inmobiliaria independiente en Santiago, Viña del Mar o Concepción con propiedades publicadas, formulario o WhatsApp y agenda de visitas' },
+  { id: 'cl-servicios', weight: 5, region: 'Chile', sector: 'servicios', q: 'clínica dental, centro estético o estudio de abogados en Santiago de Chile con reservas o consultas en línea y atención por WhatsApp' },
   { id: 'uk-hispano', weight: 0, region: 'Reino Unido', sector: 'servicios', q: 'empresa en Londres o Reino Unido que atiende a clientes hispanohablantes o latinoamericanos (agencia de estudios en el Reino Unido, inmigración, inmobiliaria para inversionistas latinos, clínica o servicios) con web en español' },
   // Señal de intención: empresas que HOY publican vacantes de atención, ventas por chat o recepción.
   // Ya decidieron gastar en ese problema; un agente cuesta menos que una contratación y trabaja 24/7.
@@ -60,6 +60,7 @@ export const segments = [
   { id: 'do-realestate', weight: 3, region: 'Rep. Dominicana', sector: 'inmobiliaria', q: 'inmobiliaria o desarrolladora en Punta Cana o Santo Domingo que vende a compradores extranjeros en dólares, publica propiedades y recibe consultas online' },
   { id: 'cr-services', weight: 0, region: 'Costa Rica', sector: 'spa', q: 'clínica dental o estética en Costa Rica que atiende pacientes de Estados Unidos (turismo médico) con citas en línea' },
   { id: 'cl-uy-clinicas', weight: 0, region: 'Chile', sector: 'spa', q: 'clínica de estética o dermatología con varias sedes en Santiago de Chile o Montevideo con reservas en línea' },
+  { id: 'aliados-chile', kind: 'partner', weight: 5, region: 'Chile', sector: 'agencia', q: 'agencia chilena de Shopify, Meta Ads, CRM o automatización que atiende ecommerce y empresas de servicios en Santiago y podría subcontratar implementación white-label de n8n, WhatsApp e IA' },
   { id: 'aliados-miami-marketing', kind: 'partner', weight: 0, region: 'EE. UU.', sector: 'agencia', q: 'agencia de marketing digital hispana o latina en Miami que atiende pequeños negocios como spas, clínicas, restaurantes o inmobiliarias' },
   { id: 'aliados-web', kind: 'partner', weight: 0, region: 'EE. UU.', sector: 'agencia', q: 'diseñador web o agencia de páginas web latina en Florida o Texas para pequeños negocios hispanos' },
   { id: 'aliados-crm', kind: 'partner', weight: 0, region: 'EE. UU.', sector: 'agencia', q: 'consultor de CRM, GoHighLevel o automatización de marketing que atiende negocios hispanos en Estados Unidos' },
