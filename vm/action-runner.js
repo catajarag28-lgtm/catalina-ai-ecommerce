@@ -146,6 +146,7 @@ async function clickByText(page, rx){
   return '';
 }
 async function clickApplyRoute(page,p){
+  if(p==='linkedin' && !/linkedin[.]com$/i.test(new URL(page.url()).hostname.replace(/^www[.]/,''))) return clickByText(page,PRE_APPLY_RX);
   if(p==='linkedin'){
     const els=page.locator('button, a, input[type=submit], input[type=button]');
     const n=await els.count();
