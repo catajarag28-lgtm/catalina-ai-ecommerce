@@ -55,17 +55,21 @@ export async function channelMetrics(env, days = 30, now = Date.now()) {
     q(env, "SELECT COUNT(*) n FROM opportunities WHERE created_at>=? AND grade IN ('A','B')", since),
     q(env, "SELECT COUNT(*) n FROM opportunities WHERE created_at>=? AND status='prepared'", since),
     q(env, "SELECT COUNT(*) n FROM direct_applications WHERE updated_at>=? AND status='ready_for_submission'", since),
-    q(env, "SELECT COUNT(*) n FROM direct_applications WHERE COALESCE(sent_at,updated_at)>=? AND status IN ('sent','external_email_sent','replied')", since),
+    q(env, "SELECT COUNT(*) n FROM direct_applications WHERE sent_at>=? AND provider_id IS NOT NULL AND status IN ('sent','external_email_sent','delivered','replied','bounced','failed','suppressed','complained')", since),
     q(env, "SELECT COUNT(*) n FROM direct_applications WHERE updated_at>=? AND status='replied'", since),
   ])
-  ch.job_applications = { discovered: n(iDisc) + n(oDisc), qualified: n(iQual) + n(oQual), prepared: n(oPrep) + n(aPrep), submitted: n(aSub), delivered: n(aSub), opened: null, reply: n(aRep), positive_reply: n(aRep), meeting: 0 }
+  const [atsSubmitted,appDelivered] = await Promise.all([
+    q(env, "SELECT COUNT(*) n FROM opportunities WHERE submitted_at>=? AND status='submitted' AND json_extract(evidence,'$.providerId') IS NOT NULL", since),
+    q(env, "SELECT COUNT(DISTINCT source_url) n FROM direct_application_events WHERE type='email.delivered' AND occurred_at>=?", since),
+  ])
+  ch.job_applications = { discovered: n(iDisc) + n(oDisc), qualified: n(iQual) + n(oQual), prepared: n(oPrep) + n(aPrep), submitted: n(aSub)+n(atsSubmitted), delivered: n(appDelivered), opened: null, reply: n(aRep), positive_reply: n(aRep), meeting: 0 }
   const [bDisc, bQual, bPrep, bSub] = await Promise.all([
     q(env, "SELECT COUNT(*) n FROM marketplace_submissions WHERE created_at>=?", since),
     q(env, "SELECT COUNT(*) n FROM marketplace_submissions WHERE created_at>=? AND status NOT IN ('skipped')", since),
     q(env, "SELECT COUNT(*) n FROM marketplace_submissions WHERE created_at>=? AND status='ready_for_submission'", since),
-    q(env, "SELECT COUNT(*) n FROM marketplace_submissions WHERE created_at>=? AND status='submitted'", since),
+    q(env, "SELECT COUNT(*) n FROM marketplace_submissions WHERE created_at>=? AND status='submitted' AND provider_id IS NOT NULL", since),
   ])
-  ch.project_bids = { discovered: n(bDisc), qualified: n(bQual), prepared: n(bPrep), submitted: n(bSub), delivered: n(bSub), opened: null, reply: 0, positive_reply: 0, meeting: 0 }
+  ch.project_bids = { discovered: n(bDisc), qualified: n(bQual), prepared: n(bPrep), submitted: n(bSub), delivered: 0, opened: null, reply: 0, positive_reply: 0, meeting: 0 }
   ch.intent_signals = { discovered: n(iDisc), qualified: n(iQual), prepared: 0, submitted: 0, delivered: 0, opened: null, reply: 0, positive_reply: 0, meeting: 0 }
   ch.warm_network = { discovered: 0, qualified: 0, prepared: 0, submitted: 0, delivered: 0, opened: null, reply: 0, positive_reply: 0, meeting: 0 }
   // Revenue real (deals) y costo de IA atribuido por tarea.
@@ -116,7 +120,14 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   const appTarget = Math.max(1, Math.min(100, Number(env.APPLICATION_SUBMIT_DAILY_TARGET || 50) || 50))
   const apps = rows.find(r => r.channel === 'job_applications')
   // Con auto-submit encendido, Carolina debe mantener una capacidad mínima real de postulaciones.
-  if (autoSubmitAllowed(env)) { if (apps) { apps.actions = Math.max(apps.actions, Math.min(appTarget, dailyActions)); apps.note = `AUTO_SUBMIT on: prioridad hasta ${Math.min(appTarget,dailyActions)} postulaciones/día, sujeto a quality gate y bloqueos reales` } }
+  if (autoSubmitAllowed(env)) { if (apps) {
+    const available=await q(env, "SELECT COUNT(*) n FROM execution_queue WHERE state IN ('APPLICATION_PREPARED','SUBMISSION_ATTEMPTED') AND channel IN ('direct_email','public_ats')")
+    const executable=Math.max(0,n(available))
+    apps.actions=Math.min(Math.max(apps.actions,Math.min(appTarget,dailyActions)),executable)
+    apps.executableCapacity=executable
+    apps.unmetDemand=Math.max(0,appTarget-executable)
+    apps.note=`${executable} rutas ejecutables verificadas; faltan ${apps.unmetDemand} para la meta. Buscar más demanda explícita con canal real.`
+  } }
   else if (apps) { apps.actions = Math.min(apps.actions, 15); apps.note = 'AUTO_SUBMIT off: preparadas para revisión humana' }
 
   // El allocator no puede prometer más trabajo del presupuesto diario: si un mínimo (p. ej. postulaciones)

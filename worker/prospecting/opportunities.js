@@ -63,6 +63,8 @@ export function scoreOpportunity(o) {
   // 4. Idioma (0-10).
   const spanish = /\b(el|la|los|para|con|experiencia|empresa|buscamos)\b/i.test(text) && (text.match(/\b(el|la|los|las|para|con|que)\b/gi) || []).length > 25
   parts.language = spanish ? 10 : SPOKEN_EN.test(text) ? 0 : 6
+  if (/(?:advanced|fluent|native|c1|c2)\s+english(?:\s+(?:is\s+)?required)?|(?:english|ingl[eé]s)\s+(?:required|obligatorio)\s*[:–-]?\s*(?:advanced|fluent|c1|c2)/i.test(text)) rejects.push('inglés avanzado obligatorio no verificado')
+  if (/(?:advanced|expert(?:-level)?)\s+n8n(?:\s+(?:experience|expertise))?|n8n\s+(?:expert|advanced)\s+(?:experience|expertise)/i.test(text) && /required|must have|requisito|obligatorio/i.test(desc)) rejects.push('n8n avanzado obligatorio no verificado')
   if (SPOKEN_EN.test(text) && SPOKEN_CORE.test(text)) rejects.push('inglés hablado crítico (llamadas/presentaciones)')
   else if (!spanish && SPOKEN_EN.test(text)) reasons.push('exige inglés hablado avanzado')
   if (ONSITE.test(title + ' ' + (o.location || '')) || ONSITE.test(desc)) rejects.push('presencial, híbrido o requiere residencia/reubicación')
@@ -208,7 +210,7 @@ export async function ensureTable(env) {
 }
 
 // Ruta según cómo se postula: formulario ATS público (automatizable) o Easy Apply / sin ruta (humano por ahora).
-const ATS_HOST = /(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com|weworkremotely\.com|remoteok\.com|builtin\.com|gofractional\.com|stardex\.com)$/i
+const ATS_HOST = /(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com)$/i
 export const atsApplyUrl = url => { try { const u = new URL(String(url || '')); return u.protocol === 'https:' && ATS_HOST.test(u.hostname) ? u.toString() : null } catch { return null } }
 const actionFor = (o, grade, aligned) => {
   if (grade === 'C' || aligned === false) return 'SKIP_LOW_SCORE'

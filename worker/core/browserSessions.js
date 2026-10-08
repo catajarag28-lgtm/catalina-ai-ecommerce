@@ -485,10 +485,10 @@ function normalizePlatform(v=''){
 }
 async function upsertSubmission(env,row,{platform,status,route='browser',providerId=null,error=null}){
   const now=Date.now()
-  await env.DB.prepare(`INSERT INTO direct_applications(source_url,platform,route,status,subject,body,provider_id,error,sent_at,created_at,updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(source_url) DO UPDATE SET platform=excluded.platform,route=excluded.route,status=excluded.status,subject=excluded.subject,body=excluded.body,provider_id=excluded.provider_id,error=excluded.error,sent_at=excluded.sent_at,updated_at=excluded.updated_at`)
-    .bind(row.url,platform,route,status,String(row.who||row.need||'').slice(0,300),String(row.reply||'').slice(0,8000),providerId,error,status==='sent'?now:null,now,now).run().catch(()=>{})
+  await env.DB.prepare(`INSERT INTO direct_applications(source_url,platform,route,status,subject,body,provider_id,error,blocker,sent_at,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(source_url) DO UPDATE SET platform=excluded.platform,route=excluded.route,status=excluded.status,subject=excluded.subject,body=excluded.body,provider_id=excluded.provider_id,error=excluded.error,blocker=excluded.blocker,sent_at=excluded.sent_at,updated_at=excluded.updated_at`)
+    .bind(row.url,platform,route,status,String(row.who||row.need||'').slice(0,300),String(row.reply||'').slice(0,8000),providerId,error,error,status==='sent'?now:null,now,now).run().catch(()=>{})
 }
 async function submitDiscourse(env,row,platform){
   const p=cfg(platform)
@@ -933,7 +933,7 @@ async function markBrowserSubmitted(env,row,platform,context,page,route){
 }
 
 
-const GENERIC_APPLICATION_HOST_RE=/(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com|weworkremotely\.com|remoteok\.com|builtin\.com|gofractional\.com|stardex\.com)$/i
+const GENERIC_APPLICATION_HOST_RE=/(^|\.)(ashbyhq\.com|lever\.co|greenhouse\.io|workable\.com|smartrecruiters\.com|jobvite\.com)$/i
 
 function genericApplicationTarget(row){
   const route=String(row?.resolved_route||row?.application_route||'').toLowerCase()
@@ -993,8 +993,8 @@ async function submitGenericApplicationForm(env,row){
     const blockedRe=/captcha|verify you are human|security check|unusual activity|sign in to apply|log in to apply|inicia sesi[oó]n para (?:postular|aplicar)|checkout|credit card|payment required|membership required/i
     let body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,18000)
     const captchaNow=await page.locator('iframe[src*="hcaptcha"],iframe[src*="recaptcha"],.h-captcha,.g-recaptcha,[data-sitekey]').count().catch(()=>0)
-    if(captchaNow>0)return {status:'human_required',reason:'captcha_present',url:page.url(),target}
-    if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
+    if(captchaNow>0 && !(await page.locator('form input,form textarea').count()))return {status:'human_required',reason:'CAPTCHA_REQUIRED',url:page.url(),target}
+    if(blockedRe.test(body) && !(await page.locator('form input,form textarea').count()))return {status:'human_required',reason:/captcha|verify you are human|security check|unusual activity/i.test(body)?'CAPTCHA_REQUIRED':'NEEDS_HUMAN_LOGIN',url:page.url(),target}
     if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
 
     // Oportunidades de la cola inteligente ya traen propuesta única aprobada por el quality gate: no se reescribe.
@@ -1018,17 +1018,18 @@ async function submitGenericApplicationForm(env,row){
     for(let step=0;step<7;step++){
       body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,20000)
       const captcha=await page.locator('iframe[src*="hcaptcha"],iframe[src*="recaptcha"],.h-captcha,.g-recaptcha,[data-sitekey]').count().catch(()=>0)
-      if(captcha>0)return {status:'human_required',reason:'captcha_present',url:page.url(),target}
-      if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
+      if(captcha>0 && !(await page.locator('form input,form textarea').count()))return {status:'human_required',reason:'CAPTCHA_REQUIRED',url:page.url(),target}
+      if(blockedRe.test(body) && !(await page.locator('form input,form textarea').count()))return {status:'human_required',reason:/captcha|verify you are human|security check|unusual activity/i.test(body)?'CAPTCHA_REQUIRED':'NEEDS_HUMAN_LOGIN',url:page.url(),target}
       if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
 
       const scope=(await page.locator('[role="dialog"]:visible').count())?page.locator('[role="dialog"]:visible').last():page
       const unknown=await fillKnownApplicationFields(scope,env,row,prepared.language)
       if(unknown.length){
-        await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:JSON.stringify({questions:unknown,target}).slice(0,700)})
+        await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:JSON.stringify({reason:'PERSONAL_QUESTION_REQUIRED',questions:unknown,target}).slice(0,700)})
         return {status:'waiting_human_form',action:'questions_require_human',questions:unknown,url:page.url(),target}
       }
 
+      if(captcha>0){await upsertSubmission(env,row,{platform:String(row.platform||'web').slice(0,80),status:'waiting_human_form',route:'browser_generic_form',error:'CAPTCHA_REQUIRED'});return {status:'human_required',reason:'CAPTCHA_REQUIRED',url:page.url(),target}}
       const submitRe=/submit application|send application|apply now|submit|enviar solicitud|enviar candidatura|enviar postulaci[oó]n|postular(?:me)?/i
       let submit=scope.getByRole('button',{name:submitRe}).last()
       if(!(await submit.count()))submit=scope.locator('button[type="submit"]:visible,input[type="submit"]:visible').last()
@@ -1172,6 +1173,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(genericTarget){
       diagnostics.eligible++
       const result=await submitGenericApplicationForm(env,row)
+      if(result.status!=='submitted')await upsertSubmission(env,row,{platform:row.platform||'web',status:result.status==='human_required'?'waiting_human_form':'waiting_human_form',route:'browser_generic_form',error:result.reason||result.action||result.status})
       results.push({platform:'generic',sourcePlatform:row.platform,url:row.url,...result})
       continue
     }
@@ -1183,7 +1185,8 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(!health||health.state!=='CONNECTED'){
       const reason=health?.state||'MISSING'
       if(reason==='MISSING')diagnostics.missingSession++;else diagnostics.blockedSession++
-      diagnostics.blocked.push({platform,url:row.url,reason})
+      diagnostics.blocked.push({platform,url:row.url,reason:reason==='MISSING'?'NEEDS_SAVED_SESSION':reason})
+      await upsertSubmission(env,row,{platform,status:'waiting_human_login',route:`browser_${platform}`,error:reason==='MISSING'?'NEEDS_SAVED_SESSION':reason})
       continue
     }
     diagnostics.eligible++
@@ -1191,6 +1194,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     if(platform==='n8n'||platform==='make')result=await submitDiscourse(env,row,platform)
     else if(platform==='linkedin')result=await submitLinkedInEasyApply(env,row)
     else result=await submitMarketplaceApplication(env,row,platform)
+    if(result.status!=='submitted')await upsertSubmission(env,row,{platform,status:result.status==='human_required'?'waiting_human_form':result.status==='missing_session'?'waiting_human_login':result.status,route:`browser_${platform}`,error:result.reason||result.action||result.status})
     results.push({platform,url:row.url,...result})
     if(result.status==='expired'||result.status==='human_required'){
       const h=await recordSessionHealth(env,platform,{status:result.status,url:result.url||row.url})

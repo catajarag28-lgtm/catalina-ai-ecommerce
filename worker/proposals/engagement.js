@@ -36,7 +36,27 @@ export async function receiveResendEvent(request, env) {
   try { event=JSON.parse(body) } catch { return new Response('JSON inválido',{status:400}) }
   if (!allowedEvents.has(event.type) || !event.data?.email_id) return new Response('Ignorado',{status:200})
   const row = await env.DB.prepare('SELECT id,email,status FROM outreach WHERE provider_id=?').bind(event.data.email_id).first()
-  if (!row) return new Response('Sin propuesta asociada',{status:200})
+  if (!row) {
+    const application = await env.DB.prepare('SELECT source_url,recipient FROM direct_applications WHERE provider_id=?').bind(event.data.email_id).first().catch(() => null)
+    if (!application) return new Response('Sin envío asociado',{status:200})
+    const stamp = Date.parse(event.created_at)
+    const occurred = Number.isFinite(stamp) ? stamp : Date.now()
+    const id = request.headers.get('svix-id') || `${event.data.email_id}:${event.type}:${occurred}`
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS direct_application_events (
+      event_id TEXT PRIMARY KEY, source_url TEXT NOT NULL, type TEXT NOT NULL, occurred_at INTEGER NOT NULL
+    )`).run()
+    const inserted = await env.DB.prepare('INSERT OR IGNORE INTO direct_application_events(event_id,source_url,type,occurred_at) VALUES (?,?,?,?)')
+      .bind(id,application.source_url,event.type,occurred).run()
+    if (!inserted.meta.changes) return new Response('Duplicado',{status:200})
+    if (['email.bounced','email.complained','email.failed','email.suppressed'].includes(event.type)) {
+      const status=event.type.slice(6)
+      await env.DB.prepare("UPDATE direct_applications SET status=?,blocker=?,updated_at=? WHERE source_url=? AND status NOT IN ('replied','suppressed')")
+        .bind(status,`resend_${status}`,Date.now(),application.source_url).run()
+      if (event.type !== 'email.failed') await env.DB.prepare('INSERT OR REPLACE INTO suppression(email,reason,created_at) VALUES (?,?,?)')
+        .bind(application.recipient.toLowerCase(),status,Date.now()).run()
+    }
+    return new Response('OK',{status:200})
+  }
   const stamp = Date.parse(event.created_at)
   const occurred = Number.isFinite(stamp) ? stamp : Date.now()
   const id = request.headers.get('svix-id')

@@ -21,6 +21,8 @@ import { instagramReady, verifyInstagramChallenge, receiveInstagramWebhook } fro
 import { runAcquisitionDirector } from './core/acquisitionStrategy.js'
 import { buildRevenuePlan, sendManualApplicationQueue, revenueSnapshot } from './core/revenueOS.js'
 import { vmApplicationQueue, recordVmApplicationResult } from './core/vmBridge.js'
+import { runExecutionBacklog, executionDashboard } from './core/executionQueue.js'
+import { renderControlPage } from './core/controlPage.js'
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } })
 const now = () => Date.now()
@@ -239,6 +241,11 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin')
     const url = new URL(request.url)
+    if (url.pathname === '/carolina-control' && request.method === 'GET') return new Response(renderControlPage(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex,nofollow','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"}})
+    if (url.pathname === '/carolina-control/data' && request.method === 'GET') {
+      if (!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401,{'cache-control':'no-store'})
+      return json(await executionDashboard(env),200,{'cache-control':'no-store'})
+    }
     if (url.pathname === '/webhooks/resend' && request.method === 'POST') return receiveResendEvent(request,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'GET') return verifyInstagramChallenge(url,env)
     if (url.pathname === '/webhooks/instagram' && request.method === 'POST') return receiveInstagramWebhook(request,env)
@@ -624,6 +631,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     // Ciclo adicional solo de envío (minutos 7 y 37) para alcanzar el cupo diario sin sobrecargar el ciclo completo.
     if (event?.cron === '7,37 * * * *') {
       const quick = { at: new Date().toISOString(), kind: 'send-only' }
+      try { quick.execution = await runExecutionBacklog(env,{quick:true}) } catch (e) { quick.execution = { error: e?.message } }
       try { quick.hot = await runHotFollowup(env) } catch (e) { quick.hot = { error: e?.message } }
       try { quick.outreach = await (await import('./proposals/outreach.js')).runOutreachBurst(env, { sends: 2, attempts: 6 }) } catch (e) { quick.outreach = { error: e?.message } }
       console.log('carolina_cycle', JSON.stringify(quick))
@@ -645,6 +653,7 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await step('contactList', () => sendDailyContactList(env))
     await step('hot', () => runHotFollowup(env))
     const plan = cycle.revenuePlan || {}
+    await step('executionBacklog', () => runExecutionBacklog(env,{quick:true}))
     // Discovery de outbound y partners están separados: una cola fría llena no bloquea partners.
     await step('discovery', () => discoverProspects(env))
     const lowYield = env.LOW_YIELD_CHANNELS === 'on'
@@ -665,13 +674,13 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (lowYield && plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
     // Primero ingiere bolsas de empleo públicas para que las vacantes nuevas puedan postularse en ESTE mismo ciclo.
     await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
-    await step('applications', () => runDirectApplications(env))
+    await step('newOpportunityExecution', () => runExecutionBacklog(env,{quick:false}))
     // Cola inteligente → formularios ATS (solo A/B con propuesta aprobada; respeta AUTO_SUBMIT y tope diario).
-    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 10 }))
+    // Las nuevas vacantes ya fueron ejecutadas por newOpportunityExecution.
     if (lowYield && plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
-    await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:10}))
+    // La cola de ejecución procesa los formularios y sesiones antes de la siguiente discovery.
     await step('manualQueue', () => sendManualApplicationQueue(env))
     // Lotes de plataformas cada 2 horas (8, 10, 12, 14 y 16 h Colombia), repartidos entre plataformas.
     await step('platformBatch', async () => (await import('./prospecting/platformBatches.js')).sendPlatformBatch(env))
