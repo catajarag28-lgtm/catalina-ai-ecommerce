@@ -907,8 +907,16 @@ async function fillKnownApplicationFields(scope,env,row,language){
     }
   }
 
-  const radios=scope.locator('input[type="radio"]:visible')
-  if((await radios.count())>0&&(await scope.locator('input[type="radio"]:checked').count())===0)unknown.push('required_radio_or_choice')
+  // Solo bloquear por radios realmente obligatorios. Lever/Ashby incluyen encuestas EEO voluntarias;
+  // tratarlas como obligatorias convertía aplicaciones automáticas válidas en "human required".
+  const requiredRadios=scope.locator('input[type="radio"][required]:visible, input[type="radio"][aria-required="true"]:visible')
+  if((await requiredRadios.count())>0){
+    let anyRequiredChecked=false
+    for(let i=0;i<Math.min(20,await requiredRadios.count());i++){
+      if(await requiredRadios.nth(i).isChecked().catch(()=>false)){anyRequiredChecked=true;break}
+    }
+    if(!anyRequiredChecked)unknown.push('required_radio_or_choice')
+  }
   const requiredChecks=scope.locator('input[type="checkbox"][required]:visible, input[type="checkbox"][aria-required="true"]:visible')
   for(let i=0;i<Math.min(10,await requiredChecks.count());i++) if(!(await requiredChecks.nth(i).isChecked().catch(()=>false)))unknown.push('required_checkbox_or_consent')
 
@@ -1131,22 +1139,29 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     FROM intent_leads i LEFT JOIN direct_applications d ON d.source_url=i.url
     WHERE i.fit IN ('alto','medio') AND i.status IN ('application_ready','waiting_human_submit','waiting_human_form','waiting_human_channel','needs_application_review')
       AND coalesce(d.status,'') NOT IN ('sent','external_email_sent','replied','not_hiring')
-    ORDER BY CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END, i.found_at DESC LIMIT 40`).all()).results||[]
+    ORDER BY
+      CASE WHEN i.status='waiting_human_form' OR coalesce(d.route,'')='official_form' THEN 0 ELSE 1 END,
+      CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END,
+      i.found_at DESC LIMIT 60`).all()).results||[]
   const results=[]
   const diagnostics={candidates:rows.length,unsupported:0,missingSession:0,blockedSession:0,blocked:[],eligible:0}
   for(const row of rows){
     if(results.length>=limit)break
-    const platform=normalizePlatform(row.platform)
     // AUTO_SUBMIT=off: ni navegador ni modelo; queda en la cola humana con su propuesta.
     if(!autoSubmitAllowed(env)){diagnostics.autoSubmitOff=(diagnostics.autoSubmitOff||0)+1;continue}
-    if(!platform){
-      const target=genericApplicationTarget(row)
-      if(!target){diagnostics.unsupported++;continue}
+
+    // Si la oportunidad resolvió a un ATS público, úsalo antes de exigir sesión de la fuente original.
+    // Así una vacante encontrada en LinkedIn puede postularse por Lever/Ashby/Greenhouse sin login de LinkedIn.
+    const genericTarget=genericApplicationTarget(row)
+    if(genericTarget){
       diagnostics.eligible++
       const result=await submitGenericApplicationForm(env,row)
       results.push({platform:'generic',sourcePlatform:row.platform,url:row.url,...result})
       continue
     }
+
+    const platform=normalizePlatform(row.platform)
+    if(!platform){diagnostics.unsupported++;continue}
     // Solo plataformas CONNECTED (probe autenticado reciente). Lo demás no gasta navegador ni modelo.
     const health=await readHealth(env,platform)
     if(!health||health.state!=='CONNECTED'){

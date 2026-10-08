@@ -661,15 +661,15 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     if (lowYield) await step('marketIntent', () => runIntentScan(env,Date.now(),{suffix:'markets',searches:2,offset:1,highValueOnly:true}))
     if (lowYield && plan.boostIntent) await step('intentBoost', () => runIntentScan(env,Date.now(),{suffix:'revenue',searches:3,offset:17}))
     if (lowYield && plan.boostPartners) await step('partnerIntent', () => runIntentScan(env,Date.now(),{suffix:'partners',searches:2,offset:3,partnerOnly:true}))
+    // Primero ingiere bolsas de empleo públicas para que las vacantes nuevas puedan postularse en ESTE mismo ciclo.
+    await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
     await step('applications', () => runDirectApplications(env))
     // Cola inteligente → formularios ATS (solo A/B con propuesta aprobada; respeta AUTO_SUBMIT y tope diario).
-    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 4 }))
-    // Bolsas de empleo remoto con API pública (7 a. m. y 1 p. m. Colombia) → embudo de oportunidades.
-    await step('jobFeeds', async () => (await import('./prospecting/jobFeeds.js')).runJobFeeds(env))
+    await step('opportunitySubmissions', async () => (await import('./prospecting/opportunities.js')).runOpportunitySubmissions(env, { limit: 10 }))
     if (lowYield && plan.boostApplications) await step('applicationsBoost', () => runDirectApplications(env))
     await step('marketplaces', () => runMarketplaceAcquisition(env))
     await step('browserSessionHealth', async () => (await browserOps()).runBrowserSessionHealth(env))
-    await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:4}))
+    await step('browserApplications', async () => (await browserOps()).runBrowserApplicationQueue(env,{limit:10}))
     await step('manualQueue', () => sendManualApplicationQueue(env))
     // Lotes de plataformas cada 2 horas (8, 10, 12, 14 y 16 h Colombia), repartidos entre plataformas.
     await step('platformBatch', async () => (await import('./prospecting/platformBatches.js')).sendPlatformBatch(env))

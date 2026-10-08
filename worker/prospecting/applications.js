@@ -11,6 +11,8 @@ import { acquisitionConstitution, acquisitionStrategyContext } from '../core/acq
 
 const SITE='https://soycatalinajaramillo.com'
 const PORTFOLIO='https://portfolio-nine-lovat-18.vercel.app/'
+const CV_ES='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
+const CV_EN='https://soycatalinajaramillo.com/Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf'
 const safe=v=>String(v??'').trim()
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
 
@@ -250,7 +252,9 @@ async function sendApplication(env,row,route,draft,now){
   const from=env.APPLICATION_EMAIL_FROM||env.EMAIL_FROM
   const replyTo=env.APPLICATION_REPLY_TO||'clientes@soycatalinajaramillo.com'
   const profileUrl=draft.language==='en'?safe(env.PROFILE_EN_URL):safe(env.PROFILE_ES_URL)
+  const cvUrl=draft.language==='en'?(safe(env.CV_EN_URL)||CV_EN):(safe(env.CV_ES_URL)||CV_ES)
   const links=[
+    (draft.language==='en'?'Resume: ':'CV: ')+cvUrl,
     'Portfolio: '+PORTFOLIO,
     'Website: '+SITE,
     profileUrl?((draft.language==='en'?'Profile: ':'Perfil: ')+profileUrl):null
@@ -287,6 +291,7 @@ async function sendApplication(env,row,route,draft,now){
     +selectedHtml
     +'<div style="margin:24px 0 0;padding:16px;border-radius:14px;background:#171513;color:white"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#d8c1a4;font-weight:800">'+(draft.language==='en'?'Operator perspective':'Perspectiva de operación')+'</div><div style="font-size:13px;line-height:1.55;margin-top:7px">'+(draft.language==='en'?'I have operated the business side myself: thousands of Shopify orders, customer operations, sales, post-sale and the systems around them. I build automation with adoption and day-to-day reality in mind.':'He operado el negocio del otro lado: miles de pedidos Shopify, atención, ventas, postventa y los sistemas alrededor. Diseño automatización pensando también en adopción y operación diaria.')+'</div></div>'
     +'<div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:9px">'
+    +'<a href="'+cvUrl+'" style="display:inline-block;background:#171513;color:#fff;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:13px;font-weight:800">'+(draft.language==='en'?'View resume':'Ver CV')+'</a>'
     +'<a href="'+PORTFOLIO+'" style="display:inline-block;background:#6b5548;color:#fff;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:13px;font-weight:800">'+(draft.language==='en'?'View portfolio':'Ver portafolio')+'</a>'
     +(profileUrl?'<a href="'+profileUrl+'" style="display:inline-block;background:#f7f2ec;color:#2c241f;text-decoration:none;padding:11px 15px;border-radius:10px;border:1px solid #e2d5c9;font-size:13px;font-weight:800">'+(draft.language==='en'?'Visual profile':'Perfil visual')+'</a>':'')
     +'<a href="'+SITE+'" style="display:inline-block;color:#6b5548;text-decoration:none;padding:11px 4px;font-size:13px;font-weight:800">soycatalinajaramillo.com</a>'
