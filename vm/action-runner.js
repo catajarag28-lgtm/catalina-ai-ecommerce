@@ -242,6 +242,7 @@ async function actOn(page,item){
   await page.waitForTimeout(2500);
   let s=await snapshot(page);
   if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
+  if(item.verifyOnly){ result.status='SUBMIT_CLICKED_UNCONFIRMED'; result.reason='reopened without a visible submission confirmation'; result.currentUrl=page.url(); return result; }
   if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
   if(LOGIN_RX.test(s.title+' '+s.url) && /login|signin|auth/i.test(s.url)){ result.status='WAITING_HUMAN_LOGIN'; result.reason='session not accepted'; return result; }
   if(p==='n8n'||p==='make'){
@@ -325,9 +326,10 @@ async function main(){
     .filter(x=>{
       const prev=recentByUrl.get(x.url);
       if(!prev) return true;
-      if(['SUBMITTED_CONFIRMED','ALREADY_APPLIED_OR_CONFIRMED','SUBMIT_CLICKED_UNCONFIRMED'].includes(prev.status)) return false;
-      if(LOCAL_QUEUE_ONLY) return true;
+      if(['SUBMITTED_CONFIRMED','ALREADY_APPLIED_OR_CONFIRMED'].includes(prev.status)) return false;
       const age=Date.now()-Date.parse(prev.ts||0);
+      if(prev.status==='SUBMIT_CLICKED_UNCONFIRMED') return (LOCAL_QUEUE_ONLY && MODE!=='live') || age>24*3600*1000;
+      if(LOCAL_QUEUE_ONLY) return true;
       return age>24*3600*1000;
     });
   const confirmedByPlatform={};
@@ -338,7 +340,7 @@ async function main(){
     if((confirmedByPlatform[p]||0)>=DAILY_PLATFORM_LIMIT) continue;
     const remainingPlatform=Math.max(0,DAILY_PLATFORM_LIMIT-(confirmedByPlatform[p]||0));
     if((counts[p]||0)>=Math.min(PER_PLATFORM_LIMIT,remainingPlatform)) continue;
-    selected.push(x); counts[p]=(counts[p]||0)+1;
+    selected.push({...x,verifyOnly:recentByUrl.get(x.url)?.status==='SUBMIT_CLICKED_UNCONFIRMED'}); counts[p]=(counts[p]||0)+1;
     if(selected.length>=Math.min(RUN_LIMIT,Math.max(0,DAILY_LIMIT-confirmedToday.length))) break;
   }
   const context=await chromium.launchPersistentContext(PROFILE,{
