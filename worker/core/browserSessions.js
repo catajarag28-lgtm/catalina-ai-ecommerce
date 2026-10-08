@@ -1159,7 +1159,7 @@ export async function runBrowserApplicationQueue(env,{limit=2}={}){
     ORDER BY
       CASE WHEN i.status='waiting_human_form' OR coalesce(d.route,'')='official_form' THEN 0 ELSE 1 END,
       CASE i.fit WHEN 'alto' THEN 0 ELSE 1 END,
-      i.found_at DESC LIMIT 60`).all()).results||[]
+      i.found_at DESC LIMIT 500`).all()).results||[]
   const results=[]
   const diagnostics={candidates:rows.length,unsupported:0,missingSession:0,blockedSession:0,blocked:[],eligible:0}
   for(const row of rows){
