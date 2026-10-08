@@ -117,7 +117,7 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   // 10% de exploración repartida para no abandonar un canal antes de tener datos.
   const explore = Math.round(dailyActions * 0.1)
   for (const r of rows) r.actions = r.blocked ? 0 : Math.max(1, Math.round((dailyActions - explore) * r.evPerAction / total + explore / Math.max(1, open.length)))
-  const appTarget = Infinity
+  const appTarget = 0
   const apps = rows.find(r => r.channel === 'job_applications')
   // Con auto-submit encendido, Carolina debe mantener una capacidad mínima real de postulaciones.
   if (autoSubmitAllowed(env)) { if (apps) {

@@ -282,7 +282,7 @@ const bogotaMidnight = now => Date.parse(new Intl.DateTimeFormat('en-CA', { time
 export async function runOpportunitySubmissions(env, { limit = 2, force = false, now = Date.now() } = {}) {
   await ensureTable(env)
   if (!force && !autoSubmitAllowed(env)) return { skipped: 'AUTO_SUBMIT off' }
-  const cap = Number(env.OPPORTUNITY_FORM_DAILY_LIMIT || 20)
+  const configuredCap=Number(env.OPPORTUNITY_FORM_DAILY_LIMIT); const cap=configuredCap>0?configuredCap:Infinity
   const today = Number((await env.DB.prepare("SELECT COUNT(*) n FROM opportunities WHERE status='submitted' AND submitted_at>=?").bind(bogotaMidnight(now)).first())?.n || 0)
   if (today >= cap) return { skipped: 'daily_cap', today, cap }
   const rows = (await env.DB.prepare("SELECT * FROM opportunities WHERE status='prepared' AND action='SUBMIT_ATS_FORM' AND grade IN ('A','B') AND apply_url IS NOT NULL AND coalesce(attempts,0)<2 AND proposal<>'' ORDER BY score DESC LIMIT ?").bind(Math.min(limit, cap - today)).all()).results || []
