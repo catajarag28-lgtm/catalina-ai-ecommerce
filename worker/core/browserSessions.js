@@ -968,6 +968,15 @@ async function submitGenericApplicationForm(env,row){
     const page=await context.newPage()
     await page.goto(target,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
     await page.waitForTimeout(1200)
+    // Lever acepta /apply como ruta directa del formulario. Evita depender del botón visual del posting.
+    try {
+      const u=new URL(page.url())
+      if(/(^|\.)jobs\.lever\.co$/i.test(u.hostname) && !/\/apply\/?$/i.test(u.pathname)) {
+        const direct=u.origin+u.pathname.replace(/\/$/,'')+'/apply'
+        await page.goto(direct,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{})
+        await page.waitForTimeout(1400)
+      }
+    } catch {}
     // Workable separa overview y formulario en /apply/. Ir directo evita que el click visual falle silenciosamente.
     try {
       const u=new URL(page.url())
@@ -977,10 +986,14 @@ async function submitGenericApplicationForm(env,row){
         if(href){ await page.goto(new URL(href,page.url()).toString(),{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{}); await page.waitForTimeout(1200) }
       }
     } catch {}
+    // ATS SPA (Ashby/Greenhouse/Lever) pueden pintar el formulario después de DOMContentLoaded.
+    await page.waitForSelector('form, input, textarea, button',{timeout:5000}).catch(()=>{})
 
     const successRe=/application (?:was )?(?:submitted|received|sent)|successfully applied|thank you for applying|thanks for applying|we(?:'ve| have) received your application|solicitud enviada|candidatura enviada|postulaci[oó]n enviada|hemos recibido tu (?:solicitud|candidatura)/i
     const blockedRe=/captcha|verify you are human|security check|unusual activity|sign in to apply|log in to apply|inicia sesi[oó]n para (?:postular|aplicar)|checkout|credit card|payment required|membership required/i
     let body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,18000)
+    const captchaNow=await page.locator('iframe[src*="hcaptcha"],iframe[src*="recaptcha"],.h-captcha,.g-recaptcha,[data-sitekey]').count().catch(()=>0)
+    if(captchaNow>0)return {status:'human_required',reason:'captcha_present',url:page.url(),target}
     if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
     if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
 
@@ -1004,6 +1017,8 @@ async function submitGenericApplicationForm(env,row){
 
     for(let step=0;step<7;step++){
       body=(await page.locator('body').innerText({timeout:5000}).catch(()=>'' )).slice(0,20000)
+      const captcha=await page.locator('iframe[src*="hcaptcha"],iframe[src*="recaptcha"],.h-captcha,.g-recaptcha,[data-sitekey]').count().catch(()=>0)
+      if(captcha>0)return {status:'human_required',reason:'captcha_present',url:page.url(),target}
       if(blockedRe.test(body))return {status:/captcha|verify you are human|security check|unusual activity/i.test(body)?'human_required':'waiting_human_form',reason:'blocked_or_login_required',url:page.url(),target}
       if(successRe.test(body))return await markGenericSubmitted(env,row,context,page,target)
 
@@ -1017,6 +1032,7 @@ async function submitGenericApplicationForm(env,row){
       const submitRe=/submit application|send application|apply now|submit|enviar solicitud|enviar candidatura|enviar postulaci[oó]n|postular(?:me)?/i
       let submit=scope.getByRole('button',{name:submitRe}).last()
       if(!(await submit.count()))submit=scope.locator('button[type="submit"]:visible,input[type="submit"]:visible').last()
+      if(!(await submit.count()))submit=scope.locator('#btn-submit:visible,[data-qa="btn-submit"]:visible,.template-btn-submit:visible').last()
       if(await submit.count()){
         let label=String(await submit.innerText().catch(()=>'' )).trim()
         if(!label) label=String(await submit.getAttribute('value').catch(()=>'' )).trim()
