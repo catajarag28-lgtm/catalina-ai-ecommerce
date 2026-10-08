@@ -77,7 +77,7 @@ export async function runExecutionBacklog(env,{quick=false}={}) {
   const opportunities=await import('../prospecting/opportunities.js')
   const browser=await import('./browserSessions.js')
   const run=async fn=>{try{return await fn()}catch(e){return {error:String(e?.message||e).slice(0,300)}}}
-  const results={direct:await run(()=>direct.runDirectApplications(env)),ats:await run(()=>opportunities.runOpportunitySubmissions(env,{limit:quick?3:10})),browser:await run(()=>browser.runBrowserApplicationQueue(env,{limit:quick?3:10}))}
+  const results={direct:await run(()=>direct.runDirectApplications(env,Date.now(),{maxReviewed:quick?2:6})),ats:await run(()=>opportunities.runOpportunitySubmissions(env,{limit:quick?1:6})),browser:await run(()=>browser.runBrowserApplicationQueue(env,{limit:quick?1:6}))}
   results.queue=await refreshExecutionQueue(env)
   return results
 }

@@ -368,7 +368,7 @@ async function scheduleRetry(env,url,{status,route='none',error='',blocker='',te
   return {attempt,next}
 }
 
-export async function runDirectApplications(env,now=Date.now()){
+export async function runDirectApplications(env,now=Date.now(),{maxReviewed=8}={}){
   await ensureTable(env)
   const enabled=env.DIRECT_APPLICATIONS_ENABLED==='true'
   const out={enabled,reviewed:0,sent:0,waitingHuman:0,skipped:0}
@@ -404,7 +404,7 @@ export async function runDirectApplications(env,now=Date.now()){
     LIMIT 60`).bind(now).all()).results||[]
 
   for(const row of rows){
-    if((count?.n||0)+out.sent>=limit) break
+    if((count?.n||0)+out.sent>=limit || out.reviewed>=maxReviewed) break
     if(MANUAL_APPLICATIONS_SENT.has(row.url)){
       await env.DB.prepare("UPDATE intent_leads SET status='external_email_sent' WHERE url=?").bind(row.url).run().catch(()=>{})
       await env.DB.prepare("INSERT INTO direct_applications(source_url,platform,route,status,error,terminal,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?) ON CONFLICT(source_url) DO UPDATE SET status='external_email_sent',route='email',error='sent manually from authorized Gmail account on 2026-10-02',terminal=1,next_attempt_at=NULL,updated_at=excluded.updated_at")
