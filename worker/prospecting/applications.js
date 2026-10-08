@@ -107,7 +107,10 @@ REGLAS:
   const msg=r.message||{}
   let out=r.data||{}
   const cited=(msg.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url_citation?.url).filter(Boolean)
-  if(out.confidence!=='alta' || out.activeNow===false) return {...out,verified:false}
+  if(out.activeNow===false || out.confidence==='baja') return {...out,verified:false}
+  // Un email de aplicación explícito puede verificarse de forma determinista aunque la fecha exacta no esté visible.
+  // Para rutas no-email seguimos exigiendo confianza alta; para email aceptamos media solo si pasa TODAS las pruebas de abajo.
+  if(out.route!=='email' && out.confidence!=='alta') return {...out,verified:false}
   if(out.route==='email'){
     const email=safe(out.email).toLowerCase()
     if(!validPublicEmail(email) || !safe(out.evidence).toLowerCase().includes(email)) return {...out,verified:false}
