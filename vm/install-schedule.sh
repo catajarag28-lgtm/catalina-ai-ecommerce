@@ -95,12 +95,12 @@ Nice=10
 EOS
 tee /etc/systemd/system/carolina-application-runner.timer >/dev/null <<'EOS'
 [Unit]
-Description=Carolina application executor every 90 minutes
+Description=Carolina application executor every 30 minutes
 [Timer]
 OnBootSec=20min
-OnUnitActiveSec=90min
+OnUnitActiveSec=30min
 Persistent=true
-RandomizedDelaySec=300
+RandomizedDelaySec=120
 [Install]
 WantedBy=timers.target
 EOS
