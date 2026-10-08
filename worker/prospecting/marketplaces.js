@@ -35,7 +35,7 @@ export function freelancerBidAllowance(env={},hasVerifiedSubmission=false) {
   // A real provider_id stored in D1 is stronger evidence than a manual flag.
   // Until the first verified submission exists, allow attempts until one succeeds.
   if(env.FREELANCER_FIRST_BID_VERIFIED!=='true' && !hasVerifiedSubmission) return 1
-  return Math.max(1,Math.min(15,Number(env.FREELANCER_DAILY_BID_LIMIT||8)))
+  const configured=Number(env.FREELANCER_DAILY_BID_LIMIT); return configured>0 ? configured : Infinity
 }
 export function upworkReady(env={}) {
   // La API de Upwork sí permite enviar propuestas, pero Carolina solo se marca lista

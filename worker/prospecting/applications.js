@@ -1,4 +1,4 @@
-﻿// Ejecuta postulaciones directas a oportunidades públicas con una vía explícita de aplicación.
+// Ejecuta postulaciones directas a oportunidades públicas con una vía explícita de aplicación.
 // No sustituye APIs de marketplaces. Solo envía email cuando la publicación/empresa indica
 // explícitamente que acepta aplicaciones por email y la dirección queda verificada.
 import { notifyCatalina } from '../core/notify.js'
@@ -369,13 +369,13 @@ async function scheduleRetry(env,url,{status,route='none',error='',blocker='',te
   return {attempt,next}
 }
 
-export async function runDirectApplications(env,now=Date.now(),{maxReviewed=8}={}){
+export async function runDirectApplications(env,now=Date.now(),{maxReviewed=Infinity}={}){
   await ensureTable(env)
   const enabled=env.DIRECT_APPLICATIONS_ENABLED==='true'
   const out={enabled,reviewed:0,sent:0,waitingHuman:0,skipped:0}
   if(!enabled) return out
   if(!env.OPENROUTER_API_KEY||!env.RESEND_API_KEY) return {...out,reason:'connections_missing'}
-  const limit=Math.max(1,Math.min(50,Number(env.DIRECT_APPLICATION_DAILY_LIMIT||20)))
+  const configuredLimit=Number(env.DIRECT_APPLICATION_DAILY_LIMIT); const limit=configuredLimit>0?configuredLimit:Infinity
   const count=await env.DB.prepare("SELECT COUNT(*) n FROM direct_applications WHERE status IN ('sent','external_email_sent','replied') AND coalesce(sent_at,updated_at)>=?").bind(bogotaStart(now)).first()
   if((count?.n||0)>=limit) return {...out,reason:'daily_cap',limit}
 
@@ -402,7 +402,7 @@ export async function runDirectApplications(env,now=Date.now(),{maxReviewed=8}={
       END,
       coalesce(d.updated_at,0) ASC,
       i.found_at DESC
-    LIMIT 60`).bind(now).all()).results||[]
+    LIMIT 500`).bind(now).all()).results||[]
 
   for(const row of rows){
     if((count?.n||0)+out.sent>=limit || out.reviewed>=maxReviewed) break
