@@ -11,10 +11,11 @@ const RESULT = path.join(DATA, 'carolina-action-results.json');
 const STATUS = path.join(DATA, 'carolina-action-status.md');
 // AUTO-SUBMIT controlado: 'live' exige CAROLINA_AUTOSUBMIT_APPROVED=yes; CAPTCHA/MFA/pagos/campos desconocidos siempre frenan.
 const MODE = (process.env.CAROLINA_AUTOSUBMIT_APPROVED === 'yes' ? (process.env.CAROLINA_ACTION_MODE || 'dry') : 'dry').toLowerCase();
-const RUN_LIMIT = Number(process.env.CAROLINA_ACTION_LIMIT || 10);
-const DAILY_LIMIT = Number(process.env.CAROLINA_DAILY_LIMIT || 50);
-const PER_PLATFORM_LIMIT = Number(process.env.CAROLINA_PER_PLATFORM_LIMIT || 5);
-const DAILY_PLATFORM_LIMIT = Number(process.env.CAROLINA_DAILY_PLATFORM_LIMIT || 20);
+const positiveLimit = value => { const n=Number(value); return Number.isFinite(n)&&n>0?n:Infinity; };
+const RUN_LIMIT = positiveLimit(process.env.CAROLINA_ACTION_LIMIT);
+const DAILY_LIMIT = positiveLimit(process.env.CAROLINA_DAILY_LIMIT);
+const PER_PLATFORM_LIMIT = positiveLimit(process.env.CAROLINA_PER_PLATFORM_LIMIT);
+const DAILY_PLATFORM_LIMIT = positiveLimit(process.env.CAROLINA_DAILY_PLATFORM_LIMIT);
 const ONLY_URLS = new Set(String(process.env.CAROLINA_ONLY_URLS || '').split(',').map(x=>x.trim()).filter(Boolean));
 const WORKER_BASE = String(process.env.CAROLINA_WORKER_BASE || 'https://soycatalinajaramillo.com').replace(/\/$/, '');
 const VM_TOKEN = process.env.CAROLINA_VM_TOKEN || '';
@@ -59,7 +60,7 @@ async function fetchCanonicalQueue(){
     return {source:'priority_local_verified',items:q.items};
   }
   if(!VM_TOKEN) throw new Error('CAROLINA_VM_TOKEN missing');
-  const res=await fetch(WORKER_BASE+'/ops/vm-queue?limit=50',{headers:{authorization:'Bearer '+VM_TOKEN},signal:AbortSignal.timeout(30000)});
+  const res=await fetch(WORKER_BASE+'/ops/vm-queue?limit=500',{headers:{authorization:'Bearer '+VM_TOKEN},signal:AbortSignal.timeout(30000)});
   if(!res.ok) throw new Error('vm_queue_http_'+res.status);
   const q=await res.json();
   if(q.source!=='worker_canonical_opportunities'||!Array.isArray(q.items)) throw new Error('invalid_canonical_queue');
@@ -95,12 +96,14 @@ function sessionConnected(p){
     return (h.results||[]).some(r => r.platform === p && r.verdict === 'CONNECTED');
   }catch{ return false; }
 }
-function validCandidate(x){
+function validCandidate(x,{canonical=false}={}){
   const title=String(x.title||'').trim(), url=String(x.url||'');
   const p=platformKey(x.platform);
   const canonicalProposal=String(x.proposal||'').trim();
   if(canonicalProposal.split(/\s+/).length<80) return false;
-  if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url) || !RELEVANT_RX.test(`${title} ${url}`)) return false;
+  if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url)) return false;
+  // La cola canónica ya pasó scoring + quality gate. No volver a descartarla por un regex pobre del título.
+  if(!canonical && !RELEVANT_RX.test(`${title} ${url}`)) return false;
   // LinkedIn: no depender de easyApply del discovery. La página real decide si es Easy Apply, Apply externo o requiere humano.
   if(p==='linkedin' && !/linkedin\.com\/jobs\/view\//i.test(url)) return false;
   if((p==='n8n'||p==='make') && (!/\/t\//i.test(url) || !HIRING_COMMUNITY_RX.test(title))) return false;
@@ -350,7 +353,7 @@ async function main(){
   const candidates=(q.items||[])
     .filter(x=>!ONLY_URLS.size || ONLY_URLS.has(String(x.url||'')))
     .filter(x=>['ENVIABLE_PRIORIDAD_ALTA','ENVIABLE_PRIORIDAD_MEDIA'].includes(x.status))
-    .filter(validCandidate)
+    .filter(x=>validCandidate(x,{canonical:q.source==='worker_canonical_opportunities'}))
     .filter(x=>{
       const prev=recentByUrl.get(x.url);
       if(!prev) return true;

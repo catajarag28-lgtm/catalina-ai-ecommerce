@@ -25,4 +25,4 @@ export async function channelSnapshot(env) {
 
 // Candado global de envíos automáticos (postulaciones por navegador, por email y bids).
 // Hasta que Catalina valide la calidad, todo se PREPARA y queda listo para revisión: AUTO_SUBMIT=off.
-export const autoSubmitAllowed = env => String(env.AUTO_SUBMIT || 'off').toLowerCase() === 'on' && String(env.AUTO_SUBMIT_AUTHORIZED || 'true').toLowerCase() === 'true'
+export const autoSubmitAllowed = env => String(env.AUTO_SUBMIT || 'off').toLowerCase() === 'on' && String(env.AUTO_SUBMIT_AUTHORIZED || 'false').toLowerCase() === 'true'

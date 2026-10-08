@@ -455,7 +455,7 @@ export default {
     // Cola canónica para el navegador persistente: SOLO propuestas A/B que ya pasaron quality gate.
     if (url.pathname === '/ops/vm-queue' && request.method === 'GET') {
       if (!(await vmAuthorized())) return json({ error: 'unauthorized' }, 401)
-      return json(await vmApplicationQueue(env, { limit: Math.max(1, Math.min(50, Number(url.searchParams.get('limit') || 50))) }))
+      return json(await vmApplicationQueue(env, { limit: Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 500))) }))
     }
     // Resultado real/dry-run del navegador de la VM → D1. Nunca confiar en archivos locales como fuente final.
     if (url.pathname === '/ops/vm-result' && request.method === 'POST') {

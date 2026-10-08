@@ -77,7 +77,7 @@ find "$R/data/browser-profile" -maxdepth 1 -name 'Singleton*' -delete
 docker run --rm --name carolina-application-runner --memory=1400m --cpus=0.9 \
   --env-file "$R/.vm-health.env" \
   -e CAROLINA_AUTOSUBMIT_APPROVED=yes -e CAROLINA_ACTION_MODE=live \
-  -e CAROLINA_ACTION_LIMIT=5 -e CAROLINA_DAILY_LIMIT=50 -e CAROLINA_PER_PLATFORM_LIMIT=5 -e CAROLINA_DAILY_PLATFORM_LIMIT=20 \
+  -e CAROLINA_ACTION_LIMIT=0 -e CAROLINA_DAILY_LIMIT=0 -e CAROLINA_PER_PLATFORM_LIMIT=0 -e CAROLINA_DAILY_PLATFORM_LIMIT=0 \
   -v "$R/data:/data" -v "$R/vm:/vm" -v "$R/public:/public" \
   carolina-cloud-runner:latest bash -c 'cp /vm/action-runner.js /app/action-runner.js && timeout 1200 node /app/action-runner.js'
 EOS
