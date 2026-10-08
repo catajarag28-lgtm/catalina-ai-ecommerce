@@ -31,6 +31,15 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
       priority=excluded.priority,state=excluded.state,blocker=excluded.blocker,provider_id=excluded.provider_id,
       attempted_at=excluded.attempted_at,confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at`).bind(now).run()
   await env.DB.prepare(`INSERT INTO execution_queue(source_url,company,opportunity,platform,channel,fit,apply_url,priority,state,blocker,provider_id,found_at,attempted_at,confirmed_at,updated_at)
+    SELECT d.source_url,i.who,i.need,coalesce(d.platform,i.platform),'direct_email',coalesce(i.fit,'alto'),d.source_url,125,
+      CASE WHEN d.status IN ('bounced','failed','suppressed','complained') THEN 'DELIVERY_FAILED' ELSE 'SUBMITTED_CONFIRMED' END,
+      d.blocker,d.provider_id,coalesce(i.found_at,d.created_at),d.last_attempt_at,d.sent_at,?
+    FROM direct_applications d LEFT JOIN intent_leads i ON i.url=d.source_url
+    WHERE d.provider_id IS NOT NULL AND d.provider_id<>'' AND d.sent_at IS NOT NULL
+      AND d.status IN ('sent','external_email_sent','delivered','replied','bounced','failed','suppressed','complained')
+    ON CONFLICT(source_url) DO UPDATE SET channel='direct_email',state=excluded.state,
+      provider_id=excluded.provider_id,confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at`).bind(now).run()
+  await env.DB.prepare(`INSERT INTO execution_queue(source_url,company,opportunity,platform,channel,fit,apply_url,priority,state,blocker,provider_id,found_at,attempted_at,confirmed_at,updated_at)
     SELECT url,company,title,platform,'public_ats',grade,apply_url,
       CASE grade WHEN 'A' THEN 120 ELSE 80 END,
       CASE WHEN status='submitted' AND CASE WHEN json_valid(evidence) THEN json_extract(evidence,'$.providerId') ELSE NULL END IS NOT NULL THEN 'SUBMITTED_CONFIRMED'
@@ -49,8 +58,9 @@ export async function refreshExecutionQueue(env, now=Date.now()) {
     SELECT 'marketplace:'||id,platform,title,platform,'authenticated_marketplace','A',url,85,
       CASE WHEN status='submitted' AND provider_id IS NOT NULL AND provider_id<>'' THEN 'SUBMITTED_CONFIRMED'
            WHEN status='ready_for_submission' THEN 'APPLICATION_PREPARED'
-           WHEN status LIKE 'waiting_human%' THEN 'HUMAN_ACTION_REQUIRED'
-           ELSE 'SUBMISSION_ATTEMPTED' END,
+           WHEN status LIKE 'waiting_human%' OR status='blocked_account_requirement' THEN 'HUMAN_ACTION_REQUIRED'
+           WHEN status='failed' THEN 'SUBMISSION_ATTEMPTED'
+           ELSE 'APPLICATION_PREPARED' END,
       error,provider_id,created_at,
       CASE WHEN status IN ('submitted','failed') THEN updated_at ELSE NULL END,
       CASE WHEN status='submitted' AND provider_id IS NOT NULL THEN updated_at ELSE NULL END,?

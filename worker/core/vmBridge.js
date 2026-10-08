@@ -15,6 +15,13 @@ export function normalizeVmResult(value) {
   return VM_RESULT_STATUSES.has(s) ? s : 'ERROR'
 }
 
+export function verifiedVmStatus(value, providerId) {
+  const status=normalizeVmResult(value)
+  if (['SUBMITTED_CONFIRMED','ALREADY_APPLIED_OR_CONFIRMED'].includes(status) && !safe(providerId))
+    return 'SUBMIT_CLICKED_UNCONFIRMED'
+  return status
+}
+
 export function mapVmResult(value) {
   const status = normalizeVmResult(value)
   if (status === 'SUBMITTED_CONFIRMED' || status === 'ALREADY_APPLIED_OR_CONFIRMED')
@@ -81,11 +88,11 @@ export async function recordVmApplicationResult(env, payload, now = Date.now()) 
   if (!/^https:\/\//i.test(url) || url.length > 1800) throw new Error('invalid_url')
   const exists = await env.DB.prepare('SELECT url FROM opportunities WHERE url=?').bind(url).first().catch(() => null)
   if (!exists?.url) throw new Error('unknown_opportunity')
-  const rawStatus = normalizeVmResult(payload?.status)
+  const providerId = safe(payload?.providerId).slice(0,180)
+  const rawStatus = verifiedVmStatus(payload?.status,providerId)
   const m = mapVmResult(rawStatus)
   const platform = safe(payload?.platform).slice(0,80)
   const reason = safe(payload?.reason || payload?.error || payload?.action).slice(0,700)
-  const providerId = safe(payload?.providerId).slice(0,180)
   const nextAttempt = m.terminal || !m.delay ? null : now + m.delay
   const route = ('vm_browser_' + (platform || 'web').toLowerCase().replace(/[^a-z0-9]+/g,'_')).slice(0,120)
   const sentAt = m.application === 'sent' ? now : null
