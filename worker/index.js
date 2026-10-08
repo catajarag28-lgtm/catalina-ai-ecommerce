@@ -487,7 +487,7 @@ export default {
     }
     if (url.pathname === '/ops/browser/run-queue' && request.method === 'POST') {
       if(!browserAdminAllowed(request,env)) return json({error:'unauthorized'},401)
-      return json(await (await browserOps()).runBrowserApplicationQueue(env,{limit:Math.max(1,Math.min(5,Number(url.searchParams.get('limit')||2))) }))
+      return json(await (await browserOps()).runBrowserApplicationQueue(env,{limit:Math.max(1,Math.min(500,Number(url.searchParams.get('limit')||500))) }))
     }
     // Solo en modo prueba (OUTREACH_TEST_TO): enviar la muestra y probar el descubrimiento sin guardar prospectos.
     if (env.OUTREACH_TEST_TO && url.pathname === '/ops/run-test' && request.method === 'POST') return json(await runOutreach(env))
