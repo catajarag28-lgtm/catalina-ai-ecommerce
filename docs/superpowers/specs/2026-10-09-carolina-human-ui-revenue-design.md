@@ -1,3 +1,5 @@
+> **Corrección de arquitectura (9-oct-2026):** Laura pertenece a Professional Glam. La ejecución de Carolina en esa VM quedó desactivada. La arquitectura vigente está en `docs/CURRENT_STATE.md`; cualquier referencia a esa VM en este documento es histórica.
+
 # Carolina: postulaciones verificadas y meta comercial
 
 ## Objetivo

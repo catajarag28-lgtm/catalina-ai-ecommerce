@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Ejecutar en la VM después de copiar archivos a /tmp/carolina-vm/.
 set -euo pipefail
+if [[ "$(hostname -s | tr '[:upper:]' '[:lower:]')" == "laura" ]]; then
+  echo 'Carolina no puede ejecutarse en Laura: Laura pertenece a Professional Glam.' >&2
+  exit 1
+fi
 R=/home/cataj/carolina-cloud-runner
 STAGE=/tmp/carolina-vm
 for f in action-runner.js application-policy.js application-runner.sh; do test -s "$STAGE/$f"; done

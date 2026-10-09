@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fieldKind, pageBlocker, freshEnough } from '../vm/application-policy.js';
+import { fieldKind, pageBlocker, freshEnough, resumeLanguage, resumeFieldKind } from '../vm/application-policy.js';
 
 test('proposal field is explicit and salary needs a human answer',()=>{
   assert.equal(fieldKind('Cover letter'), 'proposal');
@@ -21,4 +21,12 @@ test('unknown publication date and stale posts do not consume VM capacity',()=>{
   assert.equal(freshEnough({platform:'n8n community',publishedAt:'2026-09-01T15:00:00Z'},now), false);
   assert.equal(freshEnough({platform:'ATS',publishedAt:'2026-08-01T15:00:00Z'},now), false);
   assert.equal(freshEnough({platform:'ATS'},now), false);
+});
+
+test('CV follows the approved vacancy language and targets only resume uploads',()=>{
+  assert.equal(resumeLanguage({language:'es',proposal:'English words'}),'es');
+  assert.equal(resumeLanguage({language:'en',proposal:'proyecto de automatización'}),'en');
+  assert.equal(resumeFieldKind('Upload your résumé (PDF)'),'resume');
+  assert.equal(resumeFieldKind('Adjuntar hoja de vida'),'resume');
+  assert.equal(resumeFieldKind('Portfolio image'),'other');
 });

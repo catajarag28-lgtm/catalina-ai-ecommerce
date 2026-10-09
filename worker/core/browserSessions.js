@@ -208,8 +208,9 @@ export async function recordSessionHealth(env,platform,probe=null,now=Date.now()
   return health
 }
 
-// Navegador persistente de la VM = fuente PRIMARIA. Un reporte de más de 3 h no cuenta como CONNECTED.
+// Puente de VM heredado. Desactivado hasta disponer de un host dedicado a Carolina.
 export async function vmSessionHealth(env,now=Date.now()){
+  if(env.CAROLINA_DEDICATED_VM_ENABLED!=='true')return {fresh:false,retired:true,at:null,byPlatform:{}}
   const row=await env.DB.prepare("SELECT value,updated_at FROM app_settings WHERE key='vm_session_health'").first().catch(()=>null)
   if(!row)return {fresh:false,at:null,byPlatform:{}}
   let v={};try{v=JSON.parse(row.value)}catch{}
@@ -853,14 +854,34 @@ function safeApplicationValue(label,env,row){
 async function fillKnownApplicationFields(scope,env,row,language){
   const unknown=[]
   const cvUrl=language==='en'?(env.CV_EN_URL||CV_EN):(env.CV_ES_URL||CV_ES)
-  const files=scope.locator('input[type="file"]:visible')
+  const files=scope.locator('input[type="file"]')
   if(await files.count()){
-    const payload=await filePayload(cvUrl,language==='en'?'Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf':'Catalina_Jaramillo_AI_Automation_Resume_2026.pdf')
-    if(payload){
-      for(let i=0;i<Math.min(3,await files.count());i++) await files.nth(i).setInputFiles(payload).catch(()=>{})
+    const candidates=[]
+    for(let i=0;i<Math.min(8,await files.count());i++){
+      const el=files.nth(i)
+      if(!(await el.isEnabled().catch(()=>false)))continue
+      const label=await applicationFieldLabel(el)
+      const accept=String(await el.getAttribute('accept').catch(()=>'')||'')
+      const kind=/portfolio|portafolio|photo|foto|avatar|image|imagen|certificate|certificado/i.test(label)?'other':/resume|r[eé]sum[eé]|curr[ií]culum|\bcv\b|hoja\s+de\s+vida/i.test(label)?'resume':'unknown'
+      candidates.push({el,kind,accept})
+    }
+    const resume=candidates.filter(x=>x.kind==='resume')
+    const chosen=resume.length===1?resume[0]:resume.length===0&&candidates.length===1&&candidates[0].kind==='unknown'?candidates[0]:null
+    if(!chosen)unknown.push('CV_FIELD_AMBIGUOUS')
+    else if(chosen.accept&&!/(?:\.pdf|application\/pdf|\*\/\*)/i.test(chosen.accept))unknown.push('CV_PDF_NOT_ACCEPTED')
+    else{
+      const filename=language==='en'?'Catalina_Jaramillo_AI_Automation_Resume_2026_EN.pdf':'Catalina_Jaramillo_AI_Automation_Resume_2026.pdf'
+      const payload=await filePayload(cvUrl,filename)
+      if(!payload)unknown.push('CV_FILE_UNAVAILABLE')
+      else{
+        try{
+          await chosen.el.setInputFiles(payload)
+          const names=await chosen.el.evaluate(x=>Array.from(x.files||[],f=>f.name))
+          if(!names.includes(filename))unknown.push('CV_UPLOAD_UNVERIFIED')
+        }catch{unknown.push('CV_UPLOAD_FAILED')}
+      }
     }
   }
-
   const fields=scope.locator('input:visible, textarea:visible')
   const total=Math.min(30,await fields.count())
   let visibleTextareaCount=0

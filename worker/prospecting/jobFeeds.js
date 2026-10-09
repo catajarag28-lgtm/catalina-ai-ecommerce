@@ -36,16 +36,26 @@ export async function fetchJobFeeds() {
 }
 
 // Dos barridos al día (7 a. m. y 1 p. m. hora Colombia). Solo las A/B gastan IA (tope por barrido).
-export async function runJobFeeds(env, now = Date.now(), { force = false } = {}) {
+export async function runJobFeeds(env, now = Date.now(), { force = false, fetcher = fetchJobFeeds, ingest = ingestOpportunities } = {}) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', hour: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(p => [p.type, p.value]))
   const hour = Number(parts.hour)
   if (!force && ![7, 13].includes(hour)) return { due: false }
   const key = 'jobfeeds_' + parts.year + parts.month + parts.day + '_' + hour
   const mark = await env.DB.prepare('INSERT OR IGNORE INTO app_settings(key,value,updated_at) VALUES (?,?,?)').bind(key, 'running', now).run().catch(() => null)
-  if (!force && !mark?.meta?.changes) return { due: false }
-  const items = await fetchJobFeeds()
-  const result = await ingestOpportunities(env, 'jobfeeds', items, { limit: Number(env.JOBFEED_BRIEF_LIMIT || 20) })
-  const summary = { fetched: items.length, received: result.received, A: result.A, B: result.B, C: result.C, prepared: result.prepared, duplicates: result.duplicates }
-  await env.DB.prepare('UPDATE app_settings SET value=?,updated_at=? WHERE key=?').bind(JSON.stringify(summary), Date.now(), key).run().catch(() => {})
-  return summary
+  if (!force && !mark?.meta?.changes) {
+    const retry = await env.DB.prepare("UPDATE app_settings SET value='running',updated_at=? WHERE key=? AND (value LIKE 'error:%' OR (value='running' AND updated_at<?))")
+      .bind(now,key,now-20*60000).run().catch(() => null)
+    if (!retry?.meta?.changes) return { due: false }
+  }
+  try {
+    const items = await fetcher()
+    const result = await ingest(env, 'jobfeeds', items, { limit: Number(env.JOBFEED_BRIEF_LIMIT || 20) })
+    const summary = { fetched: items.length, received: result.received, A: result.A, B: result.B, C: result.C, prepared: result.prepared, duplicates: result.duplicates }
+    await env.DB.prepare('UPDATE app_settings SET value=?,updated_at=? WHERE key=?').bind(JSON.stringify(summary), Date.now(), key).run()
+    return summary
+  } catch (e) {
+    const reason=String(e?.message||e).slice(0,180)
+    await env.DB.prepare('UPDATE app_settings SET value=?,updated_at=? WHERE key=?').bind('error:'+reason,Date.now(),key).run().catch(()=>{})
+    return { due:true,error:reason }
+  }
 }

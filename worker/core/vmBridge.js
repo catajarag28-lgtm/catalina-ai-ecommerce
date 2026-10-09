@@ -47,7 +47,7 @@ const parse = s => { try { return JSON.parse(s || '{}') } catch { return {} } }
 export async function vmApplicationQueue(env, { limit = 50 } = {}) {
   const max = Math.max(1, Math.min(500, Number(limit) || 500))
   const rows = (await env.DB.prepare(`SELECT
-      o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.quality,o.action,o.created_at,o.updated_at,
+      o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.language,o.quality,o.action,o.created_at,o.updated_at,
       d.status AS application_status,d.terminal,d.next_attempt_at
     FROM opportunities o
     LEFT JOIN direct_applications d ON d.source_url=o.url
@@ -78,6 +78,7 @@ export async function vmApplicationQueue(env, { limit = 50 } = {}) {
       easyApply: Number(r.easy_apply||0)===1,
       brief: parse(r.brief),
       proposal: safe(r.proposal),
+      language: r.language === 'es' ? 'es' : r.language === 'en' ? 'en' : null,
       createdAt: Number(r.created_at),
       publishedAt: parse(r.brief)?.publishedAt || null,
       applicationStatus: r.application_status || null,

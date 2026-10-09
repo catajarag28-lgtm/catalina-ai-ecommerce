@@ -28,20 +28,22 @@ export function linkedinNote(row, p = {}) {
   const ft = p.firstTouch || p
   const who = ft.contactName ? ft.contactName.split(/\s+/)[0] : ''
   const obs = firstSentence(ft.observation, 125)
-  let note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. ${obs} Estoy revisando un punto concreto de su flujo comercial. ¿Conectamos?`
-  if (note.length > 300) note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Estoy revisando un punto concreto del flujo comercial de ${row.company}. ¿Conectamos?`
-  const followup = `Gracias por conectar${who ? ', ' + who : ''}. La hipótesis que quería validar es esta: ${firstSentence(ft.hypothesis, 220)}
+  const ask = firstSentence(ft.hypothesis, 180)
+  let note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Vi que ${obs.replace(/^vi que\s+/i, '')} Trabajo en automatización de atención y ventas. ¿Te parece conectar para compartir una idea concreta?`
+  if (note.length > 300) note = `Hola${who ? ' ' + who : ''}, soy Catalina Jaramillo. Vi el sitio de ${row.company}. Trabajo en automatización de atención y ventas. ¿Te parece conectar?`
+  const followup = `Gracias por conectar${who ? ', ' + who : ''}. En ${row.company} vi esto: ${obs}
 
-Si te sirve, en 15 minutos te muestro cómo comprobarlo en el flujo actual y qué parte tendría sentido automatizar. ¿Te lo muestro?`
+Quería preguntarte: ${ask}
+
+Si es una prioridad ahora, puedo mostrarte en 15 minutos un esquema concreto para comprobarlo y decidir si conviene automatizarlo. ¿Te interesaría verlo?`
   const search = 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(row.company + ' (fundador OR CEO OR gerente OR director OR dueño)')
   return { note: note.slice(0, 300), followup, search }
 }
-
 export async function runWhatsappProposals(env, { limit = 1, now = Date.now() } = {}) {
   const cap = Number(env.WHATSAPP_DAILY_PREP || 25)
   const done = (await env.DB.prepare("SELECT COUNT(*) n FROM outreach WHERE kind='whatsapp' AND status IN ('wa_ready','wa_listed') AND updated_at>?").bind(now - 86400000).first())?.n || 0
   if (done >= cap) return { reason: 'daily_cap', done }
-  const rows = (await env.DB.prepare("SELECT * FROM outreach WHERE kind='whatsapp' AND status='wa_pending' ORDER BY (segment LIKE 'senal-%') DESC, created_at LIMIT ?").bind(limit).all()).results || []
+  const rows = (await env.DB.prepare("SELECT * FROM outreach WHERE kind='whatsapp' AND status='wa_pending' ORDER BY (json_extract(dossier,'$.sector')='ecommerce') DESC, (segment LIKE 'senal-%') DESC, created_at LIMIT ?").bind(limit).all()).results || []
   const out = []
   for (const row of rows) {
     const claimed = await env.DB.prepare("UPDATE outreach SET status='wa_researching',updated_at=? WHERE id=? AND status='wa_pending'").bind(Date.now(), row.id).run()
@@ -74,7 +76,7 @@ export async function sendWhatsappList(env, now = Date.now()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', weekday: 'short', hour: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(p => [p.type, p.value]))
   const hour = Number(parts.hour)
   if (['Sat', 'Sun'].includes(parts.weekday) || ![8, 14].includes(hour)) return { due: false }
-  const rows = (await env.DB.prepare("SELECT * FROM outreach o WHERE kind='whatsapp' AND status='wa_ready' AND email LIKE 'wa:%' AND EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type='form.unavailable') ORDER BY (segment LIKE 'senal-%') DESC, updated_at LIMIT 15").all()).results || []
+  const rows = (await env.DB.prepare("SELECT * FROM outreach o WHERE kind='whatsapp' AND status='wa_ready' AND email LIKE 'wa:%' AND EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type='form.unavailable') ORDER BY (json_extract(dossier,'$.sector')='ecommerce') DESC, (segment LIKE 'senal-%') DESC, updated_at LIMIT 15").all()).results || []
   if (!rows.length) return { due: true, sent: false }
   const key = 'walist-' + parts.year + parts.month + parts.day + '-' + hour
   const mark = await env.DB.prepare('INSERT OR IGNORE INTO outreach_events(event_id,outreach_id,type,occurred_at) VALUES (?,?,?,?)').bind(key, 'system', 'walist.sent', now).run()
@@ -123,7 +125,7 @@ export async function runContactForms(env, { limit = 2, now = Date.now() } = {})
   if (done >= cap) return { reason: 'daily_cap', done }
   const rows = (await env.DB.prepare(`SELECT o.* FROM outreach o WHERE o.kind='whatsapp' AND o.status='wa_ready'
     AND NOT EXISTS (SELECT 1 FROM outreach_events e WHERE e.outreach_id=o.id AND e.type IN ('form.sent','form.unavailable'))
-    ORDER BY (o.segment LIKE 'senal-%') DESC, o.updated_at LIMIT ?`).bind(limit).all()).results || []
+    ORDER BY (json_extract(o.dossier,'$.sector')='ecommerce') DESC, (o.segment LIKE 'senal-%') DESC, o.updated_at LIMIT ?`).bind(limit).all()).results || []
   const { submitContactForm } = await import('../core/browserSessions.js')
   const out = []
   for (const row of rows) {

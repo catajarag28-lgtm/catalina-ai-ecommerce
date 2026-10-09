@@ -400,12 +400,13 @@ export default {
         return new Response(`<!doctype html><meta charset="utf-8"><style>body{font-family:Arial;max-width:680px;margin:70px auto;padding:20px}div{background:#eef8ef;border:1px solid #b9ddb9;padding:22px;border-radius:14px}</style><div><h1>Sesión guardada</h1><p>${result.platform} quedó conectado a Carolina. Ya puedes cerrar esta ventana.</p></div>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}})
       }catch(e){return new Response('No pude guardar la sesión: '+String(e?.message||e),{status:400,headers:{'content-type':'text/plain; charset=utf-8'}})}
     }
-    // CloudSessionHealth de la VM (navegador persistente PRIMARIO). Solo la VM conoce el token.
+    // Puente de VM heredado; cerrado por defecto para mantener a Carolina separada de Laura.
     const vmAuthorized = async () => {
       const sha = async s => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s))))
       const [a, b] = await Promise.all([sha(request.headers.get('authorization') || ''), sha('Bearer ' + (env.CAROLINA_VM_TOKEN || crypto.randomUUID()))])
       return !!env.CAROLINA_VM_TOKEN && a.every((x, i) => x === b[i])
     }
+    if (url.pathname.startsWith('/ops/vm-') && env.CAROLINA_DEDICATED_VM_ENABLED !== 'true') return json({ error: 'vm_bridge_disabled_separate_from_laura' }, 410)
     // Vista previa de la estructura de propuestas a Catalina (antes de encender el envío automático).
     if (url.pathname === '/seguimiento.csv' && request.method === 'GET') {
       const t = await import('./proposals/tracker.js')
@@ -713,4 +714,3 @@ Propuesta: https://soycatalinajaramillo.com/propuesta/${bookRoute[1]}`).catch(()
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(clock).run()
   }
 }
-

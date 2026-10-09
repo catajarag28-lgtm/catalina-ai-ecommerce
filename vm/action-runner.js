@@ -1,8 +1,8 @@
-﻿import { chromium } from 'playwright';
+import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { fieldKind, pageBlocker, freshEnough } from './application-policy.js';
+import { fieldKind, pageBlocker, freshEnough, resumeLanguage, resumeFieldKind } from './application-policy.js';
 
 const DATA = process.env.CAROLINA_DATA || '/data';
 const PROFILE = process.env.CAROLINA_AUTH_PROFILE || '/data/browser-profile';
@@ -196,19 +196,28 @@ async function fillProposal(page, text){
   return {ready:actual.trim()===text.trim(),reason:'proposal_fill_not_verified'};
 }
 async function attachResume(page, lang='en'){
-  const f=lang==='es'?CV_ES:CV_EN;
-  if(!fs.existsSync(f)) return 0;
-  let attached=0;
   const inputs=page.locator('input[type=file]');
-  for(let i=0;i<await inputs.count();i++){
+  const count=await inputs.count();
+  if(!count) return {attached:false,reason:'no_file_field'};
+  const fields=[];
+  for(let i=0;i<count;i++){
     const el=inputs.nth(i);
-    if(await el.isEnabled().catch(()=>false)){
-      await el.setInputFiles(f).catch(()=>{});
-      attached++;
-      break;
-    }
+    if(!(await el.isEnabled().catch(()=>false))) continue;
+    const meta=await el.evaluate(x=>[x.name,x.id,x.getAttribute('aria-label'),x.getAttribute('placeholder'),x.labels?.[0]?.innerText,x.closest('[class*=field],[class*=upload]')?.innerText?.slice(0,120)].filter(Boolean).join(' ')).catch(()=>'');
+    fields.push({el,kind:resumeFieldKind(meta),accept:String(await el.getAttribute('accept').catch(()=>'')||'')});
   }
-  return attached;
+  const resume=fields.filter(x=>x.kind==='resume');
+  const chosen=resume.length===1?resume[0]:resume.length===0&&fields.length===1&&fields[0].kind==='unknown'?fields[0]:null;
+  if(!chosen) return {attached:false,error:'resume_file_field_ambiguous'};
+  if(chosen.accept&&!/(?:\.pdf|application\/pdf|\*\/\*)/i.test(chosen.accept)) return {attached:false,error:'resume_pdf_not_accepted'};
+  const file=lang==='es'?CV_ES:CV_EN;
+  if(!fs.existsSync(file)) return {attached:false,error:'resume_file_missing_'+lang};
+  try{
+    await chosen.el.setInputFiles(file,{timeout:10000});
+    const names=await chosen.el.evaluate(x=>Array.from(x.files||[],f=>f.name));
+    if(!names.includes(path.basename(file))) return {attached:false,error:'resume_upload_unverified'};
+    return {attached:true,language:lang};
+  }catch{return {attached:false,error:'resume_upload_failed'};}
 }
 async function fillKnownIdentity(page){
   const email=process.env.CAROLINA_APPLICANT_EMAIL || 'catalinajaramillogirldo28@gmail.com';
@@ -279,7 +288,10 @@ async function actOn(page,item){
     if(!proposalResult.ready){ result.status='WAITING_HUMAN_FIELDS'; result.reason=proposalResult.reason; result.currentUrl=page.url(); return result; }
     result.proposalFields=1;
     result.identityFields=(result.identityFields||0)+await fillKnownIdentity(page);
-    result.filesAttached=(result.filesAttached||0)+await attachResume(page,/españ|colombia|latam|méxico|automatiz/i.test(s.all)?'es':'en');
+    const cv=await attachResume(page,resumeLanguage(item));
+    result.filesAttached=(result.filesAttached||0)+(cv.attached?1:0);
+    result.resumeLanguage=cv.language||resumeLanguage(item);
+    if(cv.error){ result.status='WAITING_HUMAN_FIELDS'; result.reason=cv.error; result.currentUrl=page.url(); return result; }
     await page.waitForTimeout(500);
     const unknown=await requiredUnknown(page);
     if(unknown.length){

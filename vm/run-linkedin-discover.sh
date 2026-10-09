@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Corre el descubrimiento de LinkedIn sobre el perfil persistente; pausa el runner y SIEMPRE lo reactiva.
 set -u
+if [[ "$(hostname -s | tr '[:upper:]' '[:lower:]')" == "laura" ]]; then
+  echo 'Carolina no puede ejecutarse en Laura: Laura pertenece a Professional Glam.' >&2
+  exit 1
+fi
 trap 'systemctl start carolina-cloud-runner.timer' EXIT
 sudo cp /tmp/carolina-vm/linkedin-discover.mjs /home/cataj/carolina-cloud-runner/vm/
 systemctl stop carolina-cloud-runner.timer

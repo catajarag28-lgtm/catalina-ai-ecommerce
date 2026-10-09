@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Instala en la VM: CloudSessionHealth + navegador remoto sobre el perfil PRIMARIO. Idempotente y con backup.
 set -euo pipefail
+if [[ "$(hostname -s | tr '[:upper:]' '[:lower:]')" == "laura" ]]; then
+  echo 'Carolina no puede ejecutarse en Laura: Laura pertenece a Professional Glam.' >&2
+  exit 1
+fi
 R=/home/cataj/carolina-cloud-runner
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 sudo mkdir -p $R/vm

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Ejecuta la cola canónica de Carolina en el navegador persistente de la VM.
 set -u
+if [[ "$(hostname -s | tr '[:upper:]' '[:lower:]')" == "laura" ]]; then
+  echo 'Carolina no puede ejecutarse en Laura: Laura pertenece a Professional Glam.' >&2
+  exit 1
+fi
 R=/home/cataj/carolina-cloud-runner
 trap 'systemctl start carolina-cloud-runner.timer' EXIT
 systemctl stop carolina-cloud-runner.timer

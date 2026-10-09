@@ -25,3 +25,16 @@ export function freshEnough(item, now=Date.now()) {
   const community=/community|forum|n8n|make|reddit|skool/.test(platform);
   return now-when <= (community?21:45)*86400000;
 }
+
+export function resumeLanguage(item={}) {
+  const lang=String(item.language||item.brief?.language||'').toLowerCase();
+  if(lang==='es'||lang==='en') return lang;
+  return /\b(el|la|con|para|experiencia|automatizaci[oó]n|proyecto)\b/i.test(String(item.proposal||''))?'es':'en';
+}
+
+export function resumeFieldKind(label='') {
+  const text=String(label);
+  if(/portfolio|portafolio|photo|foto|avatar|image|imagen|certificate|certificado|transcript/i.test(text)) return 'other';
+  if(/(?:^|[^\p{L}])(?:resume|r[eé]sum[eé]|curr[ií]culum|curriculum|cv)(?=$|[^\p{L}])|hoja\s+de\s+vida/iu.test(text)) return 'resume';
+  return 'unknown';
+}

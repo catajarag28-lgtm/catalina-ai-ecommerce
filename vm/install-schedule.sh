@@ -2,6 +2,10 @@
 # Limpieza + programación de Carolina en la VM (6-oct-2026). Solo toca lo de Carolina; Laura no se toca.
 # Prerrequisito: backup verificado en /home/cataj/backups/carolina-20261006-cleanup (con SHA256SUMS).
 set -euo pipefail
+if [[ "$(hostname -s | tr '[:upper:]' '[:lower:]')" == "laura" ]]; then
+  echo 'Carolina no puede ejecutarse en Laura: Laura pertenece a Professional Glam.' >&2
+  exit 1
+fi
 R=/home/cataj/carolina-cloud-runner
 B=/home/cataj/backups/carolina-20261006-cleanup
 [ -f $B/carolina-cloud-runner.tgz ] && [ -f $B/carolina-cloud-data.tgz ] || { echo "falta backup, abortando"; exit 1; }
