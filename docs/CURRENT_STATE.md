@@ -23,6 +23,9 @@ Todas las llamadas pasan por `worker/core/modelRouter.js` (tiers gratis → Deep
 - Intérprete en tiempo real en producción (`/interprete`, ver `worker/interpreter/README.md`); requiere el secreto `OPENAI_API_KEY`.
 - Repositorio público: hacerlo privado. Despliegue automático: renovar `CLOUDFLARE_API_TOKEN` en GitHub.
 
+## Restricción comercial confirmada (9-oct-2026)
+- Catalina no tiene una red personal de posibles clientes. Carolina no debe reservar capacidad para referidos ni solicitar contactos conocidos; debe encontrar compradores que ya publicaron necesidades concretas y postularse por rutas verificables.
+
 ## Postulaciones verificadas (9-oct-2026)
 - La VM usa Playwright sobre el perfil persistente para abrir formularios, escribir la propuesta en un campo identificado y enviar solo con ruta vigente, gratuita y completa. Si existe DISPLAY, el navegador corre visible en Xvfb.
 - Preguntas de salario, disponibilidad, identidad o experiencia sin respuesta confirmada pasan a Catalina. CAPTCHA, MFA y costos siempre frenan el envío. LinkedIn queda fuera del ejecutor automático de cuenta.

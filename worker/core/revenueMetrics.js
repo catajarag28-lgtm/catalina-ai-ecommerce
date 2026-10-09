@@ -8,7 +8,7 @@ const q = (env, sql, ...b) => env.DB.prepare(sql).bind(...b).first().catch(() =>
 
 export const CHANNEL_LABELS = {
   direct_outbound: 'Outbound directo a empresas', partnerships: 'Partners / agencias', job_applications: 'Postulaciones (empleos/contratos)',
-  project_bids: 'Bids en marketplaces', intent_signals: 'Señales de intención (foros/posts)', warm_network: 'Red caliente / referidos',
+  project_bids: 'Bids en marketplaces', intent_signals: 'Señales de intención (foros/posts)', warm_network: 'Red personal (desactivada)',
 }
 
 // Priors conservadores (se diluyen con datos reales): tasa de reunión por acción, cierre por reunión, ticket USD.
@@ -100,7 +100,7 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
     direct_outbound: control?.paused ? 'correo frío en pausa por entregabilidad' : null,
     partnerships: control?.paused ? 'correo frío en pausa por entregabilidad' : null,
     project_bids: (await channelLimited(env, 'freelancer', now)) ? 'Freelancer CHANNEL_LIMITED' : null,
-    warm_network: 'requiere a Catalina (contactos personales): Carolina prepara la lista, no envía',
+    warm_network: 'Catalina no dispone de una red personal para prospectar; canal desactivado',
     job_applications: null, intent_signals: null,
   }
   const rows = Object.entries(PRIORS).map(([k, p]) => {
