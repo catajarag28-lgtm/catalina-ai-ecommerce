@@ -35,5 +35,6 @@ export async function commercialScorecard(env, now=Date.now()) {
     COALESCE(SUM(CASE WHEN deposit_received_at>=? THEN deposit_amount_usd ELSE 0 END),0) deposits_collected_usd
     FROM commercial_deals WHERE signed_at>=? OR deposit_received_at>=?`).bind(since,since,since,since,since).first().catch(()=>({contracts_signed:0,signed_usd:0,deposits_collected_usd:0}));
   const signedUsd=Number(row?.signed_usd||0);
-  return {windowDays:7,targetSignedUsd:10000,contractsSigned:Number(row?.contracts_signed||0),signedUsd,depositsCollectedUsd:Number(row?.deposits_collected_usd||0),remainingSignedUsd:Math.max(0,10000-signedUsd)};
+  const remainingSignedUsd=Math.max(0,10000-signedUsd);
+  return {windowDays:7,targetSignedUsd:10000,contractsSigned:Number(row?.contracts_signed||0),signedUsd,depositsCollectedUsd:Number(row?.deposits_collected_usd||0),remainingSignedUsd,contractsNeededAtAverageUsd:{2000:Math.ceil(remainingSignedUsd/2000),3500:Math.ceil(remainingSignedUsd/3500),5000:Math.ceil(remainingSignedUsd/5000)}};
 }

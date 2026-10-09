@@ -36,7 +36,7 @@ export default function App(){
  const proposalSlug=(window.location.pathname.match(/^\/propuesta\/([a-z-]+)/)||[])[1]
  const to=hash=>proposalSlug?`/${hash}`:hash
  return <>
-  <header className="nav"><a className="wordmark" href={to('#inicio')}>CATALINA <span>JARAMILLO</span></a><nav><a href={to('#soluciones')}>Soluciones</a><a href={to('#sistema')}>Sistema</a><a href={to('#caso')}>En vivo</a><a href={to('#precios')}>Precios</a><a href={to('#catalina')}>Sobre mí</a></nav><a className="navTalk" href={to('#carolina')}>Hablar con Carolina <ArrowUpRight size={16}/></a></header>
+  <header className="nav"><a className="wordmark" href={to('#inicio')}>CATALINA <span>JARAMILLO</span></a><nav><a href={to('#soluciones')}>Soluciones</a><a href={to('#sistema')}>Sistema</a><a href={to('#caso')}>En vivo</a><a href={to('#precios')}>Precios</a><a href={to('#catalina')}>Sobre mí</a></nav><a className="navLanguage" href="/catalina-profile.html" lang="en" aria-label="Read Catalina profile in English">EN</a><a className="navTalk" href={to('#carolina')}>Hablar con Carolina <ArrowUpRight size={16}/></a></header>
   <main>{proposalSlug?<Suspense fallback={<div className="propLoading"/>}><ProposalPage slug={proposalSlug}/></Suspense>:page==='precios'?<Pricing/>:page==='privacidad'?<Privacy/>:<Home/>}</main>
   <footer><span>© 2026 CATALINA JARAMILLO · AGENTES DE IA PARA EMPRESAS</span><span>ATENCIÓN EN ESPAÑOL · EE. UU. Y LATINOAMÉRICA</span><a href={to('#privacidad')}>PRIVACIDAD</a><a href={to('#carolina')}>HABLAR CON CAROLINA</a></footer>
  </>
