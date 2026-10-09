@@ -65,6 +65,7 @@ IOSchedulingPriority=7
 EOS
 # 3) Ejecutor periódico de postulaciones: consume SOLO /ops/vm-queue (A/B + quality gate) y devuelve evidencia a D1.
 cp /tmp/carolina-vm/action-runner.js $R/vm/action-runner.js
+cp /tmp/carolina-vm/application-policy.js $R/vm/application-policy.js
 tee /usr/local/bin/carolina-application-runner >/dev/null <<'EOS'
 #!/usr/bin/env bash
 set -u
@@ -77,9 +78,9 @@ find "$R/data/browser-profile" -maxdepth 1 -name 'Singleton*' -delete
 docker run --rm --name carolina-application-runner --memory=1400m --cpus=0.9 \
   --env-file "$R/.vm-health.env" \
   -e CAROLINA_AUTOSUBMIT_APPROVED=yes -e CAROLINA_ACTION_MODE=live \
-  -e CAROLINA_ACTION_LIMIT=0 -e CAROLINA_DAILY_LIMIT=0 -e CAROLINA_PER_PLATFORM_LIMIT=0 -e CAROLINA_DAILY_PLATFORM_LIMIT=0 \
+  -e CAROLINA_ACTION_LIMIT=12 -e CAROLINA_DAILY_LIMIT=20 -e CAROLINA_PER_PLATFORM_LIMIT=5 -e CAROLINA_DAILY_PLATFORM_LIMIT=8 \
   -v "$R/data:/data" -v "$R/vm:/vm" -v "$R/public:/public" \
-  carolina-cloud-runner:latest bash -c 'cp /vm/action-runner.js /app/action-runner.js && timeout 1200 node /app/action-runner.js'
+  carolina-cloud-runner:latest bash -c 'cp /vm/action-runner.js /app/action-runner.js && cp /vm/application-policy.js /app/application-policy.js && timeout 1200 node /app/action-runner.js'
 EOS
 chmod 755 /usr/local/bin/carolina-application-runner
 tee /etc/systemd/system/carolina-application-runner.service >/dev/null <<'EOS'
@@ -106,7 +107,8 @@ WantedBy=timers.target
 EOS
 
 systemctl daemon-reload
-systemctl enable --now carolina-linkedin-discover.timer carolina-application-runner.timer >/dev/null
+systemctl disable --now carolina-linkedin-discover.timer >/dev/null 2>&1 || true
+systemctl enable --now carolina-application-runner.timer >/dev/null
 
 # 4) Retirar copias viejas y restos (todo está en el backup tgz). Se conservan: app/, vm/, data/, public/ (CVs), .vm-health.env.
 cd $R

@@ -4,6 +4,7 @@
 import { notifyCatalina } from '../core/notify.js'
 import { callModel } from '../core/modelRouter.js'
 import { classifyDemand, sourceNoise, queryPlatform } from './demandFilter.js'
+import { fetchN8nJobs } from './n8nJobs.js'
 
 export const intentQueries = [
   // Demanda explícita general — español e inglés.
@@ -316,6 +317,32 @@ export async function runIntentScan(env, now = Date.now(), options = {}) {
         }
       }
     }
+  }
+  // Fuente directa y gratuita de contratos n8n: prioriza proyectos publicados,
+  // no búsquedas genéricas ni avisos de empleo sin ruta de aplicación.
+  const n8nPosts=await fetchN8nJobs({now,limit:5}).catch(()=>[])
+  funnel.searched++
+  for(const p of n8nPosts){
+    funnel.found++
+    if(await env.DB.prepare('SELECT 1 FROM intent_leads WHERE url=?').bind(p.url).first()){ funnel.duplicate++; continue }
+    const gate=await classifyDemand(p,{now})
+    if(!gate.ok){
+      funnel.filteredNoLLM++; funnel.reasons[gate.reason]=(funnel.reasons[gate.reason]||0)+1
+      await insert(p,'n8n_public_jobs','filtered:'+gate.reason,p.fit,'')
+      continue
+    }
+    const qual=await qualifyIntent(env,p)
+    if(!qual.ok||qual.buyer!==true||qual.fit==='bajo'||qual.recommended_action==='skip'){
+      funnel.rejectedByModel++
+      await insert(p,'n8n_public_jobs','filtered:model_'+(qual.ok?'low_fit':'unavailable'),qual.fit||p.fit,'')
+      continue
+    }
+    funnel.qualified++
+    const proposal=await writeIntentProposal(env,p,qual)
+    if(proposal) funnel.proposals++
+    p.fit=qual.fit; p.reply=proposal?.reply||''
+    const saved=await insert(p,'n8n_public_jobs',proposal?'direct_application_pending':'filtered:proposal_quality_gate',p.fit,p.reply)
+    if(saved.meta.changes&&proposal) fresh.push(p)
   }
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('intent_funnel_last',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify({ at: new Date(now).toISOString(), ...funnel }), now).run().catch(() => {})
   if (!fresh.length) return { due: true, found: 0, funnel }

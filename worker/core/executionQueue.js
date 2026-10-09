@@ -109,7 +109,7 @@ export async function executionDashboard(env, now=Date.now()) {
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(now)
   const start=Date.parse(day+'T00:00:00-05:00')
   const q=async(sql,...args)=>Number((await env.DB.prepare(sql).bind(...args).first().catch(()=>({n:0})))?.n||0)
-  const [found,qualified,applicable,attempted,confirmed,emailSent,delivered,bounced,failed,complained,replied,meetings,contracts,revenue,aiCost]=await Promise.all([
+  const [found,qualified,applicable,attempted,confirmed,emailSent,delivered,bounced,failed,complained,replied,meetings,contracts,revenue,depositsCollected,aiCost]=await Promise.all([
     q('SELECT COUNT(*) n FROM execution_queue WHERE found_at>=?',start),
     q("SELECT COUNT(*) n FROM execution_queue WHERE found_at>=? AND fit IN ('alto','medio','A','B')",start),
     q("SELECT COUNT(*) n FROM execution_queue WHERE found_at>=? AND channel IN ('direct_email','public_ats') AND state IN ('APPLICATION_PREPARED','SUBMISSION_ATTEMPTED')",start),
@@ -122,8 +122,9 @@ export async function executionDashboard(env, now=Date.now()) {
     q("SELECT COUNT(DISTINCT source_url) n FROM direct_application_events WHERE type='email.complained' AND occurred_at>=?",start),
     q("SELECT COUNT(*) n FROM direct_applications WHERE status='replied' AND updated_at>=?",start),
     q('SELECT COUNT(*) n FROM meetings WHERE created_at>=?',start),
-    q('SELECT COUNT(*) n FROM deals WHERE won_at>=?',start),
-    q('SELECT coalesce(SUM(amount_usd),0) n FROM deals WHERE won_at>=?',start),
+    q('SELECT COUNT(*) n FROM commercial_deals WHERE signed_at>=?',start),
+    q('SELECT coalesce(SUM(signed_amount_usd),0) n FROM commercial_deals WHERE signed_at>=?',start),
+    q('SELECT coalesce(SUM(deposit_amount_usd),0) n FROM commercial_deals WHERE deposit_received_at>=?',start),
     q('SELECT coalesce(SUM(cost),0) n FROM ai_calls WHERE at>=?',start)
   ])
   const rawActions=(await env.DB.prepare('SELECT source_url,company,opportunity,platform,channel,state,blocker,provider_id,updated_at,apply_url FROM execution_queue ORDER BY updated_at DESC LIMIT 20').all()).results||[]
@@ -138,5 +139,5 @@ export async function executionDashboard(env, now=Date.now()) {
     else if(/payment|connects|credit/.test(b))blocked.payment++
     else blocked.unsupported++
   }
-  return {today:{found,qualified,applicable,attempted,submittedConfirmed:confirmed,emailSent,delivered,bounced,failed,complained,replied,positiveResponses:null,meetings,proposals:null,contracts,revenue,aiCost},blocked,actions,human}
+  return {today:{found,qualified,applicable,attempted,submittedConfirmed:confirmed,emailSent,delivered,bounced,failed,complained,replied,positiveResponses:null,meetings,proposals:null,contracts,revenue,depositsCollected,aiCost},blocked,actions,human}
 }

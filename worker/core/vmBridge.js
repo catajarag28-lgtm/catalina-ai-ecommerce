@@ -47,7 +47,7 @@ const parse = s => { try { return JSON.parse(s || '{}') } catch { return {} } }
 export async function vmApplicationQueue(env, { limit = 50 } = {}) {
   const max = Math.max(1, Math.min(500, Number(limit) || 500))
   const rows = (await env.DB.prepare(`SELECT
-      o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.quality,o.action,o.updated_at,
+      o.url,o.platform,o.title,o.company,o.score,o.grade,o.easy_apply,o.brief,o.proposal,o.quality,o.action,o.created_at,o.updated_at,
       d.status AS application_status,d.terminal,d.next_attempt_at
     FROM opportunities o
     LEFT JOIN direct_applications d ON d.source_url=o.url
@@ -63,6 +63,7 @@ export async function vmApplicationQueue(env, { limit = 50 } = {}) {
   const items = rows
     .filter(r => !Number(r.next_attempt_at || 0) || Number(r.next_attempt_at) <= now)
     .filter(r => safe(r.proposal).split(/\s+/).length >= 80)
+    .filter(r => Number(r.created_at||0)>0 && now-Number(r.created_at)<=45*86400000)
     .slice(0, max)
     .map(r => ({
       platform: safe(r.platform),
@@ -77,6 +78,8 @@ export async function vmApplicationQueue(env, { limit = 50 } = {}) {
       easyApply: Number(r.easy_apply||0)===1,
       brief: parse(r.brief),
       proposal: safe(r.proposal),
+      createdAt: Number(r.created_at),
+      publishedAt: parse(r.brief)?.publishedAt || null,
       applicationStatus: r.application_status || null,
     }))
   return { at:new Date(now).toISOString(), source:'worker_canonical_opportunities', count:items.length, items }
@@ -94,7 +97,7 @@ export async function recordVmApplicationResult(env, payload, now = Date.now()) 
   const platform = safe(payload?.platform).slice(0,80)
   const reason = safe(payload?.reason || payload?.error || payload?.action).slice(0,700)
   const fields=Array.isArray(payload?.fields)?payload.fields.slice(0,8).map(f=>({name:safe(f.name).slice(0,80),type:safe(f.type).slice(0,40),label:safe(f.label).slice(0,180)})):[]
-  const detail = JSON.stringify({status:rawStatus,reason,currentUrl:safe(payload?.currentUrl),fields,visibleActions:Array.isArray(payload?.visibleActions)?payload.visibleActions.slice(0,8):[]})
+  const detail = JSON.stringify({status:rawStatus,reason,currentUrl:safe(payload?.currentUrl),fields,visibleActions:Array.isArray(payload?.visibleActions)?payload.visibleActions.slice(0,8):[],evidencePath:safe(payload?.evidencePath).slice(0,300),evidenceSha256:safe(payload?.evidenceSha256).slice(0,64)})
   const nextAttempt = m.terminal || !m.delay ? null : now + m.delay
   const route = ('vm_browser_' + (platform || 'web').toLowerCase().replace(/[^a-z0-9]+/g,'_')).slice(0,120)
   const sentAt = m.application === 'sent' ? now : null

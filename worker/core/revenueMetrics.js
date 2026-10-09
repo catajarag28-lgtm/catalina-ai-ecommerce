@@ -73,11 +73,11 @@ export async function channelMetrics(env, days = 30, now = Date.now()) {
   ch.intent_signals = { discovered: n(iDisc), qualified: n(iQual), prepared: 0, submitted: 0, delivered: 0, opened: null, reply: 0, positive_reply: 0, meeting: 0 }
   ch.warm_network = { discovered: 0, qualified: 0, prepared: 0, submitted: 0, delivered: 0, opened: null, reply: 0, positive_reply: 0, meeting: 0 }
   // Revenue real (deals) y costo de IA atribuido por tarea.
-  const deals = (await env.DB.prepare('SELECT channel, COUNT(*) won, SUM(amount_usd) revenue FROM deals WHERE won_at>=? GROUP BY channel').bind(since).all().catch(() => ({ results: [] }))).results || []
+  const deals = (await env.DB.prepare('SELECT channel, SUM(CASE WHEN signed_at>=? THEN 1 ELSE 0 END) won, SUM(CASE WHEN signed_at>=? THEN signed_amount_usd ELSE 0 END) revenue, SUM(CASE WHEN deposit_received_at>=? THEN deposit_amount_usd ELSE 0 END) deposits_collected_usd FROM commercial_deals WHERE signed_at>=? OR deposit_received_at>=? GROUP BY channel').bind(since,since,since,since,since).all().catch(() => ({ results: [] }))).results || []
   const costs = (await env.DB.prepare('SELECT task, SUM(cost) c FROM ai_calls WHERE at>=? GROUP BY task').bind(since).all().catch(() => ({ results: [] }))).results || []
   const taskChannel = t => /^outreach\.|^discovery\.|^angle\./.test(t) ? 'direct_outbound' : /^freelancer\./.test(t) ? 'project_bids' : /^intent\.search|^business\./.test(t) ? 'intent_signals' : /^intent\.|^application\.|^browser\./.test(t) ? 'job_applications' : null
-  for (const k of Object.keys(ch)) { ch[k].proposal_requested = 0; ch[k].won = 0; ch[k].revenue = 0; ch[k].ai_cost = 0 }
-  for (const d of deals) if (ch[d.channel]) { ch[d.channel].won = Number(d.won || 0); ch[d.channel].revenue = Number(d.revenue || 0) }
+  for (const k of Object.keys(ch)) { ch[k].proposal_requested = 0; ch[k].won = 0; ch[k].revenue = 0; ch[k].deposits_collected_usd = 0; ch[k].ai_cost = 0 }
+  for (const d of deals) if (ch[d.channel]) { ch[d.channel].won = Number(d.won || 0); ch[d.channel].revenue = Number(d.revenue || 0); ch[d.channel].deposits_collected_usd = Number(d.deposits_collected_usd || 0) }
   for (const c of costs) { const k = taskChannel(c.task); if (k) ch[k].ai_cost = +(ch[k].ai_cost + Number(c.c || 0)).toFixed(5) }
   const pct = (a, b) => b ? +(a / b).toFixed(4) : null
   for (const [k, m] of Object.entries(ch)) {
@@ -141,7 +141,7 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   }
   // Applications are an independent demand engine and are never cut by outbound capacity.
   rows.sort((a, b) => b.evPerAction - a.evPerAction)
-  const allocation = { at: new Date(now).toISOString(), dailyActions, expectedRevenuePerDay: +rows.reduce((a, r) => a + r.actions * r.evPerAction, 0).toFixed(2), channels: rows }
+  const allocation = { at: new Date(now).toISOString(), dailyActions, expectedRevenuePerDay: +rows.reduce((a, r) => a + r.actions * r.evPerAction, 0).toFixed(2), forecastOnly: true, channels: rows }
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('capacity_allocation',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(allocation), now).run().catch(() => {})
   return allocation
 }

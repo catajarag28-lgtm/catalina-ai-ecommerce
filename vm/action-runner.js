@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fieldKind, pageBlocker, freshEnough } from './application-policy.js';
 
 const DATA = process.env.CAROLINA_DATA || '/data';
 const PROFILE = process.env.CAROLINA_AUTH_PROFILE || '/data/browser-profile';
@@ -101,11 +102,11 @@ function validCandidate(x,{canonical=false}={}){
   const p=platformKey(x.platform);
   const canonicalProposal=String(x.proposal||'').trim();
   if(canonicalProposal.split(/\s+/).length<80) return false;
-  if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url)) return false;
+  if(!url || FALSE_TITLE_RX.test(title) || FALSE_URL_RX.test(url) || !freshEnough(x)) return false;
   // La cola canónica ya pasó scoring + quality gate. No volver a descartarla por un regex pobre del título.
   if(!canonical && !RELEVANT_RX.test(`${title} ${url}`)) return false;
   // LinkedIn: no depender de easyApply del discovery. La página real decide si es Easy Apply, Apply externo o requiere humano.
-  if(p==='linkedin' && !/linkedin\.com\/jobs\/view\//i.test(url)) return false;
+  if(p==='linkedin') return false; // LinkedIn account automation is not an allowed route.
   if((p==='n8n'||p==='make') && (!/\/t\//i.test(url) || !HIRING_COMMUNITY_RX.test(title))) return false;
   if(p==='workana') return false;
   if(!sessionConnected(p)) return false;
@@ -144,7 +145,10 @@ async function clickByText(page, rx){
     const el=els.nth(i);
     if(!(await el.isVisible().catch(()=>false)) || await el.isDisabled().catch(()=>true)) continue;
     const txt=((await el.innerText().catch(()=>'')) || (await el.getAttribute('value').catch(()=>'')) || (await el.getAttribute('aria-label').catch(()=>'')) || '').trim().replace(/\s+/g,' ');
-    if(txt && rx.test(txt)){ await el.click({timeout:5000}).catch(()=>{}); return txt; }
+    if(txt && rx.test(txt)){
+      const clicked=await el.click({timeout:5000}).then(()=>true).catch(()=>false);
+      if(clicked) return txt;
+    }
   }
   return '';
 }
@@ -163,31 +167,33 @@ async function clickApplyRoute(page,p){
       if(!applyText) continue;
       if(tag==='A' && href && /linkedin\.com\/jobs\/view\//i.test(href)) continue;
       if(href && /^https?:\/\//i.test(href)){ await page.goto(href,{waitUntil:'domcontentloaded',timeout:45000}); return txt; }
-      await el.click({timeout:5000}).catch(()=>{}); return txt;
+      const clicked=await el.click({timeout:5000}).then(()=>true).catch(()=>false);
+      if(clicked) return txt;
     }
     return '';
   }
   return clickByText(page,PRE_APPLY_RX);
 }
 async function fillProposal(page, text){
-  let filled=0;
-  const areas=page.locator('textarea');
-  for(let i=0;i<Math.min(await areas.count(),3);i++){
-    const el=areas.nth(i);
-    if(await el.isVisible().catch(()=>false) && !(await el.isDisabled().catch(()=>true))){
-      const existing=await el.inputValue().catch(()=> '');
-      if(!existing.trim()){ await el.fill(text).catch(()=>{}); filled++; }
-    }
+  const fields=page.locator('textarea,[contenteditable="true"]');
+  const matches=[];
+  for(let i=0;i<Math.min(await fields.count(),12);i++){
+    const el=fields.nth(i);
+    if(!(await el.isVisible().catch(()=>false)) || await el.isDisabled().catch(()=>true)) continue;
+    const label=await el.evaluate(e=>[
+      e.getAttribute('aria-label'),e.getAttribute('placeholder'),e.getAttribute('name'),
+      e.labels?.[0]?.innerText,e.closest('fieldset')?.querySelector('legend')?.innerText,
+      e.closest('[class*=question],[class*=field],[data-test]')?.innerText?.slice(0,150)
+    ].filter(Boolean).join(' ')).catch(()=>'');
+    if(fieldKind(label)==='proposal') matches.push(el);
   }
-  const editables=page.locator('[contenteditable="true"]');
-  for(let i=0;i<Math.min(await editables.count(),2);i++){
-    const el=editables.nth(i);
-    if(await el.isVisible().catch(()=>false)){
-      const existing=(await el.innerText().catch(()=>''))||'';
-      if(!existing.trim()){ await el.fill(text).catch(()=>{}); filled++; }
-    }
-  }
-  return filled;
+  if(matches.length!==1) return {ready:false,reason:matches.length?'ambiguous_proposal_fields':'proposal_field_missing'};
+  const el=matches[0];
+  const existing=await el.inputValue().catch(()=>el.innerText().catch(()=>''));
+  if(existing.trim() && existing.trim()!==text.trim()) return {ready:false,reason:'proposal_field_has_other_text'};
+  if(!existing.trim()) await el.fill(text,{timeout:10000}).catch(()=>{});
+  const actual=await el.inputValue().catch(()=>el.innerText().catch(()=>''));
+  return {ready:actual.trim()===text.trim(),reason:'proposal_fill_not_verified'};
 }
 async function attachResume(page, lang='en'){
   const f=lang==='es'?CV_ES:CV_EN;
@@ -228,35 +234,13 @@ async function fillKnownIdentity(page){
   }
   return filled;
 }
-async function fillKnownPreferences(page){
-  const body=String(await page.locator('body').innerText().catch(()=>''));
-  const spanish=/españa|spain|euro|eur/i.test(body), chile=/chile|clp|santiago/i.test(body), texas=/texas|united states|usa|usd|hourly/i.test(body);
-  const monthly=spanish?'3500':chile?'3000000':'3500';
-  const annual=spanish?'42000':chile?'36000000':'42000';
-  const hourly=texas?'40':'40';
-  let filled=0;
-  const fields=page.locator('input[type=text],input[type=number],input[type=tel],select');
-  for(let i=0;i<Math.min(await fields.count(),40);i++){
-    const el=fields.nth(i); if(!(await el.isVisible().catch(()=>false))||await el.isDisabled().catch(()=>true)) continue;
-    const value=String(await el.inputValue().catch(()=>'')); if(value.trim()) continue;
-    const meta=String(await el.getAttribute('name').catch(()=>'')||'')+' '+String(await el.getAttribute('id').catch(()=> '')||'')+' '+String(await el.getAttribute('placeholder').catch(()=> '')||'');
-    const parent=String(await el.evaluate(e=>(e.labels?.[0]?.innerText||e.closest('fieldset')?.innerText||e.parentElement?.innerText||'').slice(0,240)).catch(()=>''));
-    const label=(meta+' '+parent).toLowerCase();
-    if(/current|previous|actual salary|salario actual|last drawn/.test(label)) continue;
-    if(/hourly|per hour|por hora|rate|tarifa/.test(label)){ await el.fill(hourly).catch(()=>{}); filled++; continue; }
-    if(/annual|yearly|per year|anual|por año/.test(label)){ await el.fill(annual).catch(()=>{}); filled++; continue; }
-    if(/salary|compensation|sueldo|salario|monthly|mensual/.test(label)){ await el.fill(monthly).catch(()=>{}); filled++; continue; }
-    if(/availability|full.?time|dedication|disponibilidad|jornada/.test(label) && await el.evaluate(e=>e.tagName==='SELECT').catch(()=>false)){
-      const opts=await el.locator('option').allTextContents().catch(()=>[]); const idx=opts.findIndex(x=>/full.?time|tiempo completo|full time/i.test(x)); if(idx>=0){await el.selectOption({label:opts[idx]}).catch(()=>{});filled++;}
-    }
-  }
-  return filled;
-}async function requiredUnknown(page){
+async function requiredUnknown(page){
   return page.locator('input,textarea,select').evaluateAll(els => els.filter(el=>{
     const visible=!!(el.offsetWidth||el.offsetHeight||el.getClientRects().length);
     if(!visible || el.disabled || !el.required) return false;
     const type=(el.type||'').toLowerCase();
-    if(['hidden','submit','button','file','checkbox','radio'].includes(type)) return false;
+    if(['hidden','submit','button','file'].includes(type)) return false;
+    if(['checkbox','radio'].includes(type)) return el.validity.valueMissing;
     return !String(el.value||'').trim();
   }).map(el=>({tag:el.tagName,type:el.type||'',name:el.name||'',placeholder:el.placeholder||'',aria:el.getAttribute('aria-label')||'',label:(el.labels?.[0]?.innerText||el.closest('fieldset')?.querySelector('legend')?.innerText||el.closest('[class*=question],[class*=field],[data-test]')?.innerText||'').trim().slice(0,180)})).slice(0,12));
 }
@@ -273,7 +257,7 @@ async function actOn(page,item){
   let s=await snapshot(page);
   if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
   if(item.verifyOnly){ result.status='SUBMIT_CLICKED_UNCONFIRMED'; result.reason='reopened without a visible submission confirmation'; result.currentUrl=page.url(); return result; }
-  if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
+  if(pageBlocker(s.all) || BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=pageBlocker(s.all)||(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
   if(LOGIN_RX.test(s.title+' '+s.url) && /login|signin|auth/i.test(s.url)){ result.status='WAITING_HUMAN_LOGIN'; result.reason='session not accepted'; return result; }
   if(p==='n8n'||p==='make'){
     const emails=(s.body.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig)||[]).map(x=>x.toLowerCase());
@@ -290,10 +274,11 @@ async function actOn(page,item){
   for(let step=0;step<6;step++){
     s=await snapshot(page);
     if(/you applied|already applied|ya te postulaste/i.test(s.body) && attachConfirmation(result,s)){ result.status='ALREADY_APPLIED_OR_CONFIRMED'; result.reason='existing confirmation visible'; return result; }
-    if(BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
-    result.proposalFields=(result.proposalFields||0)+await fillProposal(page,proposal);
+    if(pageBlocker(s.all) || BLOCKER_RX.test(s.all)){ result.status='WAITING_HUMAN_BLOCKER'; result.reason=pageBlocker(s.all)||(s.all.match(BLOCKER_RX)||[])[0]||'security/cost blocker'; return result; }
+    const proposalResult=await fillProposal(page,proposal);
+    if(!proposalResult.ready){ result.status='WAITING_HUMAN_FIELDS'; result.reason=proposalResult.reason; result.currentUrl=page.url(); return result; }
+    result.proposalFields=1;
     result.identityFields=(result.identityFields||0)+await fillKnownIdentity(page);
-    result.preferenceFields=(result.preferenceFields||0)+await fillKnownPreferences(page);
     result.filesAttached=(result.filesAttached||0)+await attachResume(page,/españ|colombia|latam|méxico|automatiz/i.test(s.all)?'es':'en');
     await page.waitForTimeout(500);
     const unknown=await requiredUnknown(page);
@@ -375,7 +360,7 @@ async function main(){
     if(selected.length>=Math.min(RUN_LIMIT,Math.max(0,DAILY_LIMIT-confirmedToday.length))) break;
   }
   const context=await chromium.launchPersistentContext(PROFILE,{
-    headless:true,
+    headless:!process.env.DISPLAY,
     viewport:{width:1365,height:900},
     args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']
   });
@@ -385,6 +370,14 @@ async function main(){
       const page=await context.newPage();
       try{
         const r=await actOn(page,item);
+        if(['SUBMITTED_CONFIRMED','SUBMIT_CLICKED_UNCONFIRMED'].includes(r.status)){
+          const evidenceDir=path.join(DATA,'application-evidence');
+          fs.mkdirSync(evidenceDir,{recursive:true});
+          const name=crypto.createHash('sha256').update(r.url).digest('hex').slice(0,24)+'-'+Date.now()+'.png';
+          const evidencePath=path.join(evidenceDir,name);
+          const bytes=await page.screenshot({path:evidencePath,fullPage:true}).catch(()=>null);
+          if(bytes){ r.evidencePath=evidencePath; r.evidenceSha256=crypto.createHash('sha256').update(bytes).digest('hex'); }
+        }
         const saved=append(r);
         saved.workerSynced=await syncResult(saved);
         results.push(saved);
