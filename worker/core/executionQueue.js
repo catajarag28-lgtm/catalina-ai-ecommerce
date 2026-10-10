@@ -1,4 +1,5 @@
 // Cola comercial: sólo confirma envíos con evidencia externa o confirmación visible del ATS.
+import { commercialThroughputSnapshot } from './commercialThroughput.js'
 const DAY=86400000
 const safe=v=>String(v||'').slice(0,500)
 
@@ -139,5 +140,6 @@ export async function executionDashboard(env, now=Date.now()) {
     else if(/payment|connects|credit/.test(b))blocked.payment++
     else blocked.unsupported++
   }
-  return {today:{found,qualified,applicable,attempted,submittedConfirmed:confirmed,emailSent,delivered,bounced,failed,complained,replied,positiveResponses:null,meetings,proposals:null,contracts,revenue,depositsCollected,aiCost},blocked,actions,human}
+  const throughput=await commercialThroughputSnapshot(env,now).catch(e=>({error:String(e?.message||e).slice(0,180)}))
+  return {today:{found,qualified,applicable,attempted,submittedConfirmed:confirmed,emailSent,delivered,bounced,failed,complained,replied,positiveResponses:null,meetings,proposals:null,contracts,revenue,depositsCollected,aiCost},throughput,blocked,actions,human}
 }

@@ -1,5 +1,6 @@
 import { notifyCatalina } from './notify.js'
 import { allocateCapacity, targetsFromAllocation } from './revenueMetrics.js'
+import { commercialThroughputSnapshot } from './commercialThroughput.js'
 
 const DAY=86400000
 const PROFILE='https://soycatalinajaramillo.com/perfil-catalina.html'
@@ -42,6 +43,7 @@ export async function buildRevenuePlan(env, now=Date.now()){
   // Capacidad comercial total objetivo. No es cuota ciega: son carriles a llenar con acciones legÃ­timas.
   // Capacidad por INGRESO ESPERADO (Revenue Capacity Allocator); las cuotas fijas quedan solo como respaldo.
   const allocation=await allocateCapacity(env,{now}).catch(()=>null)
+  const throughput=await commercialThroughputSnapshot(env,now).catch(e=>({error:String(e?.message||e).slice(0,180)}))
   const targets=allocation?targetsFromAllocation(allocation):revenueTargets(paused)
   const actual={
     outbound:n(outbound),directApplications:n(direct),marketplaces:n(market),intent:n(intent),
@@ -53,6 +55,7 @@ export async function buildRevenuePlan(env, now=Date.now()){
     coldOutreachPaused:paused,
     pauseReason:control?.reason||'',
     targetQualifiedActions:Object.values(targets).reduce((a,b)=>a+b,0),
+    commercialThroughput:throughput,
     targets,actual,deficits,
     boostIntent:paused || deficits.intent>=3,
     boostMarketplaces:paused || deficits.marketplaces>=3,
