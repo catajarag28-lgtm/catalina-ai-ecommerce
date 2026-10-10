@@ -86,21 +86,15 @@ export async function outreachSnapshot(env, since=Date.now()-30*86400000) {
 export async function checkOutreachHealth(env, now=Date.now()) {
   const control=await env.DB.prepare('SELECT paused,reason,updated_at FROM outreach_control WHERE id=1').first()
   const complaints=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.complained' AND occurred_at>=?").bind(now-14*86400000).first()
-  if (control?.paused) {
-    // Una pausa por rebotes no puede quedar eterna sin aviso: tras 72 h sin quejas se reanuda sola.
-    // Las quejas de spam y las pausas por falta de interés siguen requiriendo revisión humana.
-    const bouncePause=/^Quejas o rebotes/.test(control.reason||'')
-    if (!bouncePause || (complaints?.n||0)>0 || now-Number(control.updated_at||now)<72*3600000) return {paused:true,reason:control.reason}
-    await env.DB.prepare('UPDATE outreach_control SET paused=0,reason=?,updated_at=? WHERE id=1').bind('Reanudada tras 72 h sin quejas',now).run()
-    await notifyCatalina(env,'Prospección reanudada','La pausa por rebotes cumplió 72 h sin quejas de spam. Carolina reanuda los correos nuevos; los rebotados quedaron suprimidos y la regla vigila 7 días móviles.').catch(()=>{})
-  }
-  // Ventana de 7 días y muestra mínima: con 20 envíos, un solo rebote (5%) no debe detener la máquina.
-  // Tras corregir la causa de los rebotes (bounce_reset_at) la ventana arranca ahí: los rebotes viejos ya están suprimidos.
-  const reset=Number((await env.DB.prepare('SELECT bounce_reset_at FROM outreach_control WHERE id=1').first().catch(()=>null))?.bounce_reset_at||0)
-  const since7=Math.max(now-7*86400000,reset)
+  // Nunca reanudar automáticamente por tiempo transcurrido. Una pausa por rebotes o
+  // quejas exige revisión explícita de causa, proveedor de verificación y reputación.
+  if (control?.paused) return {paused:true,reason:control.reason}
+  // Mantener ventana móvil real de siete días: ninguna reanudación manual puede
+  // esconder eventos históricos mediante bounce_reset_at.
+  const since7=now-7*86400000
   const sent=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND id NOT LIKE 'test-%' AND sent_at>=?").bind(since7).first()
   const bounces=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(since7).first()
-  const bounces24=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(Math.max(now-86400000,reset)).first()
+  const bounces24=await env.DB.prepare("SELECT COUNT(*) AS n FROM outreach_events JOIN outreach ON outreach.id=outreach_events.outreach_id WHERE outreach.id NOT LIKE 'test-%' AND type='email.bounced' AND occurred_at>=?").bind(now-86400000).first()
   if ((complaints?.n||0)>0 || (bounces24?.n||0)>=3 || ((sent?.n||0)>=30 && (bounces?.n||0)*100/(sent.n)>=5)) {
     await pauseOutreach(env,'Quejas o rebotes por encima del umbral seguro (5% en 7 días o 3 en 24 h)')
     return {paused:true,reason:'delivery'}
