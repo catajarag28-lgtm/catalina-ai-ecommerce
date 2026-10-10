@@ -95,13 +95,13 @@ export async function channelMetrics(env, days = 30, now = Date.now()) {
 export async function allocateCapacity(env, { dailyActions = null, now = Date.now() } = {}) {
   dailyActions = Math.max(20, Math.min(150, Number(dailyActions ?? env.COMMERCIAL_ACTIONS_DAILY_TARGET ?? env.PROPOSAL_PREP_DAILY_TARGET ?? 40) || 40))
   const { channels } = await channelMetrics(env, 30, now)
-  const control = await env.DB.prepare('SELECT paused FROM outreach_control WHERE id=1').first().catch(() => ({ paused: 0 }))
+  const control = await env.DB.prepare('SELECT paused FROM outreach_control WHERE id=1').first().catch(() => ({ paused: 1 }))
   const blocked = {
     direct_outbound: control?.paused ? 'correo frío en pausa por entregabilidad' : null,
     partnerships: control?.paused ? 'correo frío en pausa por entregabilidad' : null,
     project_bids: (await channelLimited(env, 'freelancer', now)) ? 'Freelancer CHANNEL_LIMITED' : null,
     warm_network: 'Catalina no dispone de una red personal para prospectar; canal desactivado',
-    job_applications: null, intent_signals: null,
+    job_applications: null, intent_signals: 'discovery-only; not a provider-confirmed commercial action',
   }
   const rows = Object.entries(PRIORS).map(([k, p]) => {
     const m = channels[k] || {}
@@ -118,7 +118,7 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   const explore = Math.round(dailyActions * 0.1)
   for (const r of rows) r.actions = r.blocked ? 0 : Math.max(1, Math.round((dailyActions - explore) * r.evPerAction / total + explore / Math.max(1, open.length)))
   // Prioridad a demanda explícita: objetivo condicionado a rutas realmente ejecutables, nunca una ficción de envíos.
-  const appTarget = Math.ceil(dailyActions * 0.4)
+  const appTarget = open.length === 1 && open[0].channel === 'job_applications' ? dailyActions : Math.ceil(dailyActions * 0.4)
   const apps = rows.find(r => r.channel === 'job_applications')
   // Con auto-submit encendido, Carolina debe mantener una capacidad mínima real de postulaciones.
   if (autoSubmitAllowed(env)) { if (apps) {
