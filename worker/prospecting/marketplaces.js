@@ -35,7 +35,9 @@ export function freelancerBidAllowance(env={},hasVerifiedSubmission=false) {
   // A real provider_id stored in D1 is stronger evidence than a manual flag.
   // Until the first verified submission exists, allow attempts until one succeeds.
   if(env.FREELANCER_FIRST_BID_VERIFIED!=='true' && !hasVerifiedSubmission) return 1
-  const configured=Number(env.FREELANCER_DAILY_BID_LIMIT); return configured>0 ? configured : Infinity
+  // Never turn an unset daily bid cap into Infinity; platform quota and account restrictions still apply.
+  const configured=Number(env.FREELANCER_DAILY_BID_LIMIT)
+  return configured>0 ? Math.min(30,Math.floor(configured)) : 8
 }
 export function upworkReady(env={}) {
   // La API de Upwork sí permite enviar propuestas, pero Carolina solo se marca lista
@@ -398,9 +400,15 @@ export async function runMarketplaceAcquisition(env,now=Date.now()) {
 export async function marketplaceSnapshot(env) {
   await ensureTable(env)
   const rows=await env.DB.prepare("SELECT platform,status,COUNT(*) n FROM marketplace_submissions GROUP BY platform,status").all()
+  const freelancerLimit=await channelLimited(env,'freelancer')
   return {
     freelancerReady:freelancerReady(env),
     freelancerBidScopeVerified:env.FREELANCER_BID_SCOPE_VERIFIED==='true',
+    freelancerCredentialConfigured:!!env.FREELANCER_OAUTH_TOKEN,
+    freelancerChannelLimited:!!freelancerLimit,
+    freelancerChannelLimitReason:freelancerLimit?.reason||null,
+    freelancerChannelLimitUntil:freelancerLimit?.until||null,
+    freelancerDailyBidCap:freelancerBidAllowance(env,true),
     upworkReady:upworkReady(env),
     stats:rows.results||[]
   }
