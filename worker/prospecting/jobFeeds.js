@@ -10,6 +10,12 @@ export const PROFILE_REJECT = /software engineer|back-?end|front-?end|full-?stac
 // Catalina no es ingeniera de software: un puesto de "engineer/developer" solo entra si es de automatización o implementación.
 export const profileFit = t => PROFILE_FIT.test(t) && !PROFILE_REJECT.test(t) && (!/engineer|developer|scientist|evaluator|reviewer|annotat|tutor/i.test(t) || /automation|automatizaci|n8n|zapier|no-?code|implementation|solutions/i.test(t))
 const strip = h => String(h || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&amp;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim()
+export const expiredJob = (job, now = Date.now()) => {
+  const value = job.expiresAt || job.expirationDate || job.expiryDate || job.validThrough || job.deadline
+  if (!value) return false
+  const expiry = Date.parse(String(value))
+  return Number.isFinite(expiry) && expiry < now
+}
 
 async function getJson(url) {
   const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) }).catch(() => null)
@@ -18,19 +24,19 @@ async function getJson(url) {
 
 export async function fetchJobFeeds() {
   const items = []
-  const push = j => { if (j.url && j.title && profileFit(j.title)) items.push(j) }
+  const push = j => { if (j.url && j.title && profileFit(j.title) && !expiredJob(j)) items.push(j) }
   for (const q of ['automation', 'ecommerce', 'customer success', 'operations', 'crm']) {
     const d = await getJson('https://remotive.com/api/remote-jobs?limit=40&search=' + encodeURIComponent(q))
-    for (const j of d?.jobs || []) push({ platform: 'remotive', url: j.url, title: j.title, company: j.company_name, location: j.candidate_required_location, description: strip(j.description).slice(0, 6000), tags: (j.tags || []).join(' ') })
+    for (const j of d?.jobs || []) push({ platform: 'remotive', url: j.url, title: j.title, company: j.company_name, location: j.candidate_required_location, description: strip(j.description).slice(0, 6000), expiresAt: j.expiration_date || j.expires_at, tags: (j.tags || []).join(' ') })
   }
   const h = await getJson('https://himalayas.app/jobs/api?limit=100')
-  for (const j of h?.jobs || []) push({ platform: 'himalayas', url: j.guid || j.applicationLink, title: j.title, company: j.companyName, location: (j.locationRestrictions || []).join(', ') || 'Remote', description: strip(j.description).slice(0, 6000), applyUrl: j.applicationLink, tags: (j.categories || []).join(' ') })
+  for (const j of h?.jobs || []) push({ platform: 'himalayas', url: j.guid || j.applicationLink, title: j.title, company: j.companyName, location: (j.locationRestrictions || []).join(', ') || 'Remote', description: strip(j.description).slice(0, 6000), applyUrl: j.applicationLink, expiresAt: j.expirationDate || j.expiresAt, tags: (j.categories || []).join(' ') })
   for (const tag of ['automation', 'ecommerce', 'marketing', 'customer-success']) {
     const d = await getJson('https://jobicy.com/api/v2/remote-jobs?count=50&tag=' + tag)
-    for (const j of d?.jobs || []) push({ platform: 'jobicy', url: j.url, title: j.jobTitle, company: j.companyName, location: j.jobGeo, description: strip(j.jobDescription).slice(0, 6000), tags: [].concat(j.jobIndustry || []).join(' ') })
+    for (const j of d?.jobs || []) push({ platform: 'jobicy', url: j.url, title: j.jobTitle, company: j.companyName, location: j.jobGeo, description: strip(j.jobDescription).slice(0, 6000), expiresAt: j.expirationDate || j.expiresAt, tags: [].concat(j.jobIndustry || []).join(' ') })
   }
   const ro = await getJson('https://remoteok.com/api')
-  for (const j of (Array.isArray(ro) ? ro.slice(1) : [])) push({ platform: 'remoteok', url: j.url, title: j.position, company: j.company, location: j.location || 'Remote', description: strip(j.description).slice(0, 6000), applyUrl: j.apply_url, tags: (j.tags || []).join(' ') })
+  for (const j of (Array.isArray(ro) ? ro.slice(1) : [])) push({ platform: 'remoteok', url: j.url, title: j.position, company: j.company, location: j.location || 'Remote', description: strip(j.description).slice(0, 6000), applyUrl: j.apply_url, expiresAt: j.expirationDate || j.expires_at, tags: (j.tags || []).join(' ') })
   const seen = new Set()
   return items.filter(j => { const k = String(j.url).split('?')[0]; if (!/^https:\/\//.test(k) || seen.has(k)) return false; seen.add(k); return true })
 }

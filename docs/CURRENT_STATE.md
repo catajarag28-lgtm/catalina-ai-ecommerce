@@ -4,6 +4,7 @@ Fuente única de verdad de la arquitectura activa. Laura pertenece a Professiona
 
 ## Dónde corre
 - **Cloudflare Worker `carolina-portfolio-api`** en `soycatalinajaramillo.com`: crons `*/15` (ciclo completo) y `7,37` (envíos), D1 `carolina-portfolio`, Browser Run y KV de sesiones. No depende de Laura ni de la PC para ejecutar postulaciones.
+- **Google Cloud propio de Carolina**: proyecto `project-b6f40d8a-4ecd-4a7d-831` (nombre visible `Carolina AI Acquisition`), separado del proyecto de Laura. Está vacío de buckets y datasets; Compute Engine no está habilitado y no hay VM. Comparte la cuenta de facturación, por lo que crear una VM requiere verificar un límite de gasto real antes de activarla.
 - **VM `laura` de Professional Glam**: los temporizadores `carolina-application-runner.timer`, `carolina-cloud-runner.timer` y `carolina-linkedin-discover.timer` quedaron deshabilitados el 9 de octubre. No ejecutar Carolina allí. Los archivos históricos de Carolina no se borraron para preservar datos hasta una migración separada.
 - **Puente `/ops/vm-*`**: responde 410 salvo que exista una VM dedicada a Carolina y se configure `CAROLINA_DEDICATED_VM_ENABLED=true`. Los scripts de `vm/` rechazan el host `laura`.
 

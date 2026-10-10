@@ -31,3 +31,11 @@ test('feed failure records error so the next slot can retry',async()=>{
   assert.equal(result.error,'temporary_source_failure');
   assert.ok(DB.writes.some(x=>x.args[0]==='error:temporary_source_failure'));
 });
+
+test('expired vacancy dates are rejected', async()=>{
+  const {expiredJob}=await import('../worker/prospecting/jobFeeds.js');
+  const now=Date.parse('2026-10-09T17:00:00Z');
+  assert.equal(expiredJob({expiresAt:'2026-10-08T23:59:00Z'},now),true);
+  assert.equal(expiredJob({expiresAt:'2026-10-12T23:59:00Z'},now),false);
+  assert.equal(expiredJob({},now),false);
+});

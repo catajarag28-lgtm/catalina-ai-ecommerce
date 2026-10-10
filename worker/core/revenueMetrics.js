@@ -93,7 +93,7 @@ export async function channelMetrics(env, days = 30, now = Date.now()) {
 
 /** Ingreso esperado por acción y reparto de capacidad diaria. Canales bloqueados reciben 0. */
 export async function allocateCapacity(env, { dailyActions = null, now = Date.now() } = {}) {
-  dailyActions = Math.max(20, Math.min(120, Number(dailyActions ?? env.PROPOSAL_PREP_DAILY_TARGET ?? 40) || 40))
+  dailyActions = Math.max(20, Math.min(150, Number(dailyActions ?? env.COMMERCIAL_ACTIONS_DAILY_TARGET ?? env.PROPOSAL_PREP_DAILY_TARGET ?? 40) || 40))
   const { channels } = await channelMetrics(env, 30, now)
   const control = await env.DB.prepare('SELECT paused FROM outreach_control WHERE id=1').first().catch(() => ({ paused: 0 }))
   const blocked = {
@@ -117,13 +117,14 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
   // 10% de exploración repartida para no abandonar un canal antes de tener datos.
   const explore = Math.round(dailyActions * 0.1)
   for (const r of rows) r.actions = r.blocked ? 0 : Math.max(1, Math.round((dailyActions - explore) * r.evPerAction / total + explore / Math.max(1, open.length)))
-  const appTarget = 0
+  // Prioridad a demanda explícita: objetivo condicionado a rutas realmente ejecutables, nunca una ficción de envíos.
+  const appTarget = Math.ceil(dailyActions * 0.4)
   const apps = rows.find(r => r.channel === 'job_applications')
   // Con auto-submit encendido, Carolina debe mantener una capacidad mínima real de postulaciones.
   if (autoSubmitAllowed(env)) { if (apps) {
     const available=await q(env, "SELECT COUNT(*) n FROM execution_queue WHERE state IN ('APPLICATION_PREPARED','SUBMISSION_ATTEMPTED') AND channel IN ('direct_email','public_ats')")
     const executable=Math.max(0,n(available))
-    apps.actions=Math.max(apps.actions,executable)
+    apps.actions=Math.max(apps.actions,Math.min(appTarget,executable))
     apps.executableCapacity=executable
     apps.unmetDemand=Math.max(0,appTarget-executable)
     apps.note=`${executable} rutas ejecutables verificadas; faltan ${apps.unmetDemand} para la meta. Buscar más demanda explícita con canal real.`
@@ -139,7 +140,8 @@ export async function allocateCapacity(env, { dailyActions = null, now = Date.no
     const cut = Math.min(overflow, Math.max(0, r.actions - floor))
     r.actions -= cut; overflow -= cut
   }
-  // Applications are an independent demand engine and are never cut by outbound capacity.
+  // El reparto nunca puede superar la capacidad diaria configurada, incluso con una cola ejecutable grande.
+  if (overflow > 0 && apps) { const cut=Math.min(overflow,apps.actions); apps.actions-=cut; overflow-=cut }
   rows.sort((a, b) => b.evPerAction - a.evPerAction)
   const allocation = { at: new Date(now).toISOString(), dailyActions, expectedRevenuePerDay: +rows.reduce((a, r) => a + r.actions * r.evPerAction, 0).toFixed(2), forecastOnly: true, channels: rows }
   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES ('capacity_allocation',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(allocation), now).run().catch(() => {})
